@@ -1,0 +1,35 @@
+schema_version = "1.4"
+
+[metadata]
+name = "search-notes-v1"
+group = "notes-workflow"
+source_kind = "original"
+source_repository = "https://github.com/devonsagr/1"
+license = "MIT"
+status = "local-source-not-yet-published"
+description = "修复笔记过滤，复用现有文本规范化工具。公开源码准备完成；尚未上传。"
+
+[agent]
+timeout_sec = 300
+network_mode = "allowlist"
+allowed_hosts = ["chatgpt.com", "*.openai.com"]
+
+[environment]
+build_timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+network_mode = "public"
+
+[verifier]
+timeout_sec = 45
+environment_mode = "separate"
+network_mode = "no-network"
+
+[verifier.environment]
+docker_image = "chb-verifier:search-notes-v1"
+network_mode = "no-network"
+
+[[artifacts]]
+source = "/app"
+destination = "candidate"
+exclude = [".git", "__pycache__", ".pytest_cache"]
