@@ -8,17 +8,17 @@
 |---|---|---|
 |模型|`--model`|实验层固定请求标识；不保证后端权重不变|
 |推理强度|`model_reasoning_effort`|当前白名单 low/medium/high/xhigh；实验内一致|
-|全局指令|CODEX_HOME 下优先 AGENTS.override.md，否则 AGENTS.md|只装载快照 AGENTS.md；校验上传哈希|
+|全局指令|CODEX_HOME 下优先 AGENTS.override.md，否则 AGENTS.md|部分导入按非空 override 优先；容器只装载快照 AGENTS.md 并校验哈希|
 |项目指令|项目根到当前工作目录的分层发现|题目固定 /app/AGENTS.md|
-|skills|仓库 `.agents/skills`、用户 `$HOME/.agents/skills` 等|可注入本地显式 skill 目录；不自动复制宿主 skills；真实使用不由上传推断|
+|skills|仓库 `.agents/skills`、用户 `$HOME/.agents/skills` 等|显式选择并复制目录，逐轮校验哈希；成功输出完整 SKILL.md 作为读取证据，不能由上传推断使用|
 |原生配置|config.toml、CLI override、profile 文件|仅开放已列白名单；不是任意 TOML 透传|
 |配置校验|`--strict-config`|真实运行附加该参数；未知字段不能静默接受|
 |搜索|`web_search`|固定 disabled|
 |MCP|原生 MCP 配置存在|本 MVP 不支持，遇到字段拒绝|
 |权限|CLI sandbox/approval 等|由 Harbor 容器承担外层隔离；容器内使用上游 adapter 执行策略；未提供用户可切换实验权限|
 |非交互|`codex exec --json`|Harbor 执行与采集 JSONL|
-|续接|`codex exec resume <SESSION_ID>`；Harbor resume capability|接口核实，当前单题单轮未验收续接|
-|用量|JSONL turn.completed usage|从实际事件提取，缺失 null|
+|续接|`codex exec resume --last`；Harbor resume_trajectory|两轮题在同容器续接；以两轮 thread.started 的 session ID 核对，缺轮/不同 ID 不接受；实际验收见交接|
+|用量|JSONL turn.completed usage|单轮提取；多轮保留每轮原始值，累计语义未验证前不相加；缺失 null|
 |费用|订阅模式与 API 模式不同|不报告 API 估值为账单；当前费用 null|
 |hooks、子代理等|可能随 CLI 版本演进|本项目未支持，不暴露虚构设置|
 

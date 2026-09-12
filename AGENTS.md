@@ -10,10 +10,12 @@
 - 安装：`uv venv --python 3.13`，`uv sync --frozen`；依赖固定在 uv.lock。
 - 运行：`.venv\Scripts\python.exe -X utf8 -m chb.cli doctor`；其余入口见 README。
 - 测试：`.venv\Scripts\python.exe -X utf8 -m unittest discover -s tests -v`。
-- 容器题目验证：`.venv\Scripts\python.exe -X utf8 scripts/validate_task.py`，只运行 nop/oracle，不调用模型。
+- 容器题目验证：`.venv\Scripts\python.exe -X utf8 scripts/validate_task.py [--task storage-migration-v1]`，只运行 nop/oracle，不调用模型。
 - 语法检查：`.venv\Scripts\python.exe -m compileall -q src scripts tests`；无独立类型检查器。
 - 构建：`chb prepare` 构建容器；Python 包使用 `uv build`。
 - 产物：`runs/` 和 `.local/` 均仅本地保留，不提交模型轨迹、认证、私人配置或完整日记。
 - 真实试跑：只在容器中运行 Codex；不把项目根、个人 home、Docker socket 或验收器挂给 agent。更改 runner/profile/task 后必须建立新实验；不得改写历史结果。
-- 当前仅支持两个 profile、一道原创题；MCP、任意 Codex 设置、多轮题和统计显著性未验收前不可宣称支持。
+- 私有 profile 和导入来源回执：`.local/profiles/`、`.local/provenance/`；只允许显式选择技能目录，不修改宿主全局配置。恢复始终新建命名副本，不覆盖历史。
+- 当前支持两个 profile、每次一道原创题；单轮搜索与两轮存储迁移。多轮必须核对相同 session ID、逐轮验收和配置加载；不能将两轮计成两题。MCP、任意 Codex 设置和统计显著性未验收前不可宣称支持。
+- plan/题目自检为实际镜像创建 `chb-frozen:<内容摘要>` 保留标签；不自动 prune。镜像保留不代表跨设备可复现。
 - Harbor 管执行/隔离/验收；项目仅实现配置实验层。不要再造通用 agent runner。
