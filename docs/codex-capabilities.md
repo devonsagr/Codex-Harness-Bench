@@ -18,10 +18,12 @@
 |权限|CLI sandbox/approval 等|由 Harbor 容器承担外层隔离；容器内使用上游 adapter 执行策略；未提供用户可切换实验权限|
 |非交互|`codex exec --json`|Harbor 执行与采集 JSONL|
 |续接|`codex exec resume --last`；Harbor resume_trajectory|两轮题在同容器续接；以两轮 thread.started 的 session ID 核对，缺轮/不同 ID 不接受；实际验收见交接|
-|用量|JSONL turn.completed usage|单轮提取；多轮保留每轮原始值，累计语义未验证前不相加；缺失 null|
+|用量|JSONL turn.completed usage 与原生 session 的 token_count|单轮直接提取；0.154.0 多轮校验会话、历史前缀、计数单调和两种上报一致性后取增量/总量；缺证据或冲突为 null|
 |费用|订阅模式与 API 模式不同|不报告 API 估值为账单；当前费用 null|
 |hooks、子代理等|可能随 CLI 版本演进|本项目未支持，不暴露虚构设置|
 
 依据：[官方配置](https://learn.chatgpt.com/docs/config-file/config-basic)、[指令发现](https://learn.chatgpt.com/docs/agent-configuration/agents-md)、[skills](https://learn.chatgpt.com/docs/build-skills)、[非交互](https://learn.chatgpt.com/docs/non-interactive-mode)。
 
 skills 隔离不能只改 CODEX_HOME，因为用户 skills 还可能来自 HOME。本项目用新容器解决宿主配置污染；系统自带 skills 由固定二进制控制。容器镜像中不能包含个人目录、未来答案或任务外的 AGENTS 文件。
+
+本地累计语义证据：2026-09-12 的存储迁移实验，两套配置第二轮原生 token_count 历史均包含第一轮前缀，CLI 末值与原生累计末值一致。此判断只覆盖固定 0.154.0 和本工具的新会话/续接协议；不保证其他版本、加载外部历史或多个原生 session 的用量可以照搬。旧实验通过 `analyze` 生成新的派生报告，原记录不改写。
