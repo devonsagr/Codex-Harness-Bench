@@ -16,6 +16,7 @@ from chb.profiles import digest, files_in, freeze, read_json, validate_profile, 
 from chb.report import render
 from chb.configuration import clone_profile, import_current, resolve_profile, restore_profile
 from chb.results import summarize_trial
+from chb.analysis import analyze_experiment
 
 ROOT = Path(__file__).resolve().parents[2]
 IMAGE = "chb-smoke:codex-0.154.0"
@@ -24,7 +25,7 @@ CODEX_VERSION = "0.154.0"
 
 
 def task_settings(name):
-    if name not in {"search-notes-v1", "storage-migration-v1"}:
+    if name not in {"search-notes-v1", "storage-migration-v1", "csv-catalog-v1"}:
         raise ValueError("Unknown task")
     image = IMAGE if name == "search-notes-v1" else f"chb-{name}:codex-{CODEX_VERSION}"
     return ROOT / "tasks" / name, image, f"chb-verifier:{name}"
@@ -135,7 +136,7 @@ def make_plan(args):
     write_json(directory / "plan.json", plan)
     (directory / "profile-diff.txt").write_text(profile_diff(*paths), encoding="utf-8")
     render(directory)
-    print(json.dumps({"experiment": str(directory), "trials": len(trials), "model": args.model,
+    print(json.dumps({"experiment": str(directory), "trials": len(trials), "agent_turns": plan["planned_agent_turns"], "model": args.model,
                       "max_total_agent_seconds": plan["max_total_agent_seconds"], "model_calls_started": 0}, ensure_ascii=False, indent=2))
 
 
@@ -212,6 +213,8 @@ def main():
     run.add_argument("experiment", type=Path)
     report = sub.add_parser("report")
     report.add_argument("experiment", type=Path)
+    analyze = sub.add_parser("analyze", help="Reanalyze finished local logs into a new report; no model calls or history writes")
+    analyze.add_argument("experiment", type=Path)
     config = sub.add_parser("config", help="Create private profiles without changing your Codex settings")
     operations = config.add_subparsers(dest="operation", required=True)
     current = operations.add_parser("import-current")
@@ -245,6 +248,8 @@ def main():
                 return 1
         elif args.command == "report":
             print(render(args.experiment))
+        elif args.command == "analyze":
+            print(analyze_experiment(ROOT, args.experiment))
         elif args.command == "config":
             if args.operation == "import-current":
                 result = import_current(ROOT, args.name, reasoning=args.reasoning)

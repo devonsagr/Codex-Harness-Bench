@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from chb.profiles import read_json
+from chb.usage import reconcile_usage
 
 
 def phase_seconds(raw, name):
@@ -64,7 +65,7 @@ def summarize_step(raw, agent_dir, profile, profile_dir=None):
                 item = event.get("item") or {}
                 if (event.get("type") == "item.completed" and item.get("type") == "command_execution"
                         and item.get("exit_code") == 0 and f"{skill.parent.name}/SKILL.md" in item.get("command", "")
-                        and expected in item.get("aggregated_output", "")):
+                        and expected in item.get("aggregated_output", "").replace("\r\n", "\n")):
                     matches.append(item.get("id"))
             reads.append({"skill": skill.parent.name, "complete_read_output_observed": bool(matches), "event_ids": matches})
     threads = [event.get("thread_id") for event in events if event.get("type") == "thread.started"]
@@ -73,7 +74,7 @@ def summarize_step(raw, agent_dir, profile, profile_dir=None):
             "profile_marker_observed": any(f"CHB_PROFILE={profile}" in message for message in messages),
             "effective_profile_evidence": evidence is not None, "profile_load_index": (evidence or {}).get("load_index"),
             "loaded_skills": sorted((evidence or {}).get("skills", {})), "skill_reads": reads,
-            "skill_use_claim": "Successful tool output contains the selected SKILL.md; this does not prove internal compliance",
+            "skill_read_definition": "A read requires successful output containing the complete SKILL.md; reading does not prove internal compliance",
             "session_id": threads[-1] if threads else None, "reported_usage": usage,
             "input_tokens": usage.get("input_tokens"), "output_tokens": usage.get("output_tokens"),
             "cached_input_tokens": usage.get("cached_input_tokens"), "error": error}
@@ -97,13 +98,14 @@ def summarize_trial(directory, profile):
     configured_steps = plan.get("step_names", [])
     raw_steps = raw.get("step_results") or []
     if raw_steps or configured_steps:
-        steps = []
+        steps, agent_dirs = [], []
         for step in raw_steps:
             name = step["step_name"]
             result = summarize_step(step, trial_dir / "steps" / name / "agent", profile, profile_dir)
             result["name"] = name
             result["evidence_path"] = (trial_dir / "steps" / name).relative_to(directory).as_posix()
             steps.append(result)
+            agent_dirs.append(trial_dir / "steps" / name / "agent")
         expected = configured_steps or [step["name"] for step in steps]
         complete = [step["name"] for step in steps] == expected and bool(steps)
         status = next((step["status"] for step in steps if step["status"] != "completed"), "completed")
@@ -113,6 +115,14 @@ def summarize_trial(directory, profile):
         continuity = complete and all(ids) and len(set(ids)) == 1
         if status == "completed" and not continuity:
             status = "protocol_error"
+        accounting = reconcile_usage(steps, agent_dirs, len(expected))
+        for index, step in enumerate(steps):
+            # Original CLI values remain in reported_usage; public per-step values
+            # now mean increments, and never silently fall back to cumulative.
+            delta = accounting["turn_deltas"][index] if accounting["status"] == "verified_cumulative" else {}
+            for key in ("input_tokens", "cached_input_tokens", "output_tokens"):
+                step[key] = delta.get(key)
+            step["usage_kind"] = "verified_increment" if delta else "unavailable"
         result = {"status": status, "accepted": all(step["accepted"] is True for step in steps) if status == "completed" else None,
                   "steps": steps, "expected_steps": expected, "completed_steps": len(steps),
                   "session_continuity_observed": continuity,
@@ -121,10 +131,8 @@ def summarize_trial(directory, profile):
                   "effective_profile_evidence": complete and all(step["effective_profile_evidence"] for step in steps),
                   "profile_marker_observed": complete and all(step["profile_marker_observed"] for step in steps),
                   "error": raw.get("exception_info"),
-                  # Resumed Codex may report cumulative usage. Preserve each raw value,
-                  # but do not sum until semantics are verified for the pinned version.
-                  "input_tokens": None, "output_tokens": None, "cached_input_tokens": None,
-                  "usage_note": "Per-turn reported usage is in steps; aggregate unavailable pending resumed-usage semantics verification",
+                  **accounting["totals"], "usage_accounting": accounting,
+                  "usage_note": "Raw cumulative values remain in reported_usage; verified per-turn values are adjacent differences",
                   "verifier_environment_mode": "separate" if plan.get("verifier", "").startswith("separate") else None,
                   "verifier_mode_evidence": "frozen task protocol; per-step verifier logs in evidence_path"}
     else:

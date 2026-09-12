@@ -1,0 +1,35 @@
+schema_version = "1.4"
+
+[metadata]
+name = "csv-catalog-v1"
+group = "catalog-import"
+source_kind = "original"
+source_repository = "https://github.com/devonsagr/1"
+license = "MIT"
+status = "local-source-not-yet-published"
+description = "Streaming CSV parsing, atomic output replacement, and CLI regression in a standalone catalog importer."
+
+[agent]
+timeout_sec = 300
+network_mode = "allowlist"
+allowed_hosts = ["chatgpt.com", "*.openai.com"]
+
+[environment]
+build_timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+network_mode = "public"
+
+[verifier]
+timeout_sec = 45
+environment_mode = "separate"
+network_mode = "no-network"
+
+[verifier.environment]
+docker_image = "chb-verifier:csv-catalog-v1"
+network_mode = "no-network"
+
+[[artifacts]]
+source = "/app"
+destination = "candidate"
+exclude = [".git", "__pycache__", ".pytest_cache"]
