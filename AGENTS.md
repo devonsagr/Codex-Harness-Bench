@@ -1,0 +1,19 @@
+# Codex Harness Bench 项目合同
+
+- 本地工程与 Git 根：`D:\AAAcodex项目\harnes测试`；origin 为 `https://github.com/devonsagr/1.git`。用户已明确本轮先本地实施，不上传。
+- 本地权威文档根：`docs/`。
+- 唯一需求保真记录：`docs/requirements.md`；完整输入的本地附件在 `.local/sources/2026-09-10.md`，不进入 Git。
+- 当前路线图：`docs/ROADMAP.md`；当前交接：`docs/当前交接.md`。
+- 当前架构：`docs/PROJECT_SPEC.md`；能力证据：`docs/codex-capabilities.md`；调研：`docs/research/landscape.md`。
+- Obsidian 镜像：本项目尚未指定镜像根；模式 none；声明文件集合为空。不回写日记或自动选择 Vault 目录。
+- Python：3.12+；本机项目环境 `.venv\Scripts\python.exe`，已使用 Python 3.13。
+- 安装：`uv venv --python 3.13`，`uv sync --frozen`；依赖固定在 uv.lock。
+- 运行：`.venv\Scripts\python.exe -X utf8 -m chb.cli doctor`；其余入口见 README。
+- 测试：`.venv\Scripts\python.exe -X utf8 -m unittest discover -s tests -v`。
+- 容器题目验证：`.venv\Scripts\python.exe -X utf8 scripts/validate_task.py`，只运行 nop/oracle，不调用模型。
+- 语法检查：`.venv\Scripts\python.exe -m compileall -q src scripts tests`；无独立类型检查器。
+- 构建：`chb prepare` 构建容器；Python 包使用 `uv build`。
+- 产物：`runs/` 和 `.local/` 均仅本地保留，不提交模型轨迹、认证、私人配置或完整日记。
+- 真实试跑：只在容器中运行 Codex；不把项目根、个人 home、Docker socket 或验收器挂给 agent。更改 runner/profile/task 后必须建立新实验；不得改写历史结果。
+- 当前仅支持两个 profile、一道原创题；MCP、任意 Codex 设置、多轮题和统计显著性未验收前不可宣称支持。
+- Harbor 管执行/隔离/验收；项目仅实现配置实验层。不要再造通用 agent runner。
