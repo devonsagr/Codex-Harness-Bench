@@ -5,6 +5,7 @@ from pathlib import Path
 
 from chb.profiles import read_json
 from chb.usage import reconcile_usage
+from chb.experiments import task_for_trial
 
 
 def phase_seconds(raw, name):
@@ -95,7 +96,9 @@ def summarize_trial(directory, profile):
     plan_file = directory.parent / "plan.json"
     plan = read_json(plan_file) if plan_file.is_file() else {}
     profile_dir = directory.parent / "inputs/profiles" / profile
-    configured_steps = plan.get("step_names", [])
+    planned_trial = next((trial for trial in plan.get("trials", []) if trial["id"] == directory.name), {})
+    task_name, task = task_for_trial(plan, planned_trial)
+    configured_steps = task["step_names"]
     raw_steps = raw.get("step_results") or []
     if raw_steps or configured_steps:
         steps, agent_dirs = [], []
@@ -138,7 +141,8 @@ def summarize_trial(directory, profile):
     else:
         result = summarize_step(raw, trial_dir / "agent", profile, profile_dir)
         result["verifier_environment_mode"] = raw.get("verifier_environment_mode")
-    result.update({"environment_seconds": phase_seconds(raw, "environment_setup"),
+    result.update({"task": task_name, "task_group": task["group"],
+                   "environment_seconds": phase_seconds(raw, "environment_setup"),
                    "agent_setup_seconds": phase_seconds(raw, "agent_setup"),
                    "cost_usd": None, "cost_kind": "unavailable; subscription usage is not an API bill",
                    "harbor_result": paths[0].relative_to(directory).as_posix()})
