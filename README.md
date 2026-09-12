@@ -2,7 +2,7 @@
 
 保存两套 Codex 配置，用相同任务和条件运行，并查看实际交付、耗时和证据。执行与容器隔离复用 [Harbor](https://github.com/harbor-framework/harbor)。
 
-当前为 **本地验证版**：示例与私有 profile、配置导入/复制/恢复、单轮搜索题、两轮存储迁移题、独立验收容器和逐轮 HTML 报告。源码准备开放但尚未推送；不是正式公开排行榜。
+当前为 **本地验证版**：示例与私有 profile、配置导入/复制/恢复、搜索/存储迁移/CSV 导入三个原创题型、独立验收容器、逐轮 HTML 和历史日志分析。源码准备开放但尚未推送；不是正式公开排行榜。
 
 ## 开始使用
 
@@ -74,7 +74,7 @@ Linux/macOS 把 `.venv\Scripts\python.exe` 换成 `.venv/bin/python`；目前真
 
 对照两套配置的全局说明与原生设置完全一致，只有选定 skill 和配置名称不同。两套配置都收到同样的题面；题面显式提示“若有 brainstorming 则使用”。这是显式使用的装载验证，不能据此推断自然触发概率或 skill 的普遍效果。
 
-报告分别展示上传文件哈希、完整 skill 读取输出、会话是否续接和逐轮验收。读取证据不代表每条指令都被遵循。多轮总 token 暂为 null：保留每轮原始上报用量，避免把续接的累计用量相加。
+报告分别展示上传文件哈希、完整 skill 读取输出、会话是否续接和逐轮验收。读取证据不代表每条指令都被遵循。多轮用量通过原生会话记录校验后，展示每轮增量和总量；缺失或冲突保留 null 并显示原因。
 
 ## 从历史实验恢复配置
 
@@ -83,6 +83,26 @@ Linux/macOS 把 `.venv\Scripts\python.exe` 换成 `.venv/bin/python`；目前真
 ```
 
 这会先校验旧快照，再创建新的私有配置。AGENTS、config 和 skill 内容逐字节保留，只有 profile.json 中的名称更新。不会覆盖历史实验，也不会把恢复结果写回你的 Codex 全局配置。模型、任务、运行版本仍由下一份实验计划固定。
+
+## 补算历史实验用量
+
+```powershell
+.venv\Scripts\python.exe -X utf8 -m chb.cli analyze runs/<实验编号>
+```
+
+不调用模型、不重跑任务。程序读取已结束的实验，在 `.local/analyses/<分析编号>/` 新建结果和 report.html。原实验的计划、验收、结果与报告保持不变；新报告记录来源文件哈希和分析代码快照，证据链接指向原始产物。如果重新解析改变了原来的通过/失败结论，会停止而非静默替换。
+
+针对固定 Codex 0.154.0，统计须确认每轮原生会话编号相同、第二轮的用量历史包含第一轮完整前缀、计数不回退，并与 CLI 最终上报一致。总量取最后累计值，每轮使用相邻累计值之差。**输入已经包含缓存输入，二者不能再次相加**。缺日志、未知版本、历史被改写或用量冲突时显示 — 和原因；不会当作零消耗或猜测账单。
+
+## 独立的 CSV 导入题
+
+```powershell
+.venv\Scripts\python.exe -X utf8 -m chb.cli prepare --task csv-catalog-v1
+.venv\Scripts\python.exe -X utf8 scripts/validate_task.py --task csv-catalog-v1
+.venv\Scripts\python.exe -X utf8 -m chb.cli plan --task csv-catalog-v1 --profiles my-agents,my-agents-skill --model openai/gpt-6-astra
+```
+
+这是一道单轮、独立代码起点的题，覆盖流式 CSV 解析、Unicode/BOM/引号换行、重复键和错误行、JSONL 原子替换及命令行回归。与笔记题不同，该题不点名要求读取某个 skill。它仍只是一个原创任务组，不代表已建立统计可信的综合榜单。运行依然需要另行执行生成计划对应的 `run` 命令。
 
 ## 验证与项目文档
 

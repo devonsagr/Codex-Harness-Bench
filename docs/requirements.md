@@ -62,7 +62,7 @@ R01–R19 编号沿用输入设计稿的需求索引；条目为对上述原话�
 - 当前有效：本地 Codex 专用、配置选择与固定条件、保存轨迹和结果、公开来源可追溯、少做额外平台。
 - 已落点：`src/chb/`、`profiles/`、`tasks/`、`docs/PROJECT_SPEC.md`、`docs/research/landscape.md`、`docs/codex-capabilities.md`。
 - 最小验证的实际回执以 `当前交接.md` 指向的记录为准；不能将“代码存在”写成“真实运行通过”。
-- 已新增落点：`configuration.py` 的部分导入/clone/restore、`results.py` 的逐轮证据、`tasks/storage-migration-v1` 的两轮归档与存储替换题。真实运行结果统一以当前交接为准。
+- 已新增落点：`configuration.py` 的部分导入/clone/restore、`results.py` 的逐轮证据、`usage.py` 的累计用量校验、`analysis.py` 的历史只读重分析，以及存储替换和 CSV 导入原创题。真实运行结果统一以当前交接为准。
 - 保留后续：MCP、完整个人配置导入与可移植导出、多样公开第三方题集、统计误差分析、完整结果交互展示；skill 自然触发概率和细微收益尚不作判断。
 - 原创题尚未上传，所以公开题条件仅完成可发布源码准备；正式公开基准成绩暂不存在。
 
