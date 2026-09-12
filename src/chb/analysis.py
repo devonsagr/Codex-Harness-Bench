@@ -7,10 +7,11 @@ import uuid
 from chb.profiles import freeze, read_json, verify_frozen, write_json
 from chb.report import render
 from chb.results import summarize_trial
+from chb.experiments import verify_task_inputs
 
 
 def source_manifest(experiment):
-    patterns = ["plan.json", "profile-diff.txt", "report.html", "inputs/**/*",
+    patterns = ["plan.json", "profile-diff.txt", "report.html", "comparison.json", "inputs/**/*",
                 "trial-*/result.json", "trial-*/harbor/*/*/result.json",
                 "trial-*/harbor/*/*/agent/**/*", "trial-*/harbor/*/*/steps/*/agent/**/*"]
     paths = sorted({path for pattern in patterns for path in experiment.glob(pattern) if path.is_file()})
@@ -26,7 +27,7 @@ def analyze_experiment(root, experiment):
     root = Path(root).resolve()
     experiment = Path(experiment).resolve()
     plan = read_json(experiment / "plan.json")
-    verify_frozen(experiment / "inputs/task", plan["task"])
+    verify_task_inputs(experiment, plan)
     for name, snapshot in plan["profiles"].items():
         verify_frozen(experiment / "inputs/profiles" / name, snapshot)
     originals = {}

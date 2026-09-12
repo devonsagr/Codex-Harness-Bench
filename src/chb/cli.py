@@ -17,6 +17,7 @@ from chb.report import render
 from chb.configuration import clone_profile, import_current, resolve_profile, restore_profile
 from chb.results import summarize_trial
 from chb.analysis import analyze_experiment
+from chb.experiments import arrange_trials, planned_tasks, task_for_trial, task_path, verify_task_inputs
 
 ROOT = Path(__file__).resolve().parents[2]
 IMAGE = "chb-smoke:codex-0.154.0"
@@ -89,9 +90,11 @@ def make_plan(args):
         raise ValueError("Native config differs: this protocol fixes reasoning and web search")
     if not re.fullmatch(r"[A-Za-z0-9._/-]+", args.model):
         raise ValueError("Invalid model identifier")
-    task_source, image_tag, verifier_tag = task_settings(args.task)
-    image = pin_image(image_tag)
-    verifier_image = pin_image(verifier_tag)
+    selected = [name.strip() for name in (getattr(args, "tasks", None) or args.task or "search-notes-v1").split(",")]
+    if len(set(selected)) != len(selected):
+        raise ValueError("Duplicate tasks are not independent samples")
+    sources = {name: task_settings(name) for name in selected}
+    images = {name: (pin_image(agent), pin_image(verifier)) for name, (_, agent, verifier) in sources.items()}
     exp_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:8]
     directory = ROOT / "runs" / exp_id
     directory.mkdir(parents=True)
@@ -99,38 +102,41 @@ def make_plan(args):
     for path, (metadata, _) in zip(paths, profiles):
         name = metadata["name"]
         snapshots[name] = freeze(path, directory / "inputs" / "profiles" / name)
-    task_input = directory / "inputs" / "task"
-    freeze(task_source, task_input)
     import toml
-    task = tomllib.loads((task_input / "task.toml").read_text(encoding="utf-8"))
-    task["environment"]["docker_image"] = image
-    task["verifier"]["environment"]["docker_image"] = verifier_image
-    step_names = [step["name"] for step in task.get("steps", [])]
-    (task_input / "task.toml").write_text(toml.dumps(task), encoding="utf-8")
-    task_hash, task_manifest = digest(files_in(task_input))
+    tasks = {}
+    for name, (source, _, _) in sources.items():
+        task_input = directory / "inputs/tasks" / name
+        freeze(source, task_input)
+        task = tomllib.loads((task_input / "task.toml").read_text(encoding="utf-8"))
+        image, verifier_image = images[name]
+        task["environment"]["docker_image"] = image
+        task["verifier"]["environment"]["docker_image"] = verifier_image
+        (task_input / "task.toml").write_text(toml.dumps(task), encoding="utf-8")
+        task_hash, task_manifest = digest(files_in(task_input))
+        tasks[name] = {"group": task["metadata"]["group"], "step_names": [step["name"] for step in task.get("steps", [])],
+                       "image_id": image, "verifier_image_id": verifier_image,
+                       "snapshot": {"sha256": task_hash, "files": task_manifest}}
     names = [entry[0]["name"] for entry in profiles]
-    trials = []
-    for repeat in range(args.repeat):
-        order = names if repeat % 2 == 0 else list(reversed(names))
-        for name in order:
-            trials.append({"id": f"trial-{len(trials)+1:03d}", "profile": name, "repeat": repeat})
+    trials = arrange_trials(tasks, names, args.repeat)
+    turns = sum(trial["max_agent_seconds"] // 300 for trial in trials)
     plan = {
-        "schema": 2, "id": exp_id, "kind": "local-pipeline-smoke", "model": args.model,
-        "task_name": args.task, "step_names": step_names, "resume_trajectory": bool(step_names),
+        "schema": 3, "id": exp_id, "kind": "local-pipeline-smoke", "model": args.model,
+        "tasks": tasks,
         "codex_version": CODEX_VERSION, "harbor_version": version("harbor"),
-        "image_id": image, "verifier_image_id": verifier_image, "repeat": args.repeat, "independent_task_groups": 1,
-        "profiles": snapshots, "task": {"sha256": task_hash, "files": task_manifest},
+        "repeat": args.repeat, "declared_task_groups": len({task["group"] for task in tasks.values()}),
+        "profiles": snapshots,
         "runner_sha256": digest(files_in(ROOT / "src" / "chb"))[0],
         "native_config": profiles[0][1], "trials": trials,
         "max_agent_seconds_per_turn": 300,
-        "max_agent_seconds_per_trial": 300 * max(1, len(step_names)),
-        "max_total_agent_seconds": 300 * len(trials) * max(1, len(step_names)),
-        "planned_agent_turns": len(trials) * max(1, len(step_names)),
+        "max_agent_seconds_per_trial": max(trial["max_agent_seconds"] for trial in trials),
+        "max_total_agent_seconds": 300 * turns,
+        "planned_agent_turns": turns,
+        "order": "task order as selected; profile order reverses on adjacent tasks and repeats",
         "auth": "runtime-only: ChatGPT auth.json or OPENAI_API_KEY; no credentials in snapshots",
         "network": "agent allowlist chatgpt.com and *.openai.com; verifier no network",
         "verifier": "separate fresh container; no intermediate feedback",
         "source_publication": "local original fixture, pending GitHub publication",
-        "statistical_claim": "none: one independent task group is insufficient",
+        "statistical_claim": "none: descriptive small original suite; group independence is not established",
         "retry": "none; a new plan preserves previous attempts",
     }
     write_json(directory / "plan.json", plan)
@@ -149,34 +155,38 @@ async def execute_plan(directory):
         raise ValueError("Harbor version changed; create a new plan")
     if digest(files_in(ROOT / "src" / "chb"))[0] != plan["runner_sha256"]:
         raise ValueError("Runner changed; create a new plan")
-    verify_frozen(directory / "inputs" / "task", plan["task"])
+    verify_task_inputs(directory, plan)
     for name, snapshot in plan["profiles"].items():
         verify_frozen(directory / "inputs" / "profiles" / name, snapshot)
     # Resolve the pinned image itself, not the mutable convenience tag.
-    command(["docker", "image", "inspect", plan["image_id"]], capture_output=True, timeout=20)
-    command(["docker", "image", "inspect", plan["verifier_image_id"]], capture_output=True, timeout=20)
+    for task in planned_tasks(plan).values():
+        command(["docker", "image", "inspect", task["image_id"]], capture_output=True, timeout=20)
+        command(["docker", "image", "inspect", task["verifier_image_id"]], capture_output=True, timeout=20)
     auth_path = Path.home() / ".codex" / "auth.json"
     if not auth_path.is_file() and not os.environ.get("OPENAI_API_KEY"):
         raise ValueError("Authenticate Codex first or set OPENAI_API_KEY")
+    if any((directory / trial["id"]).exists() for trial in plan["trials"]):
+        raise ValueError("Attempt already exists. Make a new plan; history is not overwritten.")
     for trial in plan["trials"]:
+        task_name, task = task_for_trial(plan, trial)
         output = directory / trial["id"]
         if output.exists():
             raise ValueError(f"Attempt already exists: {output}. Make a new plan; history is not overwritten.")
         output.mkdir()
         write_json(output / "result.json", {"status": "running", "accepted": None})
-        print(f"Running {trial['id']} / {trial['profile']} (300s per user turn)", flush=True)
+        print(f"Running {trial['id']} / {task_name} / {trial['profile']} (300s per user turn)", flush=True)
         agent = {
             "import_path": "chb.adapter:ProfileCodex", "model_name": plan["model"],
             "kwargs": {"version": plan["codex_version"], "profile_path": str(directory / "inputs" / "profiles" / trial["profile"])},
             "env": {"CODEX_AUTH_JSON_PATH": str(auth_path)} if auth_path.is_file() else {},
             "override_timeout_sec": 300, "override_setup_timeout_sec": 120,
-            "resume_trajectory": plan.get("resume_trajectory", False),
+            "resume_trajectory": bool(task["step_names"]),
         }
         config = JobConfig.model_validate({
             "job_name": "job", "jobs_dir": str(output / "harbor"),
             "n_concurrent_trials": 1, "n_attempts": 1,
             "retry": {"max_retries": 0}, "quiet": True,
-            "agents": [agent], "tasks": [{"path": str(directory / "inputs" / "task")}],
+            "agents": [agent], "tasks": [{"path": str(task_path(directory, plan, task_name))}],
             "environment": {"type": "docker", "delete": True},
         })
         try:
@@ -206,7 +216,9 @@ def main():
     diff.add_argument("right")
     plan = sub.add_parser("plan", help="Freeze inputs and show run count; no model call")
     plan.add_argument("--profiles", default="minimal,focused")
-    plan.add_argument("--task", default="search-notes-v1")
+    selection = plan.add_mutually_exclusive_group()
+    selection.add_argument("--task", help="One task; defaults to search-notes-v1")
+    selection.add_argument("--tasks", help="Comma-separated tasks in the desired frozen order")
     plan.add_argument("--model", required=True)
     plan.add_argument("--repeat", type=int, choices=range(1, 6), default=1)
     run = sub.add_parser("run", help="Execute one previously frozen plan using real Codex calls")
