@@ -1,6 +1,7 @@
 """Explicit, content-addressed inputs; never import a personal Codex home."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import tomllib
@@ -19,16 +20,23 @@ def write_json(path, value):
 
 
 def files_in(root):
-    root = Path(root).resolve()
+    root = Path(root)
+    if root.is_symlink() or root.is_junction():
+        raise ValueError(f"Links are not allowed in frozen input: {root}")
+    if not root.is_dir():
+        raise ValueError(f"Input directory does not exist: {root}")
+    root = root.resolve()
     result = {}
-    for path in sorted(root.rglob("*")):
-        if path.is_symlink() or path.is_junction():
-            raise ValueError(f"Links are not allowed in frozen input: {path}")
-        if path.is_file():
+    for directory, dirs, names in os.walk(root, followlinks=False):
+        dirs[:] = sorted(name for name in dirs if name not in {"__pycache__", ".git"})
+        for name in dirs + sorted(names):
+            path = Path(directory) / name
+            if path.is_symlink() or path.is_junction():
+                raise ValueError(f"Links are not allowed in frozen input: {path}")
+        for name in sorted(names):
+            path = Path(directory) / name
             relative = path.relative_to(root).as_posix()
-            if any(part in {"__pycache__", ".git"} for part in path.parts):
-                continue
-            if path.name in {"auth.json", ".env"} or path.suffix in {".pem", ".key"}:
+            if path.name.lower() == "auth.json" or path.name.lower().startswith(".env") or path.suffix.lower() in {".pem", ".key"}:
                 raise ValueError(f"Credential file cannot be frozen: {relative}")
             result[relative] = path.read_bytes()
     return result
@@ -62,7 +70,7 @@ def validate_profile(path):
     metadata = read_json(path / "profile.json")
     if set(metadata) - {"name", "description"}:
         raise ValueError("Unsupported profile metadata")
-    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,39}", metadata["name"]):
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,39}", metadata.get("name", "")):
         raise ValueError("Profile names must be short lowercase slugs")
     files_in(path)  # Reject credential files and filesystem links before using content.
     config = tomllib.loads((path / "config.toml").read_text(encoding="utf-8"))

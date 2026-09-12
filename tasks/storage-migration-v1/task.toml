@@ -1,0 +1,46 @@
+schema_version = "1.4"
+multi_step_reward_strategy = "mean"
+
+[metadata]
+name = "storage-migration-v1"
+group = "storage-evolution"
+source_kind = "original"
+source_repository = "https://github.com/devonsagr/1"
+license = "MIT"
+status = "local-source-not-yet-published"
+description = "Two fixed user turns: archive notes, then replace JSON storage with SQLite and remove stale entry points."
+
+[agent]
+timeout_sec = 300
+network_mode = "allowlist"
+allowed_hosts = ["chatgpt.com", "*.openai.com"]
+
+[environment]
+build_timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+network_mode = "public"
+
+[verifier]
+timeout_sec = 45
+environment_mode = "separate"
+network_mode = "no-network"
+
+[verifier.environment]
+docker_image = "chb-verifier:storage-migration-v1"
+network_mode = "no-network"
+
+[[artifacts]]
+source = "/app"
+destination = "candidate"
+exclude = [".git", "__pycache__", ".pytest_cache"]
+
+[[steps]]
+name = "archive"
+[steps.verifier.env]
+CHB_STAGE = "archive"
+
+[[steps]]
+name = "sqlite"
+[steps.verifier.env]
+CHB_STAGE = "sqlite"
