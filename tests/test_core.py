@@ -66,6 +66,9 @@ class CoreTests(unittest.TestCase):
             write_json(directory / "harbor/job/task-1/result.json", {
                 "trial_name": "task-1", "verifier_result": {"rewards": {"reward": 0}},
             })
+            agent = directory / "harbor/job/task-1/agent"
+            agent.mkdir()
+            (agent / "codex.txt").write_text('{"type":"turn.completed"}\n')
             result = summarize_trial(directory, "minimal")
             self.assertFalse(result["accepted"])
             self.assertIsNone(result["input_tokens"])

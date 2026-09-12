@@ -3,3 +3,5 @@
 *.py text eol=lf
 *.toml text eol=lf
 *.md text eol=lf
+*.json text eol=lf
+Dockerfile text eol=lf
