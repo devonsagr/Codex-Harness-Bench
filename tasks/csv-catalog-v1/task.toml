@@ -6,7 +6,7 @@ group = "catalog-import"
 source_kind = "original"
 source_repository = "https://github.com/devonsagr/1"
 license = "MIT"
-status = "local-source-not-yet-published"
+status = "repository-source"
 description = "Streaming CSV parsing, atomic output replacement, and CLI regression in a standalone catalog importer."
 
 [agent]

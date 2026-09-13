@@ -6,8 +6,8 @@ group = "notes-workflow"
 source_kind = "original"
 source_repository = "https://github.com/devonsagr/1"
 license = "MIT"
-status = "local-source-not-yet-published"
-description = "修复笔记过滤，复用现有文本规范化工具。公开源码准备完成；尚未上传。"
+status = "repository-source"
+description = "修复笔记过滤，复用现有文本规范化工具。题面、起点、参考解和验收规则随项目源码提供。"
 
 [agent]
 timeout_sec = 300

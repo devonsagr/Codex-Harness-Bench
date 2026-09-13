@@ -14,3 +14,6 @@ chb = "chb.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+chb = ["web/*.html", "web/*.css", "web/*.js"]

@@ -7,7 +7,7 @@ group = "storage-evolution"
 source_kind = "original"
 source_repository = "https://github.com/devonsagr/1"
 license = "MIT"
-status = "local-source-not-yet-published"
+status = "repository-source"
 description = "Two fixed user turns: archive notes, then replace JSON storage with SQLite and remove stale entry points."
 
 [agent]
