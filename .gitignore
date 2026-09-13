@@ -9,3 +9,5 @@ build/
 .env
 auth.json
 *.log
+output/playwright/
+.playwright-cli/

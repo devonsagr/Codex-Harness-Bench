@@ -25,11 +25,11 @@ VERIFIER_IMAGE = "chb-verifier:search-notes-v1"
 CODEX_VERSION = "0.154.0"
 
 
-def task_settings(name):
+def task_settings(name, root=None):
     if name not in {"search-notes-v1", "storage-migration-v1", "csv-catalog-v1"}:
         raise ValueError("Unknown task")
     image = IMAGE if name == "search-notes-v1" else f"chb-{name}:codex-{CODEX_VERSION}"
-    return ROOT / "tasks" / name, image, f"chb-verifier:{name}"
+    return (root or ROOT) / "tasks" / name, image, f"chb-verifier:{name}"
 
 
 def command(args, **kwargs):
@@ -41,7 +41,21 @@ def image_id(image=IMAGE):
 
 
 def pin_image(image):
-    pinned = image_id(image)
+    try:
+        pinned = image_id(image)
+    except subprocess.CalledProcessError:
+        # Docker Desktop can list a tag whose name lookup is stale while its
+        # content ID remains usable. Recover only that exact, unique mapping.
+        listing = command(["docker", "image", "ls", "--no-trunc", "--format", "{{.Repository}}:{{.Tag}} {{.ID}}"],
+                          capture_output=True, timeout=20).stdout.splitlines()
+        candidates = {line.split()[1] for line in listing if len(line.split()) == 2 and line.split()[0] == image}
+        if len(candidates) != 1:
+            raise ValueError(f"Image is missing or ambiguous: {image}; prepare the task images")
+        candidate = candidates.pop()
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", candidate) or image_id(candidate) != candidate:
+            raise ValueError("Listed image content could not be verified")
+        pinned = candidate
+        command(["docker", "image", "tag", pinned, image], capture_output=True, timeout=20)
     # Docker Desktop's containerd store can discard an untagged manifest when a
     # convenience tag is rebuilt. Retain a content-derived tag for frozen runs.
     command(["docker", "image", "tag", pinned, "chb-frozen:" + pinned.removeprefix("sha256:")],
@@ -79,8 +93,9 @@ def doctor():
     print(json.dumps(checks, indent=2, ensure_ascii=False))
 
 
-def make_plan(args):
-    paths = [resolve_profile(ROOT, name.strip()) for name in args.profiles.split(",")]
+def make_plan(args, *, root=None, emit=True):
+    root = root or ROOT
+    paths = [resolve_profile(root, name.strip()) for name in args.profiles.split(",")]
     if len(paths) != 2 or paths[0] == paths[1]:
         raise ValueError("This MVP compares exactly two different profiles")
     profiles = [validate_profile(path) for path in paths]
@@ -93,10 +108,10 @@ def make_plan(args):
     selected = [name.strip() for name in (getattr(args, "tasks", None) or args.task or "search-notes-v1").split(",")]
     if len(set(selected)) != len(selected):
         raise ValueError("Duplicate tasks are not independent samples")
-    sources = {name: task_settings(name) for name in selected}
+    sources = {name: task_settings(name, root) for name in selected}
     images = {name: (pin_image(agent), pin_image(verifier)) for name, (_, agent, verifier) in sources.items()}
     exp_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:8]
-    directory = ROOT / "runs" / exp_id
+    directory = root / "runs" / exp_id
     directory.mkdir(parents=True)
     snapshots = {}
     for path, (metadata, _) in zip(paths, profiles):
@@ -125,7 +140,7 @@ def make_plan(args):
         "codex_version": CODEX_VERSION, "harbor_version": version("harbor"),
         "repeat": args.repeat, "declared_task_groups": len({task["group"] for task in tasks.values()}),
         "profiles": snapshots,
-        "runner_sha256": digest(files_in(ROOT / "src" / "chb"))[0],
+        "runner_sha256": digest(files_in(root / "src" / "chb"))[0],
         "native_config": profiles[0][1], "trials": trials,
         "max_agent_seconds_per_turn": 300,
         "max_agent_seconds_per_trial": max(trial["max_agent_seconds"] for trial in trials),
@@ -135,15 +150,17 @@ def make_plan(args):
         "auth": "runtime-only: ChatGPT auth.json or OPENAI_API_KEY; no credentials in snapshots",
         "network": "agent allowlist chatgpt.com and *.openai.com; verifier no network",
         "verifier": "separate fresh container; no intermediate feedback",
-        "source_publication": "local original fixture, pending GitHub publication",
+        "source_publication": "project original fixture; distribution follows repository visibility",
         "statistical_claim": "none: descriptive small original suite; group independence is not established",
         "retry": "none; a new plan preserves previous attempts",
     }
     write_json(directory / "plan.json", plan)
     (directory / "profile-diff.txt").write_text(profile_diff(*paths), encoding="utf-8")
     render(directory)
-    print(json.dumps({"experiment": str(directory), "trials": len(trials), "agent_turns": plan["planned_agent_turns"], "model": args.model,
-                      "max_total_agent_seconds": plan["max_total_agent_seconds"], "model_calls_started": 0}, ensure_ascii=False, indent=2))
+    if emit:
+        print(json.dumps({"experiment": str(directory), "trials": len(trials), "agent_turns": plan["planned_agent_turns"], "model": args.model,
+                          "max_total_agent_seconds": plan["max_total_agent_seconds"], "model_calls_started": 0}, ensure_ascii=False, indent=2))
+    return directory
 
 
 async def execute_plan(directory):
@@ -208,6 +225,9 @@ def main():
     parser = argparse.ArgumentParser(description="Local Codex profile comparisons; Harbor handles isolation and evaluation")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("doctor")
+    ui = sub.add_parser("ui", help="Open the local configuration and experiment workbench; no model calls")
+    ui.add_argument("--port", type=int, default=8765)
+    ui.add_argument("--no-browser", action="store_true")
     prepare = sub.add_parser("prepare", help="Build task and separate verifier images; no model call")
     prepare.add_argument("--task", default="search-notes-v1")
     sub.add_parser("profiles")
@@ -244,6 +264,9 @@ def main():
     try:
         if args.command == "doctor":
             doctor()
+        elif args.command == "ui":
+            from chb.webapp import serve
+            serve(ROOT, args.port, open_browser=not args.no_browser)
         elif args.command == "prepare":
             task, agent_image, verifier_image = task_settings(args.task)
             command(["docker", "build", "-t", agent_image, str(task / "environment")])
