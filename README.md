@@ -2,11 +2,13 @@
 
 保存两套 Codex 配置，用相同任务和条件运行，并查看实际交付、耗时和证据。执行与容器隔离复用 [Harbor](https://github.com/harbor-framework/harbor)。
 
-当前为 **本地验证版**：示例与私有 profile、配置导入/复制/恢复、搜索/存储迁移/CSV 导入三个原创题型、同批多题计划、独立验收容器、按组与逐轮 HTML 报告和历史日志分析。源码准备开放但尚未推送；不是正式公开排行榜。
+当前为 **本地验证版**：示例与私有 profile、配置导入/复制/恢复、搜索/存储迁移/CSV 导入三个原创题型、同批多题计划、独立验收容器、按组与逐轮 HTML 报告和历史日志分析。源码、三题起点/参考解/验收器与文档已同步到指定 GitHub 仓库；不是正式排行榜。
+
+**本地前端 F1 已可用**：总览、配置库、新建对比、运行记录、结果与历史连接真实本机数据。可以编辑另存、看配置差异和预算、保存冻结计划、查看结果与恢复历史配置。**页面启动/停止模型和实时进度属于尚未完成的 F2**，当前运行仍使用 CLI。整体架构与阶段验收见 [路线图](docs/ROADMAP.md)。
 
 ## 开始使用
 
-需要 Python 3.12+、Docker Linux 引擎、已登录的 Codex 或 `OPENAI_API_KEY`。Windows 使用项目独立 Python 环境；无需改全局 Codex 设置。
+需要 Python 3.12+ 和 uv。浏览、编辑配置与计划预览无需模型认证；保存冻结计划需要 Docker Linux 引擎与已准备的题目镜像。实际模型运行另需已登录的 Codex 或 `OPENAI_API_KEY`。Windows 使用项目独立 Python 环境；无需改全局 Codex 设置。
 
 ```powershell
 uv venv --python 3.13
@@ -16,6 +18,16 @@ uv sync --frozen
 .venv\Scripts\python.exe -X utf8 -m chb.cli profiles
 .venv\Scripts\python.exe -X utf8 -m chb.cli diff minimal focused
 ```
+
+安装完成后，Windows 双击项目根的 **`launch-ui.cmd`**，或运行：
+
+```powershell
+.venv\Scripts\python.exe -X utf8 -m chb.cli ui
+```
+
+浏览器将打开 **http://127.0.0.1:8765**。保持启动终端运行，Ctrl+C 关闭；端口冲突可用 `--port 8766`。已经启动时直接打开已有地址。可用 `--no-browser` 只启动服务。
+
+首次可按“配置库 → 另存配置 → 新建对比 → 预览差异与预算 → 保存冻结计划 → 历史恢复”操作。页面数据与 CLI 共用 `profiles/`、`.local/`、`runs/`，不用另外导入数据库。页面只在本机访问，前端全部资源随源码提供。
 
 Linux/macOS 把 `.venv\Scripts\python.exe` 换成 `.venv/bin/python`；目前真实运行验收以 Windows + Docker Desktop 为目标，不声称其他系统已经实测。
 

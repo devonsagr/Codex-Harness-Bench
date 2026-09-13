@@ -1,6 +1,6 @@
 # Codex Harness Bench 项目合同
 
-- 本地工程与 Git 根：`D:\AAAcodex项目\harnes测试`；origin 为 `https://github.com/devonsagr/1.git`。用户已明确本轮先本地实施，不上传。
+- 本地工程与 Git 根：`D:\AAAcodex项目\harnes测试`；origin 为 `https://github.com/devonsagr/1.git`。用户在 U06 已授权继续实施并上传本仓库；仅同步项目源码、示例题和文档，私有配置与轨迹保持本地。
 - 本地权威文档根：`docs/`。
 - 唯一需求保真记录：`docs/requirements.md`；完整输入的本地附件在 `.local/sources/2026-09-10.md`，不进入 Git。
 - 当前路线图：`docs/ROADMAP.md`；当前交接：`docs/当前交接.md`。
@@ -8,6 +8,8 @@
 - Obsidian 镜像：本项目尚未指定镜像根；模式 none；声明文件集合为空。不回写日记或自动选择 Vault 目录。
 - Python：3.12+；本机项目环境 `.venv\Scripts\python.exe`，已使用 Python 3.13。
 - 安装：`uv venv --python 3.13`，`uv sync --frozen`；依赖固定在 uv.lock。
+- 前端：双击 `launch-ui.cmd`，或 `.venv\Scripts\python.exe -X utf8 -m chb.cli ui`；默认 `http://127.0.0.1:8765`，`--no-browser` 不自动打开页面，Ctrl+C 关闭服务。F1 仅管理配置、计划与历史，未提供模型启动/停止。
+- 本机接口：只监听 127.0.0.1；保留 Host、Origin 与随机令牌检查，不提供任意文件/命令入口；认证和原始轨迹不回传页面。
 - 运行：`.venv\Scripts\python.exe -X utf8 -m chb.cli doctor`；其余入口见 README。
 - 测试：`.venv\Scripts\python.exe -X utf8 -m unittest discover -s tests -v`。
 - 容器题目验证：`.venv\Scripts\python.exe -X utf8 scripts/validate_task.py`；可加 `--task storage-migration-v1` 或 `--task csv-catalog-v1`，只运行 nop/oracle，不调用模型。
