@@ -1,5 +1,7 @@
 # Codex 能力与实际支持范围
 
+> 本文记录旧 CLI 辅助实验层（2026-09-12），不是新桌面工作流合同。当前支持范围与实施路线以 [PROJECT_SPEC](PROJECT_SPEC.md) 为准。
+
 查阅：2026-09-12。宿主 CLI 为 `0.154.0-alpha.6.2`；实验镜像固定 npm 官方发行 `0.154.0`。不把桌面版 alpha 与公开 CLI 当作完全相同。
 
 本地证据：`codex --version`、`codex exec --help`、`codex exec resume --help`；官方页面全文已在 `.local/research/codex-*.md` 留作只读调查材料。

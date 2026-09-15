@@ -3,6 +3,7 @@ import argparse
 from collections import Counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import mimetypes
 from pathlib import Path
 import re
 import secrets
@@ -261,9 +262,33 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, root, port=8765):
         self.app = Workbench(root)
+        self._arena = None
+        self.arena_lock = threading.Lock()
         self.token = secrets.token_urlsafe(32)
         super().__init__(("127.0.0.1", port), Handler)
         self.origin = f"http://127.0.0.1:{self.server_port}"
+
+    @property
+    def arena(self):
+        with self.arena_lock:
+            if self._arena is None:
+                from chb.arena.service import Arena
+                self._arena = Arena(self.app.root)
+            return self._arena
+
+    def server_close(self):
+        if self._arena is not None:
+            from chb.arena.jobs import stop_job
+            import time
+            jobs=list(self._arena.jobs.items())
+            for (rid,tid),control in jobs:
+                try:stop_job(self._arena,rid,tid)
+                except (ValueError,OSError,subprocess.SubprocessError):control['stop'].set()
+            deadline=time.monotonic()+20
+            for _,control in jobs:
+                thread=control.get('thread')
+                if thread:thread.join(timeout=max(0,deadline-time.monotonic()))
+        super().server_close()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -275,7 +300,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         for key, value in {"Content-Type": mime, "Content-Length": str(len(body)), "Cache-Control": "no-store",
                            "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
-                           "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}.items():
+                           "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}.items():
             self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
@@ -298,8 +323,35 @@ class Handler(BaseHTTPRequestHandler):
         route = unquote(urlsplit(self.path).path)
         try:
             if route == "/":
-                text = (ASSETS / "index.html").read_text(encoding="utf-8").replace("__CHB_TOKEN__", self.server.token)
+                dist=self.server.app.root/'frontend/dist'
+                if (self.server.app.root/'frontend').exists() and not (dist/'index.html').exists():
+                    return self.reply(503,'请先执行 pnpm --dir frontend build，再刷新工作台。'.encode(), 'text/plain; charset=utf-8')
+                text = ((dist if (dist/'index.html').exists() else ASSETS) / "index.html").read_text(encoding="utf-8").replace("__CHB_TOKEN__", self.server.token)
                 return self.reply(200, text.encode(), "text/html; charset=utf-8")
+            if route.startswith('/assets/'):
+                asset=checked_path(self.server.app.root,'frontend','dist',*route[1:].split('/'))
+                mime=mimetypes.guess_type(asset.name)[0] or 'application/octet-stream'
+                if asset.suffix=='.js':mime='text/javascript'
+                return self.reply(200,asset.read_bytes(),mime)
+            if route=='/api/arena/state':return self.reply(200,self.server.arena.state())
+            if route.startswith('/api/arena/runs/'):
+                from chb.arena.service import identifier
+                from chb.arena.api import export
+                from chb.arena.files import safe_path,verify_snapshot
+                parts=route.removeprefix('/api/arena/runs/').split('/')
+                rid=identifier(parts[0]);app=self.server.arena
+                if len(parts)==1:return self.reply(200,app.present_run(app.db.get('run',rid)))
+                if parts[1:]==['export']:return self.reply(200,export(app,rid),'application/zip')
+                if len(parts)>=6 and parts[1]=='trials' and parts[3]=='files':
+                    run=app.db.get('run',rid)
+                    t=next(t for t in run['trials'] if t['id']==identifier(parts[2]))
+                    cap=next(c for c in t['captures'] if c['id']==identifier(parts[4]))
+                    relative='/'.join(parts[5:]);base=app.local/'runs'/rid/t['id']/'captures'/cap['id']/'files'
+                    if relative not in cap['manifest']['files']:raise ValueError('文件未在快照中。')
+                    verify_snapshot(base,cap['manifest'])
+                    file=safe_path(base,relative)
+                    if file.stat().st_size>500000:raise ValueError('文件过大，请导出后查看。')
+                    return self.reply(200,{'path':relative,'content':file.read_text(encoding='utf-8',errors='replace')})
             if route == "/favicon.ico":
                 return self.reply(204, b"", "image/x-icon")
             if route in {"/app.js", "/app.css"}:
@@ -313,22 +365,35 @@ class Handler(BaseHTTPRequestHandler):
             if route.startswith("/api/experiments/"):
                 return self.reply(200, self.server.app.experiment(route.removeprefix("/api/experiments/")))
             return self.reply(404, {"error": "页面不存在。"})
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError, StopIteration):
             return self.reply(400, {"error": "记录无效或输入已变化；请刷新并核对本机文件。"})
         except OSError:
             return self.reply(404, {"error": "无法读取该记录，请核对文件是否存在。"})
 
     def do_POST(self):
         if not self.guard(write=True):
+            # Drain bounded rejected bodies so Windows does not reset the socket
+            # while the client is still reading our 403 response. Never parse it.
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if 0<length<=1_000_000:
+                    self.connection.settimeout(2)
+                    self.rfile.read(length)
+            except (ValueError,OSError):pass
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 500000 or self.headers.get("Content-Type") != "application/json":
+            limit=20_000_000 if urlsplit(self.path).path.endswith('/trace') else 1_000_000
+            if not 0 < length <= limit or self.headers.get("Content-Type") != "application/json":
                 return self.reply(413, {"error": "请求过大或格式无效。"})
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 raise ValueError("请求必须是对象。")
-            result = self.server.app.post(urlsplit(self.path).path, data)
+            route=urlsplit(self.path).path
+            if route.startswith('/api/arena/'):
+                from chb.arena.api import post
+                result=post(self.server.arena,route,data)
+            else:result = self.server.app.post(route, data)
             return self.reply(200, result)
         except ValueError as exc:
             message = str(exc)
@@ -337,7 +402,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(400, {"error": safe})
         except (OSError, subprocess.SubprocessError):
             return self.reply(409, {"error": "本地操作未完成。保存计划需要 Docker 与所选题目的镜像；配置操作需要有效来源文件。"})
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, AttributeError):
             return self.reply(400, {"error": "请求字段缺失或格式无效。"})
 
 
@@ -345,7 +410,7 @@ def serve(root, port=8765, open_browser=True):
     if not 0 <= port <= 65535:
         raise ValueError("Port must be between 0 and 65535")
     server = LocalServer(root, port)
-    print(f"本地工作台：{server.origin} · 本版本不从页面启动模型 · Ctrl+C 关闭", flush=True)
+    print(f"本地工作台：{server.origin} · 正式评测在 Codex 桌面执行 · Ctrl+C 关闭", flush=True)
     if open_browser:
         webbrowser.open(server.origin)
     try:
