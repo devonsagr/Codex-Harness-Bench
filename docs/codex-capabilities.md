@@ -1,6 +1,6 @@
 # Codex 能力与实际支持范围
 
-> 本文记录旧 CLI 辅助实验层（2026-09-12），不是新桌面工作流合同。当前支持范围与实施路线以 [PROJECT_SPEC](PROJECT_SPEC.md) 为准。
+> 本文记录旧 CLI 辅助实验层（2026-09-12），不是新桌面工作流合同。桌面配置与装载范围见[配置合同](architecture/CONFIGURATION.md)，具体操作见[执行合同](architecture/EXECUTION_AND_EVIDENCE.md)，唯一实施路线见[PROJECT_SPEC](PROJECT_SPEC.md#8-唯一实施路线与完成标准)。不要把以下CLI能力套成桌面已经支持。
 
 查阅：2026-09-12。宿主 CLI 为 `0.154.0-alpha.6.2`；实验镜像固定 npm 官方发行 `0.154.0`。不把桌面版 alpha 与公开 CLI 当作完全相同。
 
