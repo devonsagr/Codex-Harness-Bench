@@ -1,6 +1,6 @@
 # Codex Harness Bench 项目合同
 
-- 本地工程与 Git 根：`D:\AAAcodex项目\harnes测试`；origin `https://github.com/devonsagr/1.git`。用户 U06 已授权上传源码、公开题目与文档；私有配置、原文、轨迹与产物不提交。
+- 本地工程与 Git 根：`D:\AAAcodex项目\harnes测试`；origin `https://github.com/devonsagr/1.git`（GitHub 已重定向到同一仓库 `devonsagr/Codex-Harness-Bench`）。用户 U06 已授权上传源码、公开题目与文档；私有配置、原文、轨迹与产物不提交。
 - 本地权威文档根：`docs/`。唯一需求保真记录：`docs/requirements.md`；完整附件 `.local/sources/2026-09-10.md`、`.local/sources/2026-09-15.md` 仅本地。
 - 唯一当前架构与实施路线：`docs/PROJECT_SPEC.md`；前端合同：`docs/FRONTEND_SPEC.md`；当前交接：`docs/当前交接.md`；历史版本证据：`docs/CODEX_HISTORY.md`。`docs/ROADMAP.md` 仅入口指针；旧 F1/F2 合同在 `docs/archive/`，不作为当前实施路线。
 - 用户 U07 已否定旧前端产品逻辑，指定采用 Gemini 前端。源目录 `D:\AAAcodex项目\杂\codex-harness-arena` 只读；工程副本 `frontend/`，来源回执 `.local/sources/gemini-frontend-20260915.json`。不要恢复随机成绩/模拟执行。
