@@ -1,5 +1,16 @@
 # 重要交付历史
 
+## 2026-09-15：Gemini 前端与正式桌面评测工作流
+
+- 代码提交：`759c55f4bf149a3c9fe6b5f7aa06abda8d43076c`；基准849dfd5。用户U07替换旧产品逻辑，U08明确桌面正式评测、CLI独立标注，U09要求路线与进度可审查。主架构已重写为当前实施版本，未冒充用户已批准。
+- 交付：React 接入本机Python/SQLite；配置/题目版本、技能与起点导入、独立工作区、逐轮确认/回收、前轮补验、三类验收证据、实际日志用量、历史恢复/归档/ZIP导出。旧CLI保留，旧F1/F2合同归档。
+- 验证：41项自动测试、TypeScript/Vite、compileall、uv build通过。真实容器回执 `.local/arena-validation/20260915T125334Z/receipt.json` status=passed：三道原创题的负例/参考解、存储两阶段、超时与停止清理。独立gpt-6-astra/low复审取得JSON报告，标cli-review-only，不产生正式桌面成绩。
+- 浏览器：真实两轮样例回收/人工分/文件浏览/重启持续/恢复新配置/归档恢复/原创题导入/无效命令拦截；回执 `.local/arena-ui-validation-20260915.json`，验收样例已归档。Gemini输入目录32文件哈希未变。
+- 修正：实际字节与技能/子目录规则变化检测，累计用量回退拒绝，旧阶段补验，Windows拒绝请求连接重置，命令编辑校验与准备重试幂等。AI清除本次审查继承的回环网关覆盖、专用镜像补齐根证书后通过；未禁用TLS、未改宿主Codex配置。
+- 发布：代码已推送原授权origin `https://github.com/devonsagr/1.git`，远端main SHA一致。GitHub返回该仓库已改名为 `https://github.com/devonsagr/Codex-Harness-Bench`；同一仓库重定向，不是新建项目。仅源码、公开题面与文档入库，私有原文/规则/轨迹/产物/验收回执未上传。Obsidian镜像none。
+- 限制：用户尚未整体验收重写架构；本轮没有正式桌面模型整题。视觉减法后置；31题面不是31套完整测试。工作区叠加仍继承全局规则；AI正确性不保证，强制终止后Harbor环境清理需核对。wheel不是完整应用分发。
+- 回滚：revert本代码提交及随附文档提交，保留 `.local/` 与 `runs/`；旧代码不读取新Arena数据库，回退不代表可以删除新证据。曾保留的Docker IPC目录见当前交接，不全局清理Docker或认证。
+
 ## 2026-09-13：F1 本地工作台与首次 GitHub 同步
 
 - 代码提交：`dd839a8e3171c2261ab564ae684b1d1f2385edc3`；基准 dffe976，本轮修改可隔离，无无关文件提交。
