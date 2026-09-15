@@ -230,6 +230,7 @@ def main():
     ui.add_argument("--no-browser", action="store_true")
     prepare = sub.add_parser("prepare", help="Build task and separate verifier images; no model call")
     prepare.add_argument("--task", default="search-notes-v1")
+    prepare.add_argument("--checks-only", action="store_true", help="Build only the verifier needed by the desktop workbench")
     sub.add_parser("profiles")
     diff = sub.add_parser("diff")
     diff.add_argument("left")
@@ -269,7 +270,8 @@ def main():
             serve(ROOT, args.port, open_browser=not args.no_browser)
         elif args.command == "prepare":
             task, agent_image, verifier_image = task_settings(args.task)
-            command(["docker", "build", "-t", agent_image, str(task / "environment")])
+            if not args.checks_only:
+                command(["docker", "build", "-t", agent_image, str(task / "environment")])
             command(["docker", "build", "-t", verifier_image, str(task / "tests")])
         elif args.command == "profiles":
             for path in sorted(list((ROOT / "profiles").glob("*")) + list((ROOT / ".local/profiles").glob("*"))):

@@ -11,3 +11,6 @@ auth.json
 *.log
 output/playwright/
 .playwright-cli/
+
+node_modules/
+frontend/.pnpm-store/
