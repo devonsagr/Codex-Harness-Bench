@@ -13,6 +13,7 @@ from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
 from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS
 from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks
+from .skills import invocation, codex_home
 
 
 def identifier(value):
@@ -77,7 +78,7 @@ class Arena:
             for task in json.loads((self.root/'catalog/arena-tasks.json').read_text(encoding='utf-8')):
                 self.save_task(task)
 
-    def save_config(self, value):
+    def save_config(self, value, import_source=None):
         value=copy.deepcopy(value)
         for key,limit in [('name',100),('agentsPrompt',200000),('baseModel',100)]:
             text(value.get(key),limit,required=key!='agentsPrompt')
@@ -88,7 +89,9 @@ class Arena:
         if not isinstance(skills,list) or len(skills)>30 or len(set(skills))!=len(skills): raise ValueError('技能列表无效或重复。')
         for skill in skills:
             self.db.get('skill',identifier(skill))
-        if len({self.db.get('skill',s)['name'] for s in skills})!=len(skills):raise ValueError('所选技能目录名称重复，请使用不同名称的副本。')
+        if len({self.db.get('skill',s)['name'].casefold() for s in skills})!=len(skills):raise ValueError('所选技能同名，请只保留其中一个来源。')
+        mode=value.get('skillMode','auto')
+        if mode not in {'auto','explicit'}:raise ValueError('技能调用方式无效。')
         constraints=value.get('customConstraints',[])
         if not isinstance(constraints,list) or len(constraints)>40: raise ValueError('个人约束列表无效。')
         for c in constraints:
@@ -97,6 +100,11 @@ class Arena:
         if len({c['id'] for c in constraints})!=len(constraints): raise ValueError('个人约束编号重复。')
         allowed=['id','name','agentsPrompt','baseModel','reasoning','interactiveMode','skills','customConstraints','tagline','author','specialFeatures']
         body={k:value[k] for k in allowed if k in value}
+        body['skillMode']=mode
+        if import_source is not None:body['importSource']=import_source
+        elif value.get('id') and value.get('revision'):
+            previous=self.db.get('config',identifier(value['id']))
+            if previous.get('importSource'):body['importSource']=previous['importSource']
         body['id']=identifier(value.get('id') or 'cfg-'+uuid.uuid4().hex[:12])
         body.update(tagline=value.get('tagline',''),author=value.get('author','本地'),skills=skills,customConstraints=constraints,updatedAt=now())
         return self.db.save('config',body,value.get('revision'))
@@ -176,7 +184,7 @@ class Arena:
         run.setdefault('events',[]).append({'at':now(),'message':message,'trialId':trial})
 
     def host_fingerprint(self):
-        home=Path.home()/'.codex'
+        home=codex_home()
         return {name:hash_bytes((home/name).read_bytes()) if (home/name).is_file() else None
                 for name in ['AGENTS.md','AGENTS.override.md','config.toml']}
 
@@ -197,6 +205,15 @@ class Arena:
         if scoring_policy['humanWeight'] and any(not t.get('hasFrontendUI') for t in selected):
             if not sum(v for k,v in scoring_policy['dimensions'].items() if k!='ux'):
                 raise ValueError('非界面题至少需要一个非视觉人工维度的权重大于零。')
+        # Reject an ambiguous baseline/selected skill collision before creating any workspace.
+        for task in selected:
+            if not task.get('baselineId'):continue
+            baseline=self.db.get('baseline',identifier(task['baselineId']))
+            existing={name.split('/')[2].casefold() for name in baseline['manifest']['files']
+                      if name.startswith('.agents/skills/') and len(name.split('/'))>3}
+            for config in configs:
+                if any(self.db.get('skill',sid)['name'].casefold() in existing for sid in config['skills']):
+                    raise ValueError('题目起点已有同名技能，请取消重复选择或调整起点后重试。')
         rid='run-'+uuid.uuid4().hex[:16]
         directory=self.local/'runs'/rid
         directory.mkdir(parents=True)
@@ -231,12 +248,20 @@ class Arena:
                     skill=self.db.get('skill',sid);src=self.local/'skills'/sid/'files'
                     verify_snapshot(src,skill['manifest'])
                     snapshot(src,workspace/'.agents/skills'/skill['name']);skills.append(skill)
+                skill_text=invocation(skills,config.get('skillMode','auto'))
+                prompts=[]
+                for index in range(len(task['stages'])):
+                    base=stage_prompt(task,index)
+                    content=base['text']+('\n\n'+skill_text if skill_text else '')
+                    prompts.append({'text':content,'sha256':hash_bytes(content.encode()),
+                                    'source':'frozen-trial-v3','stageId':task['stages'][index].get('id')})
                 # A separate repository marks the instruction-discovery boundary.
                 init=shell(['git','init','--quiet',str(workspace)])
                 if init.returncode:raise ValueError('无法创建独立题目 Git 工作区。')
                 manifest=snapshot(workspace,trialdir/'baseline')
                 trial={'id':tid,'taskId':task['id'],'configId':config['id'],'state':'prepared','stageIndex':0,
                        'workspacePath':str(workspace),'baseline':manifest,'captures':[],'reviews':[], 'skills':skills,
+                       'executionPrompts':prompts,'skillMode':config.get('skillMode','auto'),
                        'preparedAt':now(),'harnessHash':manifest['files']['AGENTS.override.md'],'sessionId':None,'usage':None,'observations':[]}
                 run['trials'].append(trial)
         self.event(run,'独立工作区已创建。尚未启动 Codex 或产生模型用量。')
@@ -247,7 +272,7 @@ class Arena:
         for t in run['trials']:
             t['score']=calculate(run,t)
             task=next(x for x in run['tasks'] if x['id']==t['taskId'])
-            prompt=stage_prompt(task,t['stageIndex'])
+            prompt=t['executionPrompts'][t['stageIndex']] if t.get('executionPrompts') else stage_prompt(task,t['stageIndex'])
             t['currentStage']={**task['stages'][t['stageIndex']], 'executionPrompt':prompt['text'],
                                'promptSha256':prompt['sha256'],'promptSource':prompt['source']}
         run['state']='completed' if all(t['state']=='completed' for t in run['trials']) else 'active'

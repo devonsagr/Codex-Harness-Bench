@@ -4,8 +4,8 @@ import {Field,Panel,Details,Empty,Json,labels,num,date} from './ui';
 import {request,downloadRun} from './api';
 import {ContractView,TaskFilters,matchTask,verdicts,ReviewItems} from './Contracts';
 
-export function Prepare({state,act,onCreated,selectedTaskId}:{state:State;act:Act;onCreated:(id:string)=>void;selectedTaskId:string|null}){
-  const [configIds,setConfigs]=useState<string[]>(state.configs.slice(0,1).map(c=>c.id));
+export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{state:State;act:Act;onCreated:(id:string)=>void;selectedTaskId:string|null;selectedConfigId?:string|null}){
+  const [configIds,setConfigs]=useState<string[]>(selectedConfigId&&state.configs.some(c=>c.id===selectedConfigId)?[selectedConfigId]:state.configs.slice(0,1).map(c=>c.id));
   const initial=state.tasks.find(t=>t.id===selectedTaskId);
   const [taskIds,setTasks]=useState<string[]>(initial?[initial.id]:[]);const [paradigm,setParadigm]=useState(initial?.taskParadigm||'open-ended-project');const [query,setQuery]=useState('');const [compare,setCompare]=useState(false);const [batch,setBatch]=useState(false);
   const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
@@ -25,7 +25,7 @@ export function Prepare({state,act,onCreated,selectedTaskId}:{state:State;act:Ac
       {selected.map(t=><Details key={t.id} title={'已选：'+t.title}><pre className="source">{t.inputPrompt}</pre><ContractView task={t}/><p className="muted">{t.sourceNote}</p></Details>)}
     </Panel></div><div className="prepare-summary"><Panel title="3. 准备工作区">
       <p className="text-sm">{configIds.length} 套配置 × {taskIds.length} 道题 = {configIds.length*taskIds.length} 个独立工作区</p>
-      <p className="muted">准备只创建目录并冻结输入。每个题目由你分别在桌面开始，不会自动发送多道题。</p>
+      <p className="muted">自动创建文件夹、复制起点并放入规则与所选 Skills，无需手动复制文件。准备后在桌面发送本轮提示词。</p>
       <Field label="本次备注"><input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="例如：检查文档规则调整后的效果"/></Field>
       <Details title="评分策略 · 创建后冻结">
         <p className="muted">默认客观检查 50% + 人工复审 50%，是一份可调整的使用约定。没有可执行检查时，默认不计算总分；可在创建前选择纯人工策略。</p>
@@ -57,10 +57,12 @@ function TrialView({run,trial:t,task,config,state,act,onError,archived}:{run:Run
   return <><Panel title={task.title} aside={<span className="badge">{labels[t.state]}</span>}>
     <div className="flex gap-2 flex-wrap">{task.stages.map((s,i)=><span className={'stage-chip '+(i===t.stageIndex?'selected':'')} key={i}>{i+1}. {s.title}</span>)}</div>
     <p className="muted">配置 {config.name} v{config.revision} · {config.baseModel} · {config.reasoning} · {config.skills.length} 个选定技能</p>
-    <Field label="本题独立工作区"><input readOnly value={t.workspacePath}/></Field>
-    <div className="flex gap-2 flex-wrap"><button className="btn-primary" disabled={archived} onClick={()=>void action('open')}>在 Codex 桌面打开</button><button className="btn-secondary" onClick={()=>void copy(t.workspacePath,'目录')}>复制目录</button><button className="btn-secondary" onClick={()=>void copy(prompt,'本轮提示词')}>复制本轮提示词</button></div>
+    <p className="muted">工作区已自动准备好，无需另外新建文件夹或复制项目。</p>
+    <Field label="已创建的工作区"><input readOnly value={t.workspacePath}/></Field>
+    <div className="flex gap-2 flex-wrap"><button className="btn-primary" disabled={archived} onClick={()=>void action('open')}>在 Codex 桌面打开</button><button className="btn-secondary" onClick={()=>void copy(t.workspacePath,'工作区路径')}>复制路径</button><button className="btn-secondary" onClick={()=>void copy(prompt,'本轮提示词')}>复制本轮提示词</button></div>
     {copied&&<p role="status" className="muted">{copied}</p>}
-    <Details title={`本轮提示词：${t.currentStage.title}`}><pre className="source">{prompt}</pre><p className="muted break-all">{t.currentStage.promptSource==='frozen-contract-v2'?'准备时冻结的完整契约':'旧记录原提示词；未追加新版契约'} · SHA-256 {t.currentStage.promptSha256}</p></Details>
+    <Details title={`本轮提示词：${t.currentStage.title}`}><pre className="source">{prompt}</pre><p className="muted break-all">{t.currentStage.promptSource.startsWith('frozen-')?'准备时冻结的提示词':'旧记录原提示词；未追加新版契约'} · SHA-256 {t.currentStage.promptSha256}</p></Details>
+    {!!t.skills?.length&&<Details title={`已装载 Skills · ${t.skills.length} 个`}>{t.skills.map(s=><div key={s.id}><strong className="text-sm">{s.name}</strong><p className="muted break-all">来源：{s.sourceLabel||'手动导入'} · {s.sourcePath}</p><p className="muted break-all">本次位置：.agents/skills/{s.name}/SKILL.md · {s.manifest.sha256.slice(0,12)}</p></div>)}<p className="muted">{t.skillMode==='explicit'?'每轮提示词明确请求使用。':'按任务需要使用。'}这里只确认文件已装载，实际使用需查看桌面执行记录。</p></Details>}
     <Details title={`本题冻结项目契约 · 题目 v${task.revision}`}><ContractView task={task}/></Details>
     <p className="muted">在桌面选择该目录与上述模型、推理档位。第一轮新建任务；后续轮次在同一任务粘贴提示词。工作台不代替你确认或发送。</p>
     <fieldset disabled={archived||busy} className="space-y-4">

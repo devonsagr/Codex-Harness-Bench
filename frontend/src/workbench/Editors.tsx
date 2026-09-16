@@ -1,11 +1,13 @@
 import {useEffect,useState} from 'react';
-import type {State,Act,Config,Task,Check} from './types';
+import type {State,Act,Config,Task,Check,Imported} from './types';
+import {SkillLibrary,ProjectConfigImport} from './Skills';
 import {Field,Panel,Details,Empty} from './ui';
 import {ContractEditor,TaskFilters,TaskImport,matchTask} from './Contracts';
 
 const newConfig=():Config=>({id:'',revision:0,name:'',agentsPrompt:'',baseModel:'gpt-6-astra',reasoning:'medium',interactiveMode:'adaptive',skills:[],customConstraints:[]});
-export function ConfigManager({state,act}:{state:State;act:Act}){
-  const [draft,setDraft]=useState<Config>(state.configs[0]||newConfig());const [path,setPath]=useState('');const [skillName,setSkillName]=useState('');
+export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:string)=>void}){
+  const [draft,setDraft]=useState<Config>(state.configs[0]||newConfig());
+  const addSkills=(imported:Imported[])=>setDraft(current=>({...current,skills:[...new Set([...current.skills,...imported.map(s=>s.id)])]}));
   const change=(patch:Partial<Config>)=>setDraft({...draft,...patch});
   const save=async(copy=false)=>{try{setDraft(await act<Config>('/configs/save',{...draft,...(copy?{id:undefined,revision:undefined,name:draft.name+' · 副本'}:{})}));}catch{/* App displays error */}};
   return <div className="work-layout"><aside className="space-y-3"><div className="flex justify-between items-center"><h1 className="page-title">配置管理</h1><button className="btn-secondary" onClick={()=>setDraft(newConfig())}>新建</button></div>
@@ -13,6 +15,7 @@ export function ConfigManager({state,act}:{state:State;act:Act}){
     <button className="btn-secondary w-full" onClick={()=>act<Config>('/configs/import-current',{}).then(setDraft).catch(()=>{})}>导入当前全局规则副本</button>
     <Details title="恢复归档配置">{state.archivedConfigs.map(c=><button key={c.id} className="btn-secondary mr-2" onClick={()=>act<Config>(`/configs/${c.id}/archive`,{revision:c.revision,archived:false}).then(setDraft).catch(()=>{})}>{c.name} · 恢复</button>)}</Details>
     <p className="muted">导入只读取全局规则及模型、推理档位。技能需明确选择；不修改宿主配置。</p>
+    <ProjectConfigImport act={act} onImported={setDraft}/>
   </aside><div className="space-y-5"><Panel title={draft.id?'编辑配置 · v'+draft.revision:'新建配置'}>
     <form onSubmit={e=>{e.preventDefault();void save();}} className="space-y-4">
       <Field label="配置名称"><input required value={draft.name} onChange={e=>change({name:e.target.value})}/></Field>
@@ -20,9 +23,12 @@ export function ConfigManager({state,act}:{state:State;act:Act}){
       <Field label="推理档位"><select value={draft.reasoning} onChange={e=>change({reasoning:e.target.value})}>{['none','minimal','low','medium','high','xhigh','max','ultra'].map(s=><option key={s}>{s}</option>)}</select></Field>
       <Field label="交互约定"><select value={draft.interactiveMode} onChange={e=>change({interactiveMode:e.target.value})}><option value="adaptive">按任务自行判断</option><option value="one-shot-direct">一次交付</option><option value="step-by-step-confirm">分阶段等我确认</option></select></Field></div>
       <Field label="AGENTS 规则" hint="在独立工作区写入 AGENTS.override.md；桌面全局规则仍会继承。"><textarea rows={12} value={draft.agentsPrompt} onChange={e=>change({agentsPrompt:e.target.value})}/></Field>
+      {draft.importSource&&<Details title="配置导入来源"><p className="muted break-all">{draft.importSource.root}</p>{draft.importSource.files.map(f=><p className="muted break-all" key={f.path}>{f.path} · {f.sha256.slice(0,12)}</p>)}{draft.importSource.warnings.map(w=><p className="muted" key={w}>{w}</p>)}<p className="muted">{draft.importSource.note}</p></Details>}
       <Details title={`选定技能 · ${draft.skills.length} 个`}>
-        {state.skills.length?state.skills.map(s=><label className="check-row" key={s.id}><input type="checkbox" checked={draft.skills.includes(s.id)} onChange={e=>change({skills:e.target.checked?[...draft.skills,s.id]:draft.skills.filter(id=>id!==s.id)})}/><span>{s.name}<small className="block muted">{Object.keys(s.manifest.files).length} 文件 · {s.manifest.sha256.slice(0,12)}</small></span></label>):<p className="muted">尚未导入技能。下面选择包含 SKILL.md 的具体目录。</p>}
+        {state.skills.length?state.skills.map(s=><label className="check-row" key={s.id}><input type="checkbox" checked={draft.skills.includes(s.id)} onChange={e=>change({skills:e.target.checked?[...draft.skills,s.id]:draft.skills.filter(id=>id!==s.id)})}/><span>{s.name}<small className="block muted break-all">{s.sourceLabel||'手动导入'} · {s.sourcePath} · {Object.keys(s.manifest.files).length} 文件 · {s.manifest.sha256.slice(0,12)}</small></span></label>):<p className="muted">使用下方技能库读取列表并批量选择。</p>}
       </Details>
+      <Field label="选定技能的使用方式" hint="未选中的全局技能仍可能被桌面继承。文件已装载不代表模型已使用。"><select value={draft.skillMode||'auto'} onChange={e=>change({skillMode:e.target.value as 'auto'|'explicit'})}><option value="auto">按任务需要使用</option><option value="explicit">在每轮提示词中明确请求使用</option></select></Field>
+      {new Set(state.skills.filter(s=>draft.skills.includes(s.id)).map(s=>s.name.toLowerCase())).size!==draft.skills.length&&<p role="alert" className="alert-error">当前选择有同名或不可用技能，请在上方取消重复选择后保存。</p>}
       <Details title={`个人约束 · ${draft.customConstraints.length} 项`}>
         <p className="muted">例如需要等待确认、特定文档同步。单独记录是否满足，不把人人不同的要求换成通用加分。</p>
         {draft.customConstraints.map((c,i)=><div key={c.id} className="panel-subtle p-3 space-y-2"><div className="flex gap-3"><input aria-label="约束名称" placeholder="约束名称" value={c.title} onChange={e=>change({customConstraints:draft.customConstraints.map((v,j)=>i===j?{...v,title:e.target.value}:v)})}/><button type="button" className="btn-ghost" onClick={()=>change({customConstraints:draft.customConstraints.filter((_,j)=>j!==i)})}>移除</button></div><textarea aria-label="约束说明" placeholder="明确要求与验证依据" value={c.ruleDesc} onChange={e=>change({customConstraints:draft.customConstraints.map((v,j)=>i===j?{...v,ruleDesc:e.target.value}:v)})}/><label className="check-row"><input type="checkbox" checked={c.isActive} onChange={e=>change({customConstraints:draft.customConstraints.map((v,j)=>i===j?{...v,isActive:e.target.checked}:v)})}/>本配置启用</label></div>)}
@@ -30,7 +36,8 @@ export function ConfigManager({state,act}:{state:State;act:Act}){
       </Details>
       <div className="flex gap-3"><button className="btn-primary" type="submit">保存配置版本</button>{draft.id&&<><button type="button" className="btn-secondary" onClick={()=>void save(true)}>另存副本</button><button type="button" className="btn-ghost" onClick={()=>act(`/configs/${draft.id}/archive`,{revision:draft.revision,archived:true}).then(()=>setDraft(newConfig())).catch(()=>{})}>归档配置</button></>}</div>
     </form>
-  </Panel><Panel title="导入技能文件"><form className="space-y-3" onSubmit={e=>{e.preventDefault();act('/skills/import',{path,name:skillName||undefined}).then(()=>{setPath('');setSkillName('');}).catch(()=>{});}}><Field label="技能目录绝对路径"><input required value={path} onChange={e=>setPath(e.target.value)} placeholder="D:\我的技能\example-skill"/></Field><Field label="技能名称" hint="英文字母、数字、连字符；留空使用目录名。"><input value={skillName} onChange={e=>setSkillName(e.target.value)}/></Field><button className="btn-secondary">导入并冻结文件</button></form></Panel></div></div>;
+    <button type="button" className="btn-secondary" onClick={async()=>{try{const c=await act<Config>('/configs/save',draft);setDraft(c);onUse(c.id);}catch{/* App displays validation. */}}}>保存并用于评测</button>
+  </Panel><SkillLibrary act={act} onImported={addSkills}/></div></div>;
 }
 
 const newTask=():Task=>({id:'',revision:0,title:'',difficulty:'medium',taskParadigm:'open-ended-project',channel:'frontend-ui',inputPrompt:'',stages:[{title:'完成需求',prompt:''}],checks:[],hasFrontendUI:true,sourceKind:'user-authored',sourceNote:'本地自定义题',license:'用户自有内容'});
