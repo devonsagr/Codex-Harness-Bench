@@ -11,6 +11,7 @@ export function App(){
   const [theme,setTheme]=useState<'light'|'dark'>(()=>localStorage.getItem('chb_theme')==='dark'?'dark':'light');
   const [state,setState]=useState<State|null>(null);
   const [runId,setRunId]=useState<string|null>(null);
+  const [selectedTaskId,setSelectedTaskId]=useState<string|null>(null);
   const [error,setError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState(false);
   const refresh=useCallback(async()=>{const s=await request<State>('/state');setState(s);},[]);
   useEffect(()=>{document.documentElement.classList.toggle('dark',theme==='dark');localStorage.setItem('chb_theme',theme);},[theme]);
@@ -28,9 +29,9 @@ export function App(){
       {error&&<div role="alert" className="alert-error">{error}<button className="ml-4 underline" onClick={()=>setError('')}>关闭</button></div>}
       {notice&&!error&&<p role="status" className="text-xs text-slate-500">{notice}</p>}
       {!state?<div className="panel p-8">{error?'暂时无法连接本地后端，请确认启动命令和端口。':'正在读取本地配置与评测记录…'}</div>:<fieldset disabled={busy} className="min-w-0 space-y-5">
-        {tab==='workbench'&&(run?<RunDetail key={run.id} run={run} state={state} act={act} onBack={()=>setRunId(null)} onError={setError} archived={state.archivedRuns.some(r=>r.id===run.id)}/>:<Prepare state={state} act={act} onCreated={go}/>)}
+        {tab==='workbench'&&(run?<RunDetail key={run.id} run={run} state={state} act={act} onBack={()=>setRunId(null)} onError={setError} archived={state.archivedRuns.some(r=>r.id===run.id)}/>:<Prepare state={state} act={act} onCreated={go} selectedTaskId={selectedTaskId}/>)}
         {tab==='configs'&&<ConfigManager state={state} act={act}/>}
-        {tab==='tasks'&&<TaskManager state={state} act={act}/>}
+        {tab==='tasks'&&<TaskManager state={state} act={act} onUse={id=>{setSelectedTaskId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='history'&&<History state={state} act={act} onOpen={go} onError={setError}/>}
         {tab==='leaderboard'&&<Comparison state={state} onOpen={go}/>}
         {tab==='spec'&&<Guide state={state}/>}

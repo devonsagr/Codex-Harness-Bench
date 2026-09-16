@@ -1,5 +1,7 @@
 """Transparent score policy. Absent evidence is null, never an invented score."""
 import math
+import hashlib
+from .contracts import expected_checks, string
 
 DIMENSIONS = {'intent': '需求完成与切中度', 'maintainability': '可维护性', 'robustness': '边界与健壮性', 'ux': '交互与视觉'}
 DEFAULT_POLICY = {'version': 'arena-review-v1', 'objectiveWeight': 50, 'humanWeight': 50,
@@ -21,7 +23,7 @@ def policy(value):
     return {'version': 'arena-review-v1', 'objectiveWeight': a, 'humanWeight': b, 'dimensions': dims}
 
 
-def validate_review(value, task, constraints):
+def validate_review(value, task, constraints, capture=None):
     scores = value.get('scores', {})
     applicable = set(DIMENSIONS) if task.get('hasFrontendUI') else set(DIMENSIONS)-{'ux'}
     if set(scores) != applicable:
@@ -36,7 +38,57 @@ def validate_review(value, task, constraints):
     ids = {c['id'] for c in constraints if c.get('isActive')}
     if set(checks) != ids or any(x not in {'met', 'unmet', 'unverified', 'not_applicable'} for x in checks.values()):
         raise ValueError('请逐项记录个人约束的满足情况；没有证据可以选未核实。')
-    return {'scores': {k: number(v) for k,v in scores.items()}, 'notes': notes.strip(), 'readiness': readiness, 'constraints': checks}
+    result={'scores': {k: number(v) for k,v in scores.items()}, 'notes': notes.strip(), 'readiness': readiness, 'constraints': checks}
+    if task.get('schemaVersion')==2:
+        items=value.get('criteria',{})
+        if not isinstance(items,dict) or set(items)!={c['id'] for c in task.get('criteria',[])}:
+            raise ValueError('请逐项记录本题验收条目，未操作的项目保持未核实。')
+        verified={}
+        capture=capture or {'manifest':{'files':{}},'checks':[]}
+        for cid,row in items.items():
+            if not isinstance(row,dict) or row.get('status') not in {'met','partial','unmet','unverified','not_applicable'}:
+                raise ValueError('验收状态无效。')
+            note=string(row.get('notes',''),'逐项验收依据',5000,row['status']!='unverified')
+            entry={'status':row['status'],'notes':note}
+            if row.get('filePath'):
+                path=string(row['filePath'],'证据文件路径',1000)
+                if path not in capture['manifest']['files']:raise ValueError('验收引用的文件不在此快照中。')
+                entry.update(filePath=path,fileSha256=capture['manifest']['files'][path])
+            if row.get('checkId'):
+                check=next((c for c in capture['checks'] if c['id']==row['checkId']),None)
+                if check is None:raise ValueError('验收引用的检查不在此快照的执行记录中。')
+                evidence={key:check.get(key) for key in ['id','label','status','exitCode','imageId','seconds']}
+                evidence['outputSha256']=hashlib.sha256(check.get('output','').encode('utf-8')).hexdigest()
+                entry.update(checkId=check['id'],checkEvidence=evidence)
+            verified[cid]=entry
+        constraint_notes=value.get('constraintNotes',{})
+        if not isinstance(constraint_notes,dict) or not set(constraint_notes)<=ids:
+            raise ValueError('个人约束依据包含未知条目。')
+        result.update(contractVersion=2,criteria=verified,constraintNotes={cid:string(constraint_notes.get(cid,''),'个人约束依据',5000,status!='unverified') for cid,status in checks.items()},
+                      revisionReason=string(value.get('revisionReason',''),'复审修订原因',3000))
+    return result
+
+
+def acceptance(task, trial, review, by_stage):
+    if task.get('schemaVersion')!=2:return {'status':'legacy_unavailable','required':0,'met':0,'items':[]}
+    required=[c for c in task.get('criteria',[]) if c['required']]
+    items=[]
+    for criterion in required:
+        status=(review or {}).get('criteria',{}).get(criterion['id'],{}).get('status','unverified')
+        linked=[]
+        for stage,check in expected_checks(task):
+            if criterion['id'] in check.get('criterionIds',[]):
+                actual=next((c for c in by_stage.get(stage,{}).get('checks',[]) if c['id']==check['id']),None)
+                linked.append(actual['status'] if actual else 'unverified')
+        if 'failed' in linked or status in {'partial','unmet'}:verdict='not_met'
+        elif status=='not_applicable':verdict='needs_review'
+        elif status!='met' or any(s!='passed' for s in linked):verdict='unverified'
+        else:verdict='met'
+        items.append({'id':criterion['id'],'status':verdict})
+    statuses={c['status'] for c in items}
+    status=next((s for s in ['not_met','needs_review','unverified'] if s in statuses),'met') if required else 'not_configured'
+    if required and status=='met' and trial['state']!='completed':status='in_progress'
+    return {'status':status,'required':len(required),'met':sum(c['status']=='met' for c in items),'items':items}
 
 
 def calculate(run, trial):
@@ -46,6 +98,13 @@ def calculate(run, trial):
     by_stage={c['stageIndex']:c for c in stages}
     checks=[check for c in by_stage.values() for check in c.get('checks',[])]
     configured=len(task['checks'])
+    if task.get('schemaVersion')==2:
+        slots=expected_checks(task)
+        configured=len(slots)
+        checks=[]
+        for stage,definition in slots:
+            matches=[c for c in by_stage.get(stage,{}).get('checks',[]) if c['id']==definition['id']]
+            if len(matches)==1:checks.append({**matches[0],'weight':definition['weight']})
     objective = None
     if configured and len(checks) == configured and all(c['status'] in {'passed','failed'} for c in checks):
         objective = round(sum(c['weight'] for c in checks if c['status']=='passed') / sum(c['weight'] for c in checks)*100,2)
@@ -61,5 +120,6 @@ def calculate(run, trial):
     if trial['state'] != 'completed':
         overall = None
     return {'objective':objective,'human':human,'overall':overall,'provisional':overall is None,
+            'acceptance':acceptance(task,trial,review,by_stage),
             'coverage':{'configuredChecks':configured,'executedChecks':len(checks)},
             'humanReviewId':review['id'] if review else None,'varianceMargin':None}
