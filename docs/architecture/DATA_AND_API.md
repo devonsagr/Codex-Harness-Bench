@@ -91,7 +91,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |/tasks/import-preview|document：题目对象/数组/版本题包|valid/tasks/errors/warnings/fingerprint；不写入数据库|
 |/tasks/import|document、fingerprint、requestId|receipt和imported；整个包与回执同一事务创建|
 |/{configs\|tasks\|runs}/{id}/archive|revision、archived 布尔值|归档/恢复后的实体|
-|/runs/prepare|requestId、configIds(1–2)、taskIds(1–10)、policy、notes|冻结后的 Run；相同请求内容可幂等返回|
+|/runs/prepare|requestId、configIds(1–2)、taskIds(1–10)、policy、notes、可选configOverrides|冻结后的 Run；相同请求内容可幂等返回|
 |/runs/{rid}/restore-config|configId|历史配置的新副本|
 
 相同 requestId 携带不同内容会拒绝；网络返回不确定时前端复用原 ID。正常“再测一次”必须用新 requestId。
@@ -173,3 +173,5 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 - **D-AC5**：恢复配置/归档/按历史重建三种动作有不同结果和来源回执。
 
 配置新增 skillMode:auto/explicit，importSource由服务端写入（来源范围、文件/哈希、时间、缺省说明），普通编辑保留原来源。Skill 保存 name/description/scope/sourceLabel/sourcePath/manifest；有效扫描要求 name/description，旧手动导入继续兼容。新 Trial.executionPrompts 逐配置逐阶段冻结实际发送文本和哈希，包含选定技能路径与使用意图；旧 Trial 仍回退到原 Task 提示词，读历史不追加要求。
+
+prepare.configOverrides为数组，每个所选配置至多一项：configId、revision、skills、skillMode；不可夹带模型/规则等字段。先匹配幂等请求，再校验来源revision和技能，保存到Run.configs而不写records/config。实际改变时记录preparationOverride.sourceRevision/sourceSkills/sourceSkillMode；省略该数组保持旧协议行为。

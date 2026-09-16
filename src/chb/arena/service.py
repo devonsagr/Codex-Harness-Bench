@@ -200,6 +200,27 @@ class Arena:
         if existing:
             if existing[0].get('requestFingerprint')!=fingerprint(data):raise ValueError('同一请求编号的内容已改变，请重新创建。')
             return self.present_run(existing[0])
+        overrides=data.get('configOverrides',[])
+        if not isinstance(overrides,list) or len(overrides)>len(configs):raise ValueError('本次配置调整无效。')
+        seen=set()
+        for override in overrides:
+            if not isinstance(override,dict) or set(override)-{'configId','revision','skills','skillMode'}:
+                raise ValueError('本次只允许调整技能与调用方式。')
+            cid=identifier(override.get('configId'))
+            if cid not in ids or cid in seen:raise ValueError('本次配置调整不属于所选配置或重复。')
+            seen.add(cid)
+            config=next(c for c in configs if c['id']==cid)
+            if override.get('revision')!=config['revision']:raise ValueError('配置版本已变化，请刷新并重新核对本次选择。')
+            skills=override.get('skills',config['skills']);mode=override.get('skillMode',config.get('skillMode','auto'))
+            if not isinstance(skills,list) or len(skills)>30 or not all(isinstance(s,str) for s in skills) or len(set(skills))!=len(skills):
+                raise ValueError('本次技能列表无效，最多选择30个。')
+            names=[self.db.get('skill',identifier(s))['name'].casefold() for s in skills]
+            if len(set(names))!=len(names):raise ValueError('本次技能同名，请只保留一个来源。')
+            if mode not in {'auto','explicit'}:raise ValueError('技能调用方式无效。')
+            if skills!=config['skills'] or mode!=config.get('skillMode','auto'):
+                config['preparationOverride']={'sourceRevision':config['revision'],'sourceSkills':config['skills'],
+                                               'sourceSkillMode':config.get('skillMode','auto')}
+                config.update(skills=skills,skillMode=mode)
         scoring_policy=policy(data.get('policy'))
         selected=[{**freeze_prompts(normalize_contract(t)), 'sourceSchemaVersion':t.get('schemaVersion',1)} for t in selected]
         if scoring_policy['humanWeight'] and any(not t.get('hasFrontendUI') for t in selected):
