@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 2,
+  "tasks": [
+    {
+      "schemaVersion": 2,
+      "title": "任务看板：新增、删除与刷新恢复",
+      "description": "用于学习项目契约和逐项人工验收的原创题面。没有独立自动化检查，不是已校验题包。",
+      "taskParadigm": "open-ended-project",
+      "channel": "frontend-ui",
+      "difficulty": "Medium",
+      "hasFrontendUI": true,
+      "inputPrompt": "做一个供个人使用的任务看板，支持新增和删除任务。第二阶段加入刷新恢复。界面需给出空态、输入校验与操作结果反馈。记录运行和验证方法。",
+      "projectSpec": {
+        "userStories": ["用户输入非空标题后新增任务", "用户删除指定任务，列表及时更新", "用户刷新页面后仍看到此前保存的任务"],
+        "apiEndpoints": [],
+        "dataModel": ["任务包含稳定 id 和非空 title"],
+        "acceptanceCriteria": ["空白标题被拒绝，并给出可理解的提示", "删除不影响其他任务", "新增和删除的结果在刷新后保持"],
+        "techStack": "技术栈可自行选择；本题允许浏览器本地持久化。请明确保存范围和数据丢失的限制。"
+      },
+      "stages": [
+        {"id": "stage-core", "title": "完成界面和基本操作", "prompt": "完成新增、删除、空态和输入校验。提供可运行结果，然后等待用户确认。"},
+        {"id": "stage-persistence", "title": "持久化与回归", "prompt": "加入刷新恢复。再次验证新增、删除和空白校验没有退化，说明实际检查步骤和剩余限制。"}
+      ],
+      "criteria": [
+        {"id": "task-create", "label": "新增与空白校验", "description": "新增两条不同任务；空白提交被拒绝，合法任务不受影响。", "required": true, "dimension": "intent", "source": "repository-original"},
+        {"id": "task-delete", "label": "删除指定任务", "description": "删除其中一条，另一条仍在；清空后显示可继续添加的空态。", "required": true, "dimension": "intent", "source": "repository-original"},
+        {"id": "task-persist", "label": "刷新恢复", "description": "新增两条、删除一条后刷新；剩余任务保留，已删除任务不复活。", "required": true, "dimension": "robustness", "source": "repository-original"}
+      ],
+      "checks": [],
+      "sourceKind": "repository-original",
+      "sourceNote": "项目原创人工验收示例；题面未经正式桌面整题验证。准备时可明确选择纯人工策略。",
+      "license": "MIT"
+    }
+  ]
+}

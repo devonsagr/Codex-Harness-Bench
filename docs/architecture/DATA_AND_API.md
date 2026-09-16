@@ -6,7 +6,7 @@
 
 业务事实来自本机 SQLite 与冻结文件。React localStorage 只保存外观偏好。App 调 API 取得状态，成功写入后重新读取；服务断开不能回退随机数据。
 
-现有链路：`App/Runner/Editors/Records → workbench/api.ts → webapp.py → arena/api.py → service/jobs/scoring/telemetry/files → Database/本地文件`。
+现有链路：`App/Runner/Editors/Records → workbench/api.ts → webapp.py → arena/api.py → service/contracts/task_import/jobs/scoring/telemetry/files → Database/本地文件`。
 
 继续开发时按能力分离校验与序列化，避免把项目契约、评分和生命周期继续全部塞进 service.py；仍保持单进程本机应用，不为拆模块引入微服务或新调度平台。
 
@@ -17,7 +17,7 @@
 |records|(kind,id)|revision、body(JSON)、archived；当前记录|
 |revisions|(kind,id,revision)|body(JSON)、created；历次版本|
 
-kind 包括 config、task、skill、baseline、run。Trial/Capture/Review/事件目前嵌在 Run JSON 中，并非各有独立 SQL 表。写入使用 SQLite 事务、BEGIN IMMEDIATE 和预期 revision；启用 WAL。不能在文档画出不存在的独立关系表后宣称已实现。
+kind 包括 config、task、skill、baseline、run，以及题包导入幂等回执 task_import。Trial/Capture/Review/事件目前嵌在 Run JSON 中，并非各有独立 SQL 表。写入使用 SQLite 事务、BEGIN IMMEDIATE 和预期 revision；启用 WAL。不能在文档画出不存在的独立关系表后宣称已实现。
 
 文件系统与数据库不是一个原子事务；当前先创建部分目录再保存记录，准备中途失败可能留下未登记目录。B05 要补可恢复的准备回执或临时目录提交策略，不能通过全局清理解决。
 
@@ -26,13 +26,13 @@ kind 包括 config、task、skill、baseline、run。Trial/Capture/Review/事件
 |实体|主要字段|不可变关系|
 |---|---|---|
 |Config|id/revision/name/agentsPrompt/baseModel/reasoning/interactiveMode/skills/customConstraints|Run 内保存选定版本完整正文|
-|Task|id/revision/title/taskParadigm/channel/difficulty/inputPrompt/stages/checks/baselineId/hasFrontendUI/来源|Run 内保存选定版本；额外原型字段目前可透传但未完整校验|
+|Task|id/revision/schemaVersion/title/taskParadigm/channel/difficulty/inputPrompt/projectSpec/fullstackScope/criteria/stages/checks/baselineId/hasFrontendUI/来源|版本2字段校验；Run 内保存完整转换结果和promptSnapshots/sourceSchemaVersion|
 |Skill/Baseline|id/name/sourcePath/manifest/createdAt|manifest 对应本地冻结文件|
 |Run|id/revision/requestId/requestFingerprint/configs/tasks/policy/hostFingerprint/executionMode/trials/events/notes|创建冻结输入；随后仅追加过程和版本|
 |Trial|id/configId/taskId/state/stageIndex/workspacePath/baseline/captures/reviews/sessionId/usage/observations|每一配置×题目独立目录|
 |Capture|id/stageIndex/at/manifest/facts/response/checks/checksConfigured/harnessUnchanged/hostUnchanged|文件不可改写；检查尝试保留并可重跑|
 |CheckResult|id/label/weight/argv/imageId/status/exitCode/seconds/output|绑定 Capture；旧尝试在 checkAttempts 留存|
-|Human Review|id/kind=human/captureId/at/scores/notes/readiness/constraints|追加新版本，不覆盖 AI 或检查|
+|Human Review|id/kind=human/captureId/at/scores/notes/readiness/constraints/criteria/constraintNotes/revisionReason/contractVersion|追加新版本，不覆盖 AI 或检查|
 |AI Review|id/kind=ai/captureId/at/summary/findings/遗漏及执行元数据|独立意见，绑定回收哈希与模型|
 |Usage/TraceReceipt|sessionId/各累计Token/时间/models/reasoningLevels/errors，及原文hash和导入时间|同会话累计不回退，完整原文仅本地|
 
@@ -84,6 +84,8 @@ kind 包括 config、task、skill、baseline、run。Trial/Capture/Review/事件
 |/baselines/import|path、可选 name|冻结 Baseline|
 |/tasks/save|题目字段；编辑带 id/revision|新 revision 的 Task|
 |/tasks/import-originals|空对象|imported 数组；重复导入跳过已存在 ID|
+|/tasks/import-preview|document：题目对象/数组/版本题包|valid/tasks/errors/warnings/fingerprint；不写入数据库|
+|/tasks/import|document、fingerprint、requestId|receipt和imported；整个包与回执同一事务创建|
 |/{configs\|tasks\|runs}/{id}/archive|revision、archived 布尔值|归档/恢复后的实体|
 |/runs/prepare|requestId、configIds(1–2)、taskIds(1–10)、policy、notes|冻结后的 Run；相同请求内容可幂等返回|
 |/runs/{rid}/restore-config|configId|历史配置的新副本|
@@ -101,26 +103,54 @@ kind 包括 config、task、skill、baseline、run。Trial/Capture/Review/事件
 |complete|{}|最终阶段已回收后记录交付结束|
 |interrupt|reason|外部中断记录，不停止桌面|
 |trace|raw(JSONL 字符串)|归属校验后保存原文和累计用量|
-|review|captureId、scores、notes、readiness、constraints|只接受最新回收的人工评分，新建版本|
+|review|captureId、scores、notes、readiness、constraints；v2加criteria、constraintNotes、revisionReason|只接受最新回收；条目集合必须完整，修订已有复审须原因；始终新建版本|
 |check|captureId|异步运行该快照适用检查；可选历史阶段快照|
 |judge|captureId、model|显式启动使用额度的 AI 复审|
 |stop|{}|返回 stopping:true / desktopStopped:false|
 
 动作状态前提见 [执行合同](EXECUTION_AND_EVIDENCE.md)。接口列表不是统一保证所有动作在所有状态可调用。
 
-## 6. 拟新增合同与迁移顺序
+## 6. 新契约已实现协议与剩余扩展
+
+版本2的实际字段合同如下（与源类型/校验同步）：
+
+```json
+{
+  "schemaVersion": 2,
+  "projectSpec": {
+    "userStories": ["新增任务"], "apiEndpoints": ["POST /tasks"],
+    "dataModel": ["Task: id, title"], "acceptanceCriteria": ["刷新恢复"],
+    "techStack": "SQLite"
+  },
+  "criteria": [{"id": "persist", "label": "刷新恢复", "description": "新增后刷新",
+    "required": true, "dimension": "robustness", "source": "user-authored"}],
+  "checks": [{"id": "check-persist", "label": "持久化", "image": "my-verifier:v1",
+    "argv": ["python", "/tests/verify.py", "/app"], "weight": 1, "timeout": 120,
+    "kind": "functional", "criterionIds": ["persist"], "stageIndex": 0, "runOnFinal": true}]
+}
+```
+
+这只是字段示例，不存在名为my-verifier的已准备镜像。完整无脚本题包见任务合同链接。
+
+- `projectSpec`每组最多80项、每项最多8000字符；criteria最多200项，id唯一且符合记录编号规则，dimension来自四维量表。旧rubric正文保留，legacyPoints不直接计分。
+- `stages`仍为1–20项，新增稳定id；checks最多30项，id保存后不重排，kind为functional/build/rule/other，criterionIds须引用本题条目。stageIndex从0开始；省略在最终阶段；runOnFinal为布尔值。
+- 新Run冻结`tasks[].promptSnapshots[]`的stageId/text/sha256和sourceSchemaVersion。`Trial.currentStage`额外返回executionPrompt/promptSha256/promptSource，前端直接复制服务端文本。旧Run返回legacy-text-only，不补写未采集的契约。
+- GET state中旧题返回`contractUpgradePending=true`的兼容视图；无数据库写入。保存才升级题目revision，或准备新Run时只冻结新运行副本。
+- review的`criteria`为`{条目ID:{status,notes,filePath?,checkId?}}`。非unverified需notes；引用文件必须属于当前manifest，引用检查必须已经在该capture执行。服务补入fileSha256和checkEvidence（执行元数据+outputSha256）。任何客户端自称的hash/检查证据都不信任。
+- `constraintNotes`为个人约束ID到文本，已裁定的激活约束需依据；同一capture第二次起的人工复审需revisionReason。旧Run保持旧评分输入合同。
+- `score.acceptance`含status/required/met/items，与objective/human/overall分开；状态语义见评分合同。
+- 题包最多50题/900KB。预览逐题收集错误，valid=false时禁止提交。提交重新校验并比较规范化fingerprint；一事务写全部task、revision及task_import回执。相同requestId/fingerprint幂等，内容不同拒绝，所有ID生成新副本。
+- 题包记录importSource.original（原id/revision）及原题sha256；baselineId仅引用已有本机快照。导入无自动克隆、镜像准备或命令执行。
 
 |拟新增部分|输入/关系|兼容规则|
 |---|---|---|
-|结构化项目契约|Task schemaVersion、稳定条目ID、项目/阶段约束|旧字段先保留，按显式迁移生成新题 revision|
-|提示词编排|冻结 Task/Stage/契约，生成文本与hash|运行创建后文本不受当前编辑器修改影响|
-|逐条验收|captureId、criterionId、status、notes、evidenceRefs|绑定运行内题目版本，拒绝不存在的条目|
+
 |AI 意见处理|reviewId、finding索引/稳定ID、处理决定、理由|保存新事件，不改原意见内容|
 |版本浏览/恢复|实体ID+revision，新副本来源|旧 Run 仍只读；不能升级后重算覆盖历史|
 |按历史重建|源 Run、选定试次、请求ID|新工作区与新 Run；先展示哪些条件可以复用|
 |异常与恢复事件|source/kind/phase/recoverability/details|保留原始错误，未知分类保持 unknown|
 
-接口具体路径随各工作包编码时补在本文对应表，未实现前不出现在“现有路由”中。迁移需有旧 fixture、新 fixture 和回滚后的只读策略，不能单凭 JSON 允许未知字段就宣称兼容。
+表中仅列尚未实现的扩展，具体路径随工作包编码时补在现有路由中。迁移需有旧 fixture、新 fixture 和回滚后的只读策略，不能单凭 JSON 允许未知字段就宣称兼容。
 
 ## 7. 并发与失败细则
 

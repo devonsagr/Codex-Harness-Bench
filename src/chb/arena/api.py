@@ -8,6 +8,8 @@ import zipfile
 from .files import inventory, verify_snapshot, now
 from .service import identifier, text
 from .jobs import start_job, stop_job
+from . import task_import
+from .contracts import task_view
 
 
 def post(app,route,data):
@@ -15,6 +17,8 @@ def post(app,route,data):
     with app.lock:
         if parts==['configs','save']:return app.save_config(data)
         if parts==['tasks','save']:return app.save_task(data)
+        if parts==['tasks','import-preview']:return task_import.preview(app,data.get('document'))
+        if parts==['tasks','import']:return task_import.commit(app,data)
         if parts==['tasks','import-originals']:return import_originals(app)
         if parts==['skills','import']:return app.import_files('skill',data)
         if parts==['baselines','import']:return app.import_files('baseline',data)
@@ -33,7 +37,8 @@ def post(app,route,data):
             kind={'configs':'config','tasks':'task','runs':'run'}[parts[0]]
             if kind=='run' and any(k[0]==parts[1] for k in app.jobs):raise ValueError('请先结束后台检查再归档。')
             if kind=='run' and any(t.get('ownedContainers') for t in app.db.get('run',identifier(parts[1]))['trials']):raise ValueError('请先确认检查容器已清理，再归档记录。')
-            return app.db.archive(kind,identifier(parts[1]),bool(data.get('archived')),data.get('revision'))
+            result=app.db.archive(kind,identifier(parts[1]),bool(data.get('archived')),data.get('revision'))
+            return task_view(result) if kind=='task' else result
         if len(parts)==3 and parts[0]=='runs' and parts[2]=='restore-config':return app.restore_config(identifier(parts[1]),identifier(data.get('configId')))
         if len(parts)==5 and parts[0]=='runs' and parts[2]=='trials':
             rid,tid,action=identifier(parts[1]),identifier(parts[3]),parts[4]

@@ -12,6 +12,7 @@ import uuid
 from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
 from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS
+from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks
 
 
 def identifier(value):
@@ -101,33 +102,54 @@ class Arena:
         return self.db.save('config',body,value.get('revision'))
 
     def save_task(self, value):
+        body=self.validate_task(value)
+        body.update(id=identifier(value.get('id') or 'task-'+uuid.uuid4().hex[:12]),updatedAt=now())
+        return self.db.save('task',body,value.get('revision'))
+
+    def validate_task(self, value):
+        if not isinstance(value,dict):raise ValueError('题目必须是对象。')
         value=copy.deepcopy(value)
-        expected_revision=value.get('revision')
-        text(value.get('title'),300);text(value.get('inputPrompt'),80000)
+        for key in ['revision','archived','contractUpgradePending','promptSnapshots','archiveEvents']:
+            value.pop(key,None)
+        for key,label,limit in [('title','题目名称',300),('inputPrompt','总体需求',80000)]:
+            try:text(value.get(key),limit)
+            except ValueError as exc:raise ValueError(label+'：'+str(exc)) from exc
+        value.setdefault('difficulty','未标注')
+        text(value['difficulty'],100)
+        for key in ['description','sourceNote','sourceKind','referenceUrl','license']:
+            if key in value:
+                try:text(value[key],10000,False)
+                except ValueError as exc:raise ValueError(key+'必须是文本。') from exc
+        if 'hasFrontendUI' in value and type(value['hasFrontendUI']) is not bool:
+            raise ValueError('包含界面标记必须是布尔值。')
+        if 'baselineId' in value:
+            if value['baselineId'] in (None,''):value.pop('baselineId')
+            else:identifier(value['baselineId'])
         if value.get('taskParadigm') not in {'open-ended-project','deterministic-bugfix'}: raise ValueError('请区分项目构建与 Bug 修复。')
         if value.get('channel') not in {'frontend-ui','deepswe-core','architecture-constraint','interactive-confirm'}: raise ValueError('任务方向无效。')
         checks=value.get('checks',[])
         if not isinstance(checks,list) or len(checks)>30: raise ValueError('最多声明 30 项检查。')
         for i,c in enumerate(checks):
+            if not isinstance(c,dict):raise ValueError('检查必须是对象。')
             text(c.get('label'),200)
             argv=c.get('argv')
             if not isinstance(argv,list) or not argv or len(argv)>50 or any(not isinstance(x,str) or len(x)>1000 for x in argv): raise ValueError('检查命令必须是参数数组，不直接执行拼接的宿主 shell。')
             text(c.get('image'),200)
             if not re.fullmatch(r'[a-zA-Z0-9._/:@-]+',c['image']): raise ValueError('镜像名称无效。')
             if type(c.get('weight',1)) not in (int,float) or not 0<c.get('weight',1)<=100: raise ValueError('检查权重必须大于 0 且不超过 100。')
-            c.update(id=str(i+1),weight=c.get('weight',1))
-        stages=value.get('stages') or [{'title':s['title'],'prompt':s['prompt']} for s in value.get('multiTurnStages',[])] or [{'title':'完成需求','prompt':value['inputPrompt']}]
+            c.update(id=identifier(c.get('id') or str(i+1)),weight=c.get('weight',1))
+        if len({c['id'] for c in checks})!=len(checks):raise ValueError('检查编号重复。')
+        stages=value.get('stages') or value.get('multiTurnStages') or [{'title':'完成需求','prompt':value['inputPrompt']}]
         if not isinstance(stages,list) or not 1<=len(stages)<=20: raise ValueError('需要 1–20 个明确阶段。')
         for stage in stages:
+            if not isinstance(stage,dict):raise ValueError('阶段必须是对象。')
             text(stage.get('title'),300);text(stage.get('prompt'),80000)
         for c in checks:
             if type(c.get('timeout',120)) is not int or not 1<=c.get('timeout',120)<=600:raise ValueError('检查超时需为 1–600 秒整数。')
             if 'stageIndex' in c and (type(c['stageIndex']) is not int or not 0<=c['stageIndex']<len(stages)):raise ValueError('检查对应的阶段不存在。')
         if value.get('baselineId'):self.db.get('baseline',identifier(value['baselineId']))
-        value.update(id=identifier(value.get('id') or 'task-'+uuid.uuid4().hex[:12]),checks=checks,stages=stages,
-                     expectedTurns=len(stages),updatedAt=now(),hasFrontendUI=bool(value.get('hasFrontendUI')))
-        value.pop('revision',None)
-        return self.db.save('task',value,expected_revision)
+        value.update(checks=checks,stages=stages,expectedTurns=len(stages),hasFrontendUI=bool(value.get('hasFrontendUI')))
+        return normalize_contract(value)
 
     def models(self):
         cache=Path.home()/'.codex/models_cache.json'
@@ -144,8 +166,8 @@ class Arena:
 
     def state(self):
         runs=[self.present_run(r) for r in self.db.list('run')]
-        return {'configs':self.db.list('config'),'tasks':self.db.list('task'),'skills':self.db.list('skill'),
-                'archivedConfigs':self.db.list('config',True),'archivedTasks':self.db.list('task',True),
+        return {'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
+                'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
                 'models':self.models(),'defaultPolicy':DEFAULT_POLICY,'dimensions':DIMENSIONS,
                 'mode':'desktop','source':'SQLite 与本机冻结文件','legacyExperiments':len(list((self.root/'runs').glob('*/plan.json')))}
@@ -171,6 +193,7 @@ class Arena:
             if existing[0].get('requestFingerprint')!=fingerprint(data):raise ValueError('同一请求编号的内容已改变，请重新创建。')
             return self.present_run(existing[0])
         scoring_policy=policy(data.get('policy'))
+        selected=[{**freeze_prompts(normalize_contract(t)), 'sourceSchemaVersion':t.get('schemaVersion',1)} for t in selected]
         if scoring_policy['humanWeight'] and any(not t.get('hasFrontendUI') for t in selected):
             if not sum(v for k,v in scoring_policy['dimensions'].items() if k!='ux'):
                 raise ValueError('非界面题至少需要一个非视觉人工维度的权重大于零。')
@@ -223,7 +246,10 @@ class Arena:
         run=copy.deepcopy(run)
         for t in run['trials']:
             t['score']=calculate(run,t)
-            t['currentStage']=next(x for x in run['tasks'] if x['id']==t['taskId'])['stages'][t['stageIndex']]
+            task=next(x for x in run['tasks'] if x['id']==t['taskId'])
+            prompt=stage_prompt(task,t['stageIndex'])
+            t['currentStage']={**task['stages'][t['stageIndex']], 'executionPrompt':prompt['text'],
+                               'promptSha256':prompt['sha256'],'promptSource':prompt['source']}
         run['state']='completed' if all(t['state']=='completed' for t in run['trials']) else 'active'
         return run
 
@@ -297,7 +323,11 @@ class Arena:
             elif action=='review':
                 if not t['captures']:raise ValueError('先回收产物，再提交评分。')
                 if data.get('captureId')!=t['captures'][-1]['id']:raise ValueError('评分对象已变化，请刷新后复审最新快照。')
-                review=validate_review(data,task,config.get('customConstraints',[]))
+                capture=t['captures'][-1]
+                verify_snapshot(folder/'captures'/capture['id']/'files',capture['manifest'])
+                review=validate_review(data,task,config.get('customConstraints',[]),capture)
+                if task.get('schemaVersion')==2 and any(r['kind']=='human' and r['captureId']==capture['id'] for r in t['reviews']) and not review['revisionReason'].strip():
+                    raise ValueError('修改已有复审时，请填写本次修订原因。')
                 review.update(id='review-'+uuid.uuid4().hex[:12],kind='human',at=now(),captureId=data['captureId'])
                 t['reviews'].append(review)
                 self.event(run,'人工评分已作为独立版本保存；自动化结果没有被覆盖。',tid)
@@ -324,8 +354,3 @@ class Arena:
         if not old:raise ValueError('历史配置不存在。')
         value=copy.deepcopy(old);value.pop('revision',None);value['id']='cfg-'+uuid.uuid4().hex[:12];value['name']=old['name']+' · 历史副本'
         return self.save_config(value)
-
-
-def applicable_checks(task,stage):
-    # Undeclared stage means final delivery, not every partial draft.
-    return [c for c in task['checks'] if c.get('stageIndex',len(task['stages'])-1)==stage]

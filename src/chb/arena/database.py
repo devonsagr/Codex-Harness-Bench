@@ -64,3 +64,19 @@ class Database:
                 raise ValueError('记录版本已变化，请刷新。')
             db.execute('INSERT INTO revisions VALUES(?,?,?,?,?)',(kind,identifier,expected+1,encoded,now()))
         return self.get(kind,identifier)
+
+    def import_tasks(self, receipt, tasks):
+        """New copies and their idempotency receipt commit or roll back together."""
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute("SELECT body FROM records WHERE kind='task_import' AND id=?",(receipt['id'],)).fetchone()
+            if row:
+                existing=json.loads(row['body'])
+                if existing['fingerprint']!=receipt['fingerprint']:
+                    raise ValueError('此导入请求编号已用于不同题包，请重新预览。')
+                return existing
+            for kind,body in [('task',t) for t in tasks]+[('task_import',receipt)]:
+                encoded=json.dumps(body,ensure_ascii=False)
+                db.execute('INSERT INTO records(kind,id,revision,body) VALUES(?,?,1,?)',(kind,body['id'],encoded))
+                db.execute('INSERT INTO revisions VALUES(?,?,1,?,?)',(kind,body['id'],encoded,now()))
+        return receipt
