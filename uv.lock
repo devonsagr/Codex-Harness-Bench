@@ -432,10 +432,14 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "harbor" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "harbor", specifier = "==0.23.0" }]
+requires-dist = [
+    { name = "harbor", specifier = "==0.23.0" },
+    { name = "pyyaml", specifier = ">=6,<7" },
+]
 
 [[package]]
 name = "colorama"

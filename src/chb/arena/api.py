@@ -9,6 +9,7 @@ from .files import inventory, verify_snapshot, now
 from .service import identifier, text
 from .jobs import start_job, stop_job
 from . import task_import
+from . import skills, config_import
 from .contracts import task_view
 
 
@@ -21,17 +22,13 @@ def post(app,route,data):
         if parts==['tasks','import']:return task_import.commit(app,data)
         if parts==['tasks','import-originals']:return import_originals(app)
         if parts==['skills','import']:return app.import_files('skill',data)
+        if parts==['skills','scan']:return skills.scan(app,data)
+        if parts==['skills','import-selected']:return skills.import_selected(app,data)
+        if parts==['configs','import-preview']:return config_import.preview(app,data)
+        if parts==['configs','import-source']:return config_import.commit(app,data)
         if parts==['baselines','import']:return app.import_files('baseline',data)
         if parts==['configs','import-current']:
-            home=Path.home()/'.codex'
-            source=next((home/n for n in ['AGENTS.override.md','AGENTS.md'] if (home/n).is_file()),None)
-            if not source:raise ValueError('本机没有可导入的全局规则文件。')
-            if source.stat().st_size>200000:raise ValueError('全局规则文件过大，请先选择需要的内容。')
-            native=tomllib.loads((home/'config.toml').read_text(encoding='utf-8')) if (home/'config.toml').is_file() else {}
-            return app.save_config({'name':data.get('name') or '当前全局规则副本','agentsPrompt':source.read_text(encoding='utf-8'),
-              'baseModel':native.get('model','gpt-6-astra'),'reasoning':native.get('model_reasoning_effort','medium'),
-              'interactiveMode':'adaptive','skills':[],'customConstraints':[],
-              'tagline':'仅规则、模型、推理档位；技能需另行选择。桌面仍继承宿主全局配置。'})
+            return config_import.commit(app,{**data,'scope':'global'})
         if parts==['runs','prepare']:return app.prepare(data)
         if len(parts)==3 and parts[2]=='archive' and parts[0] in {'configs','tasks','runs'}:
             kind={'configs':'config','tasks':'task','runs':'run'}[parts[0]]

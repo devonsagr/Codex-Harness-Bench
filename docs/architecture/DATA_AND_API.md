@@ -80,7 +80,11 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |---|---|---|
 |/configs/save|新配置字段；编辑带 id/revision|新 revision 的 Config|
 |/configs/import-current|可选 name|仅规则/模型/推理档位的副本|
-|/skills/import|path、可选 name|冻结 Skill|
+|/skills/import|path、可选 name|旧单目录入口，保留兼容|
+|/skills/scan|scope: global/project/custom，后两者带 path|sources、candidates、15分钟 scanId；只读扫描|
+|/skills/import-selected|scanId、candidateIds（1–30）|imported；核对扫描时哈希，整批事务写入，失败撤回本批文件|
+|/configs/import-preview|scope: global/project，project 带 path|规则/模型/档位及 importSource；不存数据库|
+|/configs/import-source|同预览，可带 expectedFiles|来源未变时创建 Config 副本|
 |/baselines/import|path、可选 name|冻结 Baseline|
 |/tasks/save|题目字段；编辑带 id/revision|新 revision 的 Task|
 |/tasks/import-originals|空对象|imported 数组；重复导入跳过已存在 ID|
@@ -167,3 +171,5 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 - **D-AC3**：提交过期 revision/错误 captureId 被拒，既有记录不变。
 - **D-AC4**：导出验证 hash，损坏时给出说明；不能读不在清单中的路径。
 - **D-AC5**：恢复配置/归档/按历史重建三种动作有不同结果和来源回执。
+
+配置新增 skillMode:auto/explicit，importSource由服务端写入（来源范围、文件/哈希、时间、缺省说明），普通编辑保留原来源。Skill 保存 name/description/scope/sourceLabel/sourcePath/manifest；有效扫描要求 name/description，旧手动导入继续兼容。新 Trial.executionPrompts 逐配置逐阶段冻结实际发送文本和哈希，包含选定技能路径与使用意图；旧 Trial 仍回退到原 Task 提示词，读历史不追加要求。
