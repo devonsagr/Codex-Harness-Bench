@@ -154,6 +154,27 @@ th,td { @apply p-3 border-b border-slate-200 dark:border-zinc-800; }
 button:focus-visible,summary:focus-visible { outline:2px solid #71717a;outline-offset:3px; }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}}
 
-.prepare-grid { display:grid;grid-template-columns:minmax(0,1fr);gap:1.25rem;align-items:start; }
+
+.prepare-grid { display:grid;grid-template-columns:minmax(0,1fr);gap:1.25rem;align-items:start;overflow-anchor:none; }
 .prepare-grid > *, .work-layout > *, fieldset { min-width:0; }
-@media(min-width:1024px){.prepare-grid{grid-template-columns:300px minmax(0,1fr);grid-template-areas:"config tasks" "summary tasks";}.prepare-config{grid-area:config}.prepare-summary{grid-area:summary}.prepare-tasks{grid-area:tasks}}
+.prepare-task-list { display:grid;gap:.75rem;max-height:60vh;overflow-y:auto;padding:2px;overscroll-behavior:contain; }
+.prepare-session { min-width:0; }
+.prepare-session-heading { padding:1.25rem 1.25rem .5rem; }
+.prepare-selection { height:3rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical; }
+.prepare-controls { padding:0 1.25rem 1rem; }
+.prepare-action { @apply border-t border-slate-200 dark:border-zinc-800; padding:1rem 1.25rem; }
+.skill-options { max-height:18rem;overflow:auto;overscroll-behavior:contain; }
+.skill-option { @apply border-b border-slate-200 dark:border-zinc-800; display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;padding:.6rem .3rem;align-items:start; }
+.skill-option-selected { @apply bg-slate-50 dark:bg-zinc-900; }
+.skill-option label { cursor:pointer;min-width:0; }
+.skill-info { display:contents; }
+.skill-info summary { font-size:.75rem;cursor:pointer; }
+.skill-info > div { grid-column:1/-1;padding:.5rem; }
+.skill-chip { @apply inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 px-2 py-1 text-xs;max-width:100%;overflow-wrap:anywhere; }
+.skill-chip button { padding:0 .2rem; }
+@media(min-width:1024px){
+  .prepare-grid { grid-template-columns:minmax(0,1fr) 380px; }
+  .prepare-session { position:sticky;top:110px;display:flex;flex-direction:column;height:clamp(360px,calc(100dvh - 280px),760px); }
+  .prepare-controls { flex:1;overflow-y:auto;overscroll-behavior:contain;min-height:0; }
+  .prepare-session-heading,.prepare-action { flex-shrink:0; }
+}

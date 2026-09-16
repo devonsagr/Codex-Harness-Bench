@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import type {State,Act,Config,Task,Check,Imported} from './types';
-import {SkillLibrary,ProjectConfigImport} from './Skills';
+import {SkillLibrary,SkillChoice,ProjectConfigImport} from './Skills';
 import {Field,Panel,Details,Empty} from './ui';
 import {ContractEditor,TaskFilters,TaskImport,matchTask} from './Contracts';
 
@@ -25,7 +25,7 @@ export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:s
       <Field label="AGENTS 规则" hint="在独立工作区写入 AGENTS.override.md；桌面全局规则仍会继承。"><textarea rows={12} value={draft.agentsPrompt} onChange={e=>change({agentsPrompt:e.target.value})}/></Field>
       {draft.importSource&&<Details title="配置导入来源"><p className="muted break-all">{draft.importSource.root}</p>{draft.importSource.files.map(f=><p className="muted break-all" key={f.path}>{f.path} · {f.sha256.slice(0,12)}</p>)}{draft.importSource.warnings.map(w=><p className="muted" key={w}>{w}</p>)}<p className="muted">{draft.importSource.note}</p></Details>}
       <Details title={`选定技能 · ${draft.skills.length} 个`}>
-        {state.skills.length?state.skills.map(s=><label className="check-row" key={s.id}><input type="checkbox" checked={draft.skills.includes(s.id)} onChange={e=>change({skills:e.target.checked?[...draft.skills,s.id]:draft.skills.filter(id=>id!==s.id)})}/><span>{s.name}<small className="block muted break-all">{s.sourceLabel||'手动导入'} · {s.sourcePath} · {Object.keys(s.manifest.files).length} 文件 · {s.manifest.sha256.slice(0,12)}</small></span></label>):<p className="muted">使用下方技能库读取列表并批量选择。</p>}
+        {state.skills.length?state.skills.map(s=><SkillChoice key={s.id} skill={s} checked={draft.skills.includes(s.id)} onChange={checked=>change({skills:checked?[...draft.skills,s.id]:draft.skills.filter(id=>id!==s.id)})}/>):<p className="muted">使用下方技能库读取列表并批量选择。</p>}
       </Details>
       <Field label="选定技能的使用方式" hint="未选中的全局技能仍可能被桌面继承。文件已装载不代表模型已使用。"><select value={draft.skillMode||'auto'} onChange={e=>change({skillMode:e.target.value as 'auto'|'explicit'})}><option value="auto">按任务需要使用</option><option value="explicit">在每轮提示词中明确请求使用</option></select></Field>
       {new Set(state.skills.filter(s=>draft.skills.includes(s.id)).map(s=>s.name.toLowerCase())).size!==draft.skills.length&&<p role="alert" className="alert-error">当前选择有同名或不可用技能，请在上方取消重复选择后保存。</p>}

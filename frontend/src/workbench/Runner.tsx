@@ -1,41 +1,10 @@
-import {useRef,useState} from 'react';
+import {useState} from 'react';
 import type {State,Act,Run,Trial,Task,Config,Capture,Review,CriterionReview} from './types';
 import {Field,Panel,Details,Empty,Json,labels,num,date} from './ui';
 import {request,downloadRun} from './api';
-import {ContractView,TaskFilters,matchTask,verdicts,ReviewItems} from './Contracts';
+import {ContractView,verdicts,ReviewItems} from './Contracts';
 
-export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{state:State;act:Act;onCreated:(id:string)=>void;selectedTaskId:string|null;selectedConfigId?:string|null}){
-  const [configIds,setConfigs]=useState<string[]>(selectedConfigId&&state.configs.some(c=>c.id===selectedConfigId)?[selectedConfigId]:state.configs.slice(0,1).map(c=>c.id));
-  const initial=state.tasks.find(t=>t.id===selectedTaskId);
-  const [taskIds,setTasks]=useState<string[]>(initial?[initial.id]:[]);const [paradigm,setParadigm]=useState(initial?.taskParadigm||'open-ended-project');const [query,setQuery]=useState('');const [compare,setCompare]=useState(false);const [batch,setBatch]=useState(false);
-  const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
-  const [policy,setPolicy]=useState(structuredClone(state.defaultPolicy));const [notes,setNotes]=useState('');
-  const tasks=state.tasks.filter(t=>matchTask(t,paradigm,query,channel,difficulty));
-  const selected=state.tasks.filter(t=>taskIds.includes(t.id));
-  const pending=useRef<{payload:string;requestId:string}|null>(null);
-  const create=async()=>{const payload=JSON.stringify({configIds,taskIds,policy,notes});if(pending.current?.payload!==payload)pending.current={payload,requestId:crypto.randomUUID()};try{const run=await act<Run>('/runs/prepare',{requestId:pending.current.requestId,configIds,taskIds,policy,notes});pending.current=null;onCreated(run.id);}catch{/* Reuse the request ID after an uncertain response. */}};
-  return <><div className="space-y-2"><h1 className="page-title">开始一次评测</h1><p className="muted">选好配置和需求，在独立工作区交给 Codex 桌面执行，再回来验收交付物。</p></div>
-    <div className="prepare-grid"><div className="prepare-config"><Panel title="1. 选择配置" aside={<label className="check-row"><input type="checkbox" checked={compare} onChange={e=>{setCompare(e.target.checked);setConfigs(configIds.slice(0,1));}}/>两套对比</label>}>
-      {state.configs.length?state.configs.map(c=><label key={c.id} className={'list-card '+(configIds.includes(c.id)?'selected':'')}><div className="flex gap-3"><input type={compare?'checkbox':'radio'} name="config" checked={configIds.includes(c.id)} onChange={e=>setConfigs(compare?(e.target.checked?[...configIds,c.id].slice(-2):configIds.filter(id=>id!==c.id)):[c.id])}/><strong>{c.name}</strong></div><span>{c.baseModel} · {c.reasoning} · v{c.revision}</span></label>):<Empty>先到配置管理创建配置。</Empty>}
-    {compare&&<Details title="核对两套配置的差异"><div className="space-y-4">{state.configs.filter(c=>configIds.includes(c.id)).map(c=><div key={c.id}><h3 className="text-sm font-semibold">{c.name} v{c.revision}</h3><p className="muted">{c.baseModel} · {c.reasoning} · {c.interactiveMode}</p><pre className="source">{c.agentsPrompt}</pre><Json value={{skills:c.skills,constraints:c.customConstraints}}/></div>)}</div><p className="muted">模型、推理档位或交互方式不同时，结果差异不能只归因于 AGENTS 文本。创建后保留两套完整快照。</p></Details>}</Panel></div><div className="prepare-tasks"><Panel title="2. 选择题目" aside={<label className="check-row"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>批量准备</label>}>
-      <div className="grid sm:grid-cols-2 gap-3"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);}}><option value="open-ended-project">项目构建</option><option value="deterministic-bugfix">Bug 修复</option></select><input aria-label="搜索评测题目" placeholder="搜索需求或题目" value={query} onChange={e=>setQuery(e.target.value)}/></div>
-      <TaskFilters channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/>
-      <div className="grid lg:grid-cols-2 gap-3">{tasks.map(t=><label key={t.id} className={'list-card '+(taskIds.includes(t.id)?'selected':'')}><div className="flex items-start gap-3"><input className="mt-1" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id])}/><strong>{t.title}</strong></div><span>{t.difficulty} · {t.stages.length} 阶段 · {t.checks.length} 项检查</span><small>{t.baselineId?'从已冻结起点开始':'从空文件夹开始'} · {t.hasFrontendUI?'含界面':'工程或文档'}</small></label>)}</div>
-      {!tasks.length&&<Empty>没有符合筛选的题目，请调整方向、难度或关键词。</Empty>}
-      {selected.map(t=><Details key={t.id} title={'已选：'+t.title}><pre className="source">{t.inputPrompt}</pre><ContractView task={t}/><p className="muted">{t.sourceNote}</p></Details>)}
-    </Panel></div><div className="prepare-summary"><Panel title="3. 准备工作区">
-      <p className="text-sm">{configIds.length} 套配置 × {taskIds.length} 道题 = {configIds.length*taskIds.length} 个独立工作区</p>
-      <p className="muted">自动创建文件夹、复制起点并放入规则与所选 Skills，无需手动复制文件。准备后在桌面发送本轮提示词。</p>
-      <Field label="本次备注"><input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="例如：检查文档规则调整后的效果"/></Field>
-      <Details title="评分策略 · 创建后冻结">
-        <p className="muted">默认客观检查 50% + 人工复审 50%，是一份可调整的使用约定。没有可执行检查时，默认不计算总分；可在创建前选择纯人工策略。</p>
-        <Field label="客观检查权重"><input type="number" min={0} max={100} value={policy.objectiveWeight} onChange={e=>setPolicy({...policy,objectiveWeight:Number(e.target.value),humanWeight:100-Number(e.target.value)})}/></Field><p className="muted">人工复审 {policy.humanWeight}%</p>
-        {Object.entries(state.dimensions).map(([key,label])=><Field key={key} label={label+'权重'}><input type="number" min={0} max={100} value={policy.dimensions[key]} onChange={e=>setPolicy({...policy,dimensions:{...policy.dimensions,[key]:Number(e.target.value)}})}/></Field>)}
-      </Details>
-      {selected.some(t=>!t.checks.length)&&<p className="muted">所选题目包含未声明脚本验收的题面。AI 意见不会充当测试通过证据。</p>}
-      <button className="btn-primary w-full" disabled={!taskIds.length||!configIds.length} onClick={()=>void create()}>创建本次独立工作区</button>
-    </Panel></div></div></>;
-}
+export {Prepare} from './Prepare';
 
 export function RunDetail({run,state,act,onBack,onError,archived}:{run:Run;state:State;act:Act;onBack:()=>void;onError:(s:string)=>void;archived:boolean}){
   const [tid,setTid]=useState(run.trials[0].id);const t=run.trials.find(x=>x.id===tid)||run.trials[0];
@@ -56,7 +25,7 @@ function TrialView({run,trial:t,task,config,state,act,onError,archived}:{run:Run
   const copy=(value:string,label:string)=>navigator.clipboard.writeText(value).then(()=>setCopied(label+'已复制')).catch(()=>onError('复制失败，请在文本框中手动复制。'));
   return <><Panel title={task.title} aside={<span className="badge">{labels[t.state]}</span>}>
     <div className="flex gap-2 flex-wrap">{task.stages.map((s,i)=><span className={'stage-chip '+(i===t.stageIndex?'selected':'')} key={i}>{i+1}. {s.title}</span>)}</div>
-    <p className="muted">配置 {config.name} v{config.revision} · {config.baseModel} · {config.reasoning} · {config.skills.length} 个选定技能</p>
+    <p className="muted">配置 {config.name} v{config.revision}{config.preparationOverride?' · 本次技能已调整':''} · {config.baseModel} · {config.reasoning} · {config.skills.length} 个选定技能</p>
     <p className="muted">工作区已自动准备好，无需另外新建文件夹或复制项目。</p>
     <Field label="已创建的工作区"><input readOnly value={t.workspacePath}/></Field>
     <div className="flex gap-2 flex-wrap"><button className="btn-primary" disabled={archived} onClick={()=>void action('open')}>在 Codex 桌面打开</button><button className="btn-secondary" onClick={()=>void copy(t.workspacePath,'工作区路径')}>复制路径</button><button className="btn-secondary" onClick={()=>void copy(prompt,'本轮提示词')}>复制本轮提示词</button></div>

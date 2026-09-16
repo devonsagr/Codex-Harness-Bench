@@ -1,12 +1,12 @@
 import {useEffect,useRef,useState} from 'react';
 import type {Act,Config,Imported} from './types';
 import {request} from './api';
-import {Details,Field,Panel} from './ui';
+import {Details,Field} from './ui';
 
 type Candidate={id:string;name:string;description:string;sourcePath:string;scope:string;sourceLabel:string;sha256?:string;fileCount?:number;error:string|null;warnings:string[];duplicateName:boolean};
 type Scan={scanId:string;sources:{path:string;label:string;exists:boolean}[];candidates:Candidate[]};
 
-export function SkillLibrary({act,onImported}:{act:Act;onImported:(skills:Imported[])=>void}){
+export function SkillLibrary({act,onImported,context='config'}:{act:Act;onImported:(skills:Imported[])=>void;context?:'config'|'trial'}){
   const [scope,setScope]=useState('global');const [path,setPath]=useState('');
   const [scan,setScan]=useState<Scan|null>(null);const [selected,setSelected]=useState<string[]>([]);
   const [query,setQuery]=useState('');const [loading,setLoading]=useState(false);const [error,setError]=useState('');const [notice,setNotice]=useState('');
@@ -24,10 +24,10 @@ export function SkillLibrary({act,onImported}:{act:Act;onImported:(skills:Import
   const conflict=new Set(chosen.map(s=>s.name.toLowerCase())).size!==chosen.length;
   const importBatch=async()=>{
     if(!scan)return;setError('');setNotice('');
-    try{const result=await act<{imported:Imported[]}>('/skills/import-selected',{scanId:scan.scanId,candidateIds:selected});onImported(result.imported);setNotice(`已导入 ${result.imported.length} 个技能并加入配置草稿，请保存配置。`);setSelected([]);}
+    try{const result=await act<{imported:Imported[]}>('/skills/import-selected',{scanId:scan.scanId,candidateIds:selected});onImported(result.imported);setNotice(context==='trial'?`已加入本次评测：${result.imported.length} 个技能。`:`已导入 ${result.imported.length} 个技能并加入配置草稿，请保存配置。`);setSelected([]);}
     catch(e){setError((e as Error).message);}
   };
-  return <Panel title="Skills 技能库"><p className="muted">选择来源后批量勾选。保存配置后，所选技能会自动复制到每次评测工作区。</p>
+  return <section className={context==='trial'?'space-y-3':'panel p-5 space-y-4'}>{context!=='trial'&&<h2 className="font-semibold">Skills 技能库</h2>}<p className="muted">选择来源并勾选；悬停名称查看说明，点击详情查看路径。</p>
     <div className="grid sm:grid-cols-2 gap-3"><Field label="技能来源"><select value={scope} onChange={e=>{setScope(e.target.value);invalidate();}}><option value="global">本机用户级技能</option><option value="project">某个项目的技能</option><option value="custom">指定技能库 / 插件技能目录</option></select></Field>
       {scope!=='global'&&<Field label={scope==='project'?'项目根目录':'技能库目录'} hint={scope==='project'?'只读取这个项目的 .agents/skills 与兼容目录。':'选择一次根目录，列出其下技能；不会安装插件或外部工具。'}><input value={path} onChange={e=>{setPath(e.target.value);invalidate();}} placeholder="D:\我的项目"/></Field>}</div>
     <button type="button" className="btn-secondary" disabled={loading||(scope!=='global'&&!path.trim())} onClick={()=>void discover()}>{loading?'正在读取技能…':'读取技能列表'}</button>
@@ -35,12 +35,12 @@ export function SkillLibrary({act,onImported}:{act:Act;onImported:(skills:Import
     {scan&&<><Details title="本次读取的目录">{scan.sources.map(s=><p className="muted break-all" key={s.path}>{s.label} · {s.path} · {s.exists?'存在':'不存在'}</p>)}</Details>
       <Field label="搜索技能"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="名称、用途或路径"/></Field>
       <div className="flex gap-3 flex-wrap items-center"><span className="muted">显示 {visible.length} / {scan.candidates.length} 个 · 已选 {selected.length} 个</span><button type="button" className="btn-ghost" onClick={()=>setSelected([...new Set([...selected,...visible.filter(s=>!s.error&&!s.duplicateName).map(s=>s.id)])].slice(0,30))}>选中筛选结果（跳过重名）</button><button type="button" className="btn-ghost" onClick={()=>setSelected([])}>清空选择</button></div>
-      <div className="max-h-96 overflow-y-auto space-y-2">{visible.map(s=><label key={s.id} className={'list-card '+(selected.includes(s.id)?'selected':'')}><div className="flex gap-3 items-start"><input type="checkbox" aria-label={`选择技能 ${s.name} ${s.sourceLabel}`} disabled={!!s.error||(!selected.includes(s.id)&&selected.length>=30)} checked={selected.includes(s.id)} onChange={e=>setSelected(e.target.checked?[...selected,s.id]:selected.filter(id=>id!==s.id))}/><div className="min-w-0"><strong>{s.name}</strong><p className="text-sm whitespace-pre-wrap">{s.description}</p><small className="block muted break-all">{s.sourceLabel} · {s.sourcePath}</small><small className="muted">{s.fileCount??'—'} 文件 · {s.sha256?.slice(0,12)}{s.duplicateName?' · 同名多来源，请选其中一个':''}</small>{s.error&&<p className="alert-error">{s.error}</p>}{s.warnings.map(w=><p className="muted" key={w}>{w}</p>)}</div></div></label>)}</div>
+      <div className="skill-options">{visible.map(s=><SkillChoice key={s.id} skill={s} checked={selected.includes(s.id)} disabled={!!s.error||(!selected.includes(s.id)&&selected.length>=30)} onChange={checked=>setSelected(current=>checked?[...current,s.id]:current.filter(id=>id!==s.id))}/>)}</div>
       {!visible.length&&<p className="muted">没有找到符合条件的技能；可切换来源或搜索词。</p>}
       {conflict&&<p role="alert" className="alert-error">所选技能存在同名，请保留一个来源。</p>}
-      <button type="button" className="btn-primary" disabled={!selected.length||conflict} onClick={()=>void importBatch()}>导入并选中 {selected.length} 个技能</button>
+      <button type="button" className="btn-primary" disabled={!selected.length||conflict} onClick={()=>void importBatch()}>{context==='trial'?'添加到本次评测':'导入并选中'} {selected.length} 个技能</button>
     </>}
-  </Panel>;
+  </section>;
 }
 
 export function ProjectConfigImport({act,onImported}:{act:Act;onImported:(config:Config)=>void}){
@@ -52,4 +52,12 @@ export function ProjectConfigImport({act,onImported}:{act:Act;onImported:(config
     {error&&<p role="alert" className="alert-error">{error}</p>}
     {preview&&<><p className="muted">{preview.baseModel} · {preview.reasoning}；仅导入本层规则和设置。</p><pre className="source">{preview.agentsPrompt||'没有规则正文'}</pre>{preview.importSource?.warnings.map(w=><p className="muted" key={w}>{w}</p>)}<button type="button" className="btn-primary" onClick={()=>act<Config>('/configs/import-source',{scope:'project',path,expectedFiles:preview.importSource?.files}).then(onImported).catch(e=>setError(e.message))}>创建配置副本</button></>}
   </Details>;
+}
+
+type SkillInfo={id:string;name:string;description?:string;sourceLabel?:string;sourcePath?:string;sha256?:string;fileCount?:number;manifest?:Imported['manifest'];duplicateName?:boolean;error?:string|null;warnings?:string[]};
+export function SkillChoice({skill:s,checked,onChange,disabled=false}:{skill:SkillInfo;checked:boolean;onChange:(checked:boolean)=>void;disabled?:boolean}){
+  return <div className={'skill-option '+(checked?'skill-option-selected':'')}>
+    <label className="check-row" title={[s.description,s.sourceLabel,s.sourcePath].filter(Boolean).join('\n')}><input type="checkbox" aria-label={`选择技能 ${s.name} ${s.sourceLabel||''}`} checked={checked} disabled={disabled} onChange={e=>onChange(e.target.checked)}/><span className="break-words">{s.name}</span>{s.duplicateName&&<small className="muted">{s.sourceLabel}</small>}{s.error&&<small className="text-rose-600">不可导入</small>}</label>
+    <details className="skill-info"><summary aria-label={`${s.name} 详情`}>详情</summary><div className="muted break-all space-y-1"><p>{s.description||'未提供用途说明'}</p><p>{s.sourceLabel||'已导入技能'} · {s.sourcePath}</p><p>{s.fileCount??Object.keys(s.manifest?.files||{}).length} 文件 · {(s.sha256||s.manifest?.sha256)?.slice(0,12)}</p>{s.error&&<p>{s.error}</p>}{s.warnings?.map(w=><p key={w}>{w}</p>)}</div></details>
+  </div>;
 }

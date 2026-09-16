@@ -139,3 +139,40 @@ class SkillLibraryTests(unittest.TestCase):
         try:(self.library/'linked').symlink_to(original,target_is_directory=True)
         except OSError:self.skipTest('symlink permission unavailable')
         self.assertEqual(self.scan()['candidates'],[])
+
+    def test_trial_skill_changes_do_not_rewrite_saved_configs(self):
+        self.skill(self.library,'alpha');skill=self.import_rows(self.scan())[0]
+        config={'name':'base','agentsPrompt':'keep rules','baseModel':'model','reasoning':'high','interactiveMode':'adaptive','skills':[]}
+        a=self.app.save_config(config);b=self.app.save_config({**config,'name':'control'})
+        task=self.app.save_task({'title':'task','inputPrompt':'build','taskParadigm':'open-ended-project','channel':'deepswe-core',
+                                'hasFrontendUI':False,'stages':[{'title':'one','prompt':'build'}],'checks':[]})
+        data={'requestId':'trial-change','configIds':[a['id'],b['id']],'taskIds':[task['id']],
+              'configOverrides':[{'configId':a['id'],'revision':a['revision'],'skills':[skill['id']],'skillMode':'explicit'}]}
+        run=self.app.prepare(data)
+        self.assertEqual(self.app.db.get('config',a['id'])['skills'],[])
+        self.assertEqual(self.app.db.get('config',a['id'])['revision'],1)
+        self.assertEqual(run['configs'][0]['preparationOverride']['sourceSkills'],[])
+        self.assertEqual(run['configs'][0]['skills'],[skill['id']])
+        self.assertNotIn('preparationOverride',run['configs'][1])
+        self.assertIn('alpha',run['trials'][0]['currentStage']['executionPrompt'])
+        self.assertNotIn('alpha',run['trials'][1]['currentStage']['executionPrompt'])
+        self.assertTrue((Path(run['trials'][0]['workspacePath'])/'.agents/skills/alpha/SKILL.md').is_file())
+        a['agentsPrompt']='new version';self.app.save_config(a)
+        self.assertEqual(self.app.prepare(data)['id'],run['id'])
+        self.assertEqual(self.app.prepare(data)['configs'][0]['agentsPrompt'],'keep rules')
+        with self.assertRaisesRegex(ValueError,'内容已改变'):
+            self.app.prepare({**data,'configOverrides':[]})
+
+    def test_invalid_trial_changes_rejected_before_creating_workspace(self):
+        self.skill(self.library/'a','same');self.skill(self.library/'b','same')
+        scan=self.scan();skills=[self.import_rows(scan,[row])[0] for row in scan['candidates']]
+        config=self.app.save_config({'name':'base','agentsPrompt':'','baseModel':'model','reasoning':'high','interactiveMode':'adaptive','skills':[]})
+        task=self.app.save_task({'title':'task','inputPrompt':'build','taskParadigm':'open-ended-project','channel':'deepswe-core',
+                                'hasFrontendUI':False,'stages':[{'title':'one','prompt':'build'}],'checks':[]})
+        data={'requestId':'invalid-change','configIds':[config['id']],'taskIds':[task['id']]}
+        base={'configId':config['id'],'revision':1,'skills':[],'skillMode':'auto'}
+        for patch_data in [{'revision':0},{'baseModel':'injected'},{'configId':'unknown'},{'skills':['missing']},
+                           {'skills':[s['id'] for s in skills]},{'skillMode':'bad'}]:
+            with self.subTest(patch=patch_data),self.assertRaises(ValueError):
+                self.app.prepare({**data,'configOverrides':[{**base,**patch_data}]})
+        self.assertFalse((self.app.local/'runs').exists())
