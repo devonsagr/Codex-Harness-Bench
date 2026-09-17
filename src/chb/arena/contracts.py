@@ -6,7 +6,7 @@ import re
 
 CONTRACT_VERSION = 2
 SPEC_LISTS = {'userStories': '用户故事', 'apiEndpoints': '接口约定', 'dataModel': '数据模型', 'acceptanceCriteria': '验收标准'}
-DIMENSIONS = {'intent', 'maintainability', 'robustness', 'ux'}
+DIMENSIONS = {'intent', 'maintainability', 'robustness', 'ux', 'verification', 'instruction', 'handoff', 'security', 'performance'}
 SCOPES = {'frontend-only', 'fullstack-node', 'fullstack-sqlite', 'frontend-mockapi'}
 
 

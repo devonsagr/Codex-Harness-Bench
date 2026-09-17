@@ -175,3 +175,11 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 配置新增 skillMode:auto/explicit，importSource由服务端写入（来源范围、文件/哈希、时间、缺省说明），普通编辑保留原来源。Skill 保存 name/description/scope/sourceLabel/sourcePath/manifest；有效扫描要求 name/description，旧手动导入继续兼容。新 Trial.executionPrompts 逐配置逐阶段冻结实际发送文本和哈希，包含选定技能路径与使用意图；旧 Trial 仍回退到原 Task 提示词，读历史不追加要求。
 
 prepare.configOverrides为数组，每个所选配置至多一项：configId、revision、skills、skillMode；不可夹带模型/规则等字段。先匹配幂等请求，再校验来源revision和技能，保存到Run.configs而不写records/config。实际改变时记录preparationOverride.sourceRevision/sourceSkills/sourceSkillMode；省略该数组保持旧协议行为。
+
+## Codex 应用与量表 v2
+
+POST /codex/status读取白名单设置、已有MCP/插件ID及脱敏应用回执；/codex/apply按configId+revision显式备份写入；/codex/switch先撤销活动应用再应用目标；/codex/restore按applicationId校验并恢复。POST /runs/:rid/trials/:tid/apply-config只接受prepared态，使用本题冻结版本并保存appliedHostFingerprint。以上均沿用本机令牌、来源校验与服务锁，无任意命令执行入口。
+
+Config新增nativeSettings（web_search/model_verbosity/model_reasoning_summary白名单）及integrations（mcp_servers/plugins中已有ID的布尔启用覆盖）。认证和工具命令不进入配置副本。prepare生成项目级原生配置并纳入baseline。
+
+arena-review-v2保存dimensions权重和rubrics={id:{label,description}}，最多16项、0权重停用；服务端按冻结策略验证人工分。旧v1仍按原四项校验与计算。state提供rubricCatalog和新桌面默认策略，不迁移旧Run。

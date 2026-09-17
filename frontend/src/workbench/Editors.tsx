@@ -1,3 +1,4 @@
+import {CodexApply,NativeConfigFields} from './Codex';
 import {useEffect,useState} from 'react';
 import type {State,Act,Config,Task,Check,Imported} from './types';
 import {SkillLibrary,SkillChoice,ProjectConfigImport} from './Skills';
@@ -14,7 +15,7 @@ export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:s
     {state.configs.map(c=><button key={c.id} className={'list-card '+(draft.id===c.id?'selected':'')} onClick={()=>setDraft(structuredClone(c))}><strong>{c.name}</strong><span>{c.baseModel} · {c.reasoning}</span><small>版本 {c.revision} · {c.skills.length} 个选定技能</small></button>)}
     <button className="btn-secondary w-full" onClick={()=>act<Config>('/configs/import-current',{}).then(setDraft).catch(()=>{})}>导入当前全局规则副本</button>
     <Details title="恢复归档配置">{state.archivedConfigs.map(c=><button key={c.id} className="btn-secondary mr-2" onClick={()=>act<Config>(`/configs/${c.id}/archive`,{revision:c.revision,archived:false}).then(setDraft).catch(()=>{})}>{c.name} · 恢复</button>)}</Details>
-    <p className="muted">导入只读取全局规则及模型、推理档位。技能需明确选择；不修改宿主配置。</p>
+    <p className="muted">导入读取规则、模型、原生设置与已配置工具开关，保存为工作台副本。Skills 单独选择；应用到 Codex 使用右侧明确的应用按钮。</p>
     <ProjectConfigImport act={act} onImported={setDraft}/>
   </aside><div className="space-y-5"><Panel title={draft.id?'编辑配置 · v'+draft.revision:'新建配置'}>
     <form onSubmit={e=>{e.preventDefault();void save();}} className="space-y-4">
@@ -22,6 +23,7 @@ export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:s
       <div className="grid sm:grid-cols-3 gap-4"><Field label="模型" hint="来自本机模型缓存；正式执行前在桌面核对。"><input list="models" required value={draft.baseModel} onChange={e=>change({baseModel:e.target.value})}/><datalist id="models">{state.models.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</datalist></Field>
       <Field label="推理档位"><select value={draft.reasoning} onChange={e=>change({reasoning:e.target.value})}>{['none','minimal','low','medium','high','xhigh','max','ultra'].map(s=><option key={s}>{s}</option>)}</select></Field>
       <Field label="交互约定"><select value={draft.interactiveMode} onChange={e=>change({interactiveMode:e.target.value})}><option value="adaptive">按任务自行判断</option><option value="one-shot-direct">一次交付</option><option value="step-by-step-confirm">分阶段等我确认</option></select></Field></div>
+      <NativeConfigFields config={draft} change={change}/>
       <Field label="AGENTS 规则" hint="在独立工作区写入 AGENTS.override.md；桌面全局规则仍会继承。"><textarea rows={12} value={draft.agentsPrompt} onChange={e=>change({agentsPrompt:e.target.value})}/></Field>
       {draft.importSource&&<Details title="配置导入来源"><p className="muted break-all">{draft.importSource.root}</p>{draft.importSource.files.map(f=><p className="muted break-all" key={f.path}>{f.path} · {f.sha256.slice(0,12)}</p>)}{draft.importSource.warnings.map(w=><p className="muted" key={w}>{w}</p>)}<p className="muted">{draft.importSource.note}</p></Details>}
       <Details title={`选定技能 · ${draft.skills.length} 个`}>
@@ -37,6 +39,7 @@ export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:s
       <div className="flex gap-3"><button className="btn-primary" type="submit">保存配置版本</button>{draft.id&&<><button type="button" className="btn-secondary" onClick={()=>void save(true)}>另存副本</button><button type="button" className="btn-ghost" onClick={()=>act(`/configs/${draft.id}/archive`,{revision:draft.revision,archived:true}).then(()=>setDraft(newConfig())).catch(()=>{})}>归档配置</button></>}</div>
     </form>
     <button type="button" className="btn-secondary" onClick={async()=>{try{const c=await act<Config>('/configs/save',draft);setDraft(c);onUse(c.id);}catch{/* App displays validation. */}}}>保存并用于评测</button>
+    <CodexApply config={draft} act={act} save={async()=>{const c=await act<Config>('/configs/save',draft);setDraft(c);return c;}}/>
   </Panel><SkillLibrary act={act} onImported={addSkills}/></div></div>;
 }
 
@@ -57,7 +60,7 @@ export function TaskManager({state,act,onUse}:{state:State;act:Act;onUse:(id:str
       <Field label="题目名称"><input required value={draft.title} onChange={e=>change({title:e.target.value})}/></Field>
       <div className="grid sm:grid-cols-3 gap-4"><Field label="题目类别"><select value={draft.taskParadigm} onChange={e=>change({taskParadigm:e.target.value})}><option value="open-ended-project">项目构建</option><option value="deterministic-bugfix">Bug 修复</option></select></Field><Field label="难度"><select value={draft.difficulty} onChange={e=>change({difficulty:e.target.value})}>{[...new Set([draft.difficulty,'Easy','Medium','Hard','Nightmare'])].map(v=><option key={v}>{v}</option>)}</select></Field><Field label="任务方向"><select value={draft.channel} onChange={e=>change({channel:e.target.value})}><option value="frontend-ui">应用与界面</option><option value="deepswe-core">功能与工程</option><option value="architecture-constraint">架构与约束</option><option value="interactive-confirm">协作与多轮</option></select></Field></div>
       <Field label="总体需求"><textarea required rows={8} value={draft.inputPrompt} onChange={e=>change({inputPrompt:e.target.value,...(draft.stages.length===1?{stages:[{...draft.stages[0],prompt:e.target.value}]}:{})})}/></Field>
-      <ContractEditor task={draft} onChange={change}/>
+      <ContractEditor task={draft} onChange={change} rubrics={state.rubricCatalog}/>
       <label className="check-row"><input type="checkbox" checked={draft.hasFrontendUI} onChange={e=>change({hasFrontendUI:e.target.checked})}/>包含界面，人工复审需评价交互与视觉</label>
       <Details title={`逐轮提示词 · ${draft.stages.length} 阶段`}>
         <p className="muted">每轮提示词都包含总体需求和完整项目契约；后续轮次在同一桌面任务发送。每轮回收后手动确认继续。</p>

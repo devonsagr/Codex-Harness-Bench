@@ -40,7 +40,7 @@ Gemini 原型 `ProjectSpecContract` 已包含：userStories、apiEndpoints、dat
 ### 当前schemaVersion=2的具体表示
 
 - `projectSpec`保留原型五字段：四组字符串数组与techStack文本；`fullstackScope`保留原枚举。上述长期表格中的方法/输入/输出对象、适用阶段等细化目标仍未全部实现。
-- `criteria[]`含id、label、description、required、dimension、source。id稳定，dimension只说明对应通用量表，不产生第二份条目加分。必要项由评测者明确指定。
+- `criteria[]`含id、label、description、required、dimension、source。id稳定，dimension是九种内置验收分类之一，不产生第二份条目加分。必要项由评测者明确指定。
 - 缺criteria的旧输入从故事、验收标准、customChecklist、rubrics、evaluationRubric按文字去重转换；来源写入source，旧points保存为legacyPoints，默认required=false，不替用户发明必要程度。
 - 当前题库展示可兼容转换，不写回旧数据；保存创建新revision，新Run冻结转换结果与sourceSchemaVersion。旧Run不迁移。
 - 编辑Spec不会静默覆盖已经人工调整的criteria。编辑器提供“从用户故事与验收标准补充条目”，只添加尚无同名项；修改/删除要求后需明确核对条目。删条目会同时去掉草稿中的检查引用，旧Run保留完整定义。
@@ -73,7 +73,7 @@ Gemini 原型 `ProjectSpecContract` 已包含：userStories、apiEndpoints、dat
 
 这是目标准备度合同；当前已有题包校验预览、缺检查提示、来源和许可显示，但还没有统一的四级准备度状态模型。
 
-通用人工量表评价需求完成、可维护性、健壮性和适用的交互视觉；逐题条目说明这些维度在本题有哪些证据。可重用的编译、测试、浏览器检查模板能减少接入成本，但不能在不存在脚本时填一条 npm test 并标为已验证。
+新评测采用可编辑v2人工量表，默认七项，并提供安全/性能及自定义项；旧记录保留原四维方案。逐题条目提供具体证据要求，必要项不因对应维度被移除而免验收。可重用的编译、测试、浏览器检查模板能减少接入成本，但不能在不存在脚本时填一条 npm test 并标为已验证。
 
 ## 6. 题目检查合同
 

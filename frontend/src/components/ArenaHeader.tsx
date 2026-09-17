@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Play, Sliders, Trophy, BookOpen, Clock, HelpCircle, Sun, Moon, Database, Type } from 'lucide-react';
+import React from 'react';
+import { Play, Sliders, Trophy, BookOpen, Clock, HelpCircle, Sun, Moon, Database } from 'lucide-react';
 
 export type ArenaTab = 'workbench' | 'history' | 'tasks' | 'configs' | 'leaderboard' | 'spec';
-export type AppFont = 'inter' | 'jakarta' | 'system';
 
 interface ArenaHeaderProps {
   activeTab: ArenaTab;
@@ -17,21 +16,6 @@ export const ArenaHeader: React.FC<ArenaHeaderProps> = ({
   theme,
   onToggleTheme,
 }) => {
-  const [currentFont, setCurrentFont] = useState<AppFont>(() => {
-    return (localStorage.getItem('chb_font') as AppFont) || 'inter';
-  });
-
-  useEffect(() => {
-    document.body.classList.remove('font-inter', 'font-jakarta', 'font-system');
-    document.body.classList.add(`font-${currentFont}`);
-    localStorage.setItem('chb_font', currentFont);
-  }, [currentFont]);
-
-  const handleToggleFont = () => {
-    const fonts: AppFont[] = ['inter', 'jakarta', 'system'];
-    const nextIndex = (fonts.indexOf(currentFont) + 1) % fonts.length;
-    setCurrentFont(fonts[nextIndex]);
-  };
   const tabs = [
     { id: 'workbench' as ArenaTab, label: '评测工作台', icon: Play },
     { id: 'history' as ArenaTab, label: '评测历史', icon: Clock },
@@ -92,18 +76,6 @@ export const ArenaHeader: React.FC<ArenaHeaderProps> = ({
 
         {/* Right Controls */}
         <div className="flex items-center gap-2 text-xs shrink-0">
-          {/* Font Switcher Button */}
-          <button
-            onClick={handleToggleFont}
-            title="切换全局字体排版 (Inter / Plus Jakarta Sans / System)"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all duration-150 shadow-sm"
-          >
-            <Type className="w-3.5 h-3.5 text-indigo-500" />
-            <span className="text-[11px] font-medium hidden sm:inline">
-              字体: {currentFont === 'inter' ? 'Inter' : currentFont === 'jakarta' ? 'Jakarta' : '系统原生'}
-            </span>
-          </button>
-
           <button
             onClick={onToggleTheme}
             title={theme === 'light' ? '切换到暗色模式' : '切换到白天模式'}

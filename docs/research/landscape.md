@@ -37,3 +37,20 @@
 最清晰的产品入口是“比较我改前和改后的配置”。首页优先展示变化项、是否生效、验收证据和全部失败；配置收藏/恢复比早期总榜更实用。
 
 长远可以建立两条分开的题库：公开维护题负责可比性，公开多轮替换题负责用户最关心的遗留清理。新增严肃能力之前先做好可信的实验记录；不要以一个单题冠军驱动配置推荐。
+
+## 2026-09-17：桌面配置与 Harness 评测补充
+
+本轮读取项目原始README/官方说明，不把搜索排名、示例成绩或仓库名称当验证依据。
+
+|项目/原始来源|可以借鉴|不能直接照搬|
+|---|---|---|
+|[SWE-bench](https://github.com/SWE-bench/SWE-bench)|修复结果由可执行测试核对，保存版本/补丁|修Bug成功率不能覆盖从零构建与桌面协作|
+|[Terminal-Bench](https://github.com/laude-institute/terminal-bench)|真实任务、环境与产物验收|终端执行底座和桌面底座不是同一条件|
+|[τ-bench](https://github.com/sierra-research/tau-bench)|重复试验可靠性pass^k；原库已提示新任务转tau2-bench|不将一次成功或多轮对话算重复可靠性|
+|[Inspect AI](https://github.com/UKGovernmentBEIS/inspect_ai)|任务和评分器分开，可按任务组织评价|框架没有替本项目证明统一人工维度/权重|
+|[OSWorld](https://github.com/xlang-ai/OSWorld)|真实桌面环境的任务结果与执行式评价|它测试操作电脑的Agent，不能直接当Codex桌面个人配置排行|
+|[TheLime1/harness-bench](https://github.com/TheLime1/harness-bench)|固定模型条件，记录配置、时间/Token/费用、人工IDE协议和证据等级|README自称early v1，种子含fixtures与公开参考，不当已完成实测排行榜|
+
+结论是本项目的设计取舍：同时呈现结果、质量、过程、效率、可靠性，分清证据来源；采用可编辑人工量表，保留具体任务脚本。桌面版本、模型、题目/起点、预算、宿主工具状态和介入协议影响可比性。当前未找到可以不经适配就覆盖“Codex桌面固有Harness + 个人配置”的现成统一标准；不声称市场完全不存在类似项目。
+
+[Superpowers](https://github.com/obra/superpowers#codex-app)当前说明通过Codex插件市场安装，插件不等同于Skills目录；应记录插件可用性与启用状态，不能用复制技能代替完整安装。

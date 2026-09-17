@@ -7,7 +7,11 @@ name = "codex-harness-bench"
 version = "0.1.0"
 description = "Local, evidence-first Codex configuration comparisons powered by Harbor"
 requires-python = ">=3.12"
-dependencies = ["harbor==0.23.0", "PyYAML>=6,<7"]
+dependencies = [
+    "harbor==0.23.0",
+    "PyYAML>=6,<7",
+    "tomlkit>=0.13,<1",
+]
 
 [project.scripts]
 chb = "chb.cli:main"

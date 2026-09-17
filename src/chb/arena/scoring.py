@@ -1,11 +1,25 @@
 """Transparent score policy. Absent evidence is null, never an invented score."""
 import math
 import hashlib
+import re
 from .contracts import expected_checks, string
 
 DIMENSIONS = {'intent': '需求完成与切中度', 'maintainability': '可维护性', 'robustness': '边界与健壮性', 'ux': '交互与视觉'}
 DEFAULT_POLICY = {'version': 'arena-review-v1', 'objectiveWeight': 50, 'humanWeight': 50,
                   'dimensions': {'intent': 30, 'maintainability': 25, 'robustness': 25, 'ux': 20}}
+RUBRICS = {
+    'intent': ('需求完成与切中度','对照本题需求与实际交付；不能用完成声明替代证据。'),
+    'maintainability': ('可维护性','结构、可读性、已有约定与后续修改成本。'),
+    'robustness': ('边界与健壮性','异常输入、失败恢复、状态一致性与边界行为。'),
+    'ux': ('交互与可访问性','实际使用页面，检查交互反馈、布局、键盘与可访问性。'),
+    'verification': ('验证与回归','测试是否覆盖要求，是否实际执行，是否遗漏回归。'),
+    'instruction': ('规则与范围遵守','按本次规则、授权范围和确认约定检查执行记录。'),
+    'handoff': ('交付与可复现性','启动、依赖、使用说明及接手者能否复现结果。'),
+    'security': ('安全与隐私','按本题约束检查凭据、权限、输入处理和数据暴露。'),
+    'performance': ('性能与资源行为','基于实测响应、吞吐或资源记录，不能凭代码猜分。')}
+DESKTOP_POLICY = {'version':'arena-review-v2','objectiveWeight':50,'humanWeight':50,
+                  'dimensions':{k:1 for k in list(RUBRICS)[:7]},
+                  'rubrics':{k:{'label':v[0],'description':v[1]} for k,v in list(RUBRICS.items())[:7]}}
 
 
 def number(value, minimum=0, maximum=100):
@@ -18,14 +32,24 @@ def policy(value):
     value = value or DEFAULT_POLICY
     a, b = number(value.get('objectiveWeight')), number(value.get('humanWeight'))
     dims = value.get('dimensions', {})
+    if value.get('version')=='arena-review-v2':
+        rubrics=value.get('rubrics',{})
+        if not isinstance(dims,dict) or not isinstance(rubrics,dict) or not 1<=len(dims)<=16 or set(dims)!=set(rubrics):raise ValueError('评分项与权重需对应，最多16项。')
+        for k,v in rubrics.items():
+            if not re.fullmatch('[a-z][a-z0-9_-]{0,49}',k) or not isinstance(v,dict):raise ValueError('评分项编号无效。')
+            string(v.get('label'),'评分项名称',80,True);string(v.get('description'),'评分依据',1000,True)
+        if any(number(v)<0 for v in dims.values()) or sum(dims.values())<=0 or a+b!=100:raise ValueError('主权重须合计100，至少启用一个评分项。')
+        return {'version':'arena-review-v2','objectiveWeight':a,'humanWeight':b,'dimensions':dims,'rubrics':rubrics}
     if set(dims) != set(DIMENSIONS) or any(number(v) < 0 for v in dims.values()) or sum(dims.values()) <= 0 or a+b != 100:
         raise ValueError('主权重之和须为 100；人工维度须完整且至少一项权重大于零。')
     return {'version': 'arena-review-v1', 'objectiveWeight': a, 'humanWeight': b, 'dimensions': dims}
 
 
-def validate_review(value, task, constraints, capture=None):
+def validate_review(value, task, constraints, capture=None, scoring_policy=None):
     scores = value.get('scores', {})
     applicable = set(DIMENSIONS) if task.get('hasFrontendUI') else set(DIMENSIONS)-{'ux'}
+    if scoring_policy and scoring_policy.get('version')=='arena-review-v2':
+        applicable={k for k,w in scoring_policy['dimensions'].items() if w>0 and (k!='ux' or task.get('hasFrontendUI'))}
     if set(scores) != applicable:
         raise ValueError('请为所有适用维度填写评分；非界面题不填写 UX 分数。')
     notes = value.get('notes', '')
