@@ -108,6 +108,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |interrupt|reason|外部中断记录，不停止桌面|
 |trace|raw(JSONL 字符串)|归属校验后保存原文和累计用量|
 |review|captureId、scores、notes、readiness、constraints；v2加criteria、constraintNotes、revisionReason|只接受最新回收；条目集合必须完整，修订已有复审须原因；始终新建版本|
+|objective-review|captureId、evidenceKey、score(0–100或null撤回)、reason、evidence|最新回收且完整客观原分；拒绝后台运行和过期证据；追加人工裁定，不覆盖原分|
 |check|captureId|异步运行该快照适用检查；可选历史阶段快照|
 |judge|captureId、model|显式启动使用额度的 AI 复审|
 |stop|{}|返回 stopping:true / desktopStopped:false|
@@ -183,3 +184,7 @@ POST /codex/status读取白名单设置、已有MCP/插件ID及脱敏应用回�
 Config新增nativeSettings（web_search/model_verbosity/model_reasoning_summary白名单）及integrations（mcp_servers/plugins中已有ID的布尔启用覆盖）。认证和工具命令不进入配置副本。prepare生成项目级原生配置并纳入baseline。
 
 arena-review-v2保存dimensions权重和rubrics={id:{label,description}}，最多16项、0权重停用；服务端按冻结策略验证人工分。旧v1仍按原四项校验与计算。state提供rubricCatalog和新桌面默认策略，不迁移旧Run。
+
+新准备页额外冻结dimensionUnit=percent（dimensions合计100）和requireDimensionEvidence=true。review请求增加dimensionEvidence={维度ID:实际依据}，集合须与适用计分维度一致，各项非空、最多3000字；旧策略未启用时不新增必填。
+
+Trial.objectiveReviews保存id/at/captureId/evidenceKey/score/reason/evidence/originalScore。score新增objectiveEvidenceKey、adjudicatedObjective、adjudicatedOverall、objectiveReviewId；未裁定/撤回/失效时裁定值为null。evidenceKey由各阶段最新回收清单、检查回执及冻结检查定义生成，服务核对文件哈希后追加裁定。reason/evidence分别最多3000/5000字。归档只读、锁和版本控制沿用Trial动作约束。

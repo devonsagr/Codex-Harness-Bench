@@ -11,10 +11,11 @@ export function SkillLibrary({act,onImported,context='config'}:{act:Act;onImport
   const [scope,setScope]=useState('global');const [path,setPath]=useState('');
   const [scan,setScan]=useState<Scan|null>(null);const [selected,setSelected]=useState<string[]>([]);
   const [query,setQuery]=useState('');const [loading,setLoading]=useState(false);const [error,setError]=useState('');const [notice,setNotice]=useState('');
+  const [expanded,setExpanded]=useState(false);const resultsId=useId();
   const generation=useRef(0);
   const discover=async()=>{
     const current=++generation.current;setLoading(true);setError('');setScan(null);setSelected([]);setNotice('');
-    try{const result=await request<Scan>('/skills/scan',{scope,path});if(current===generation.current)setScan(result);}
+    try{const result=await request<Scan>('/skills/scan',{scope,path});if(current===generation.current){setScan(result);setExpanded(true);}}
     catch(e){if(current===generation.current)setError((e as Error).message);}
     finally{if(current===generation.current)setLoading(false);}
   };
@@ -28,19 +29,19 @@ export function SkillLibrary({act,onImported,context='config'}:{act:Act;onImport
     try{const result=await act<{imported:Imported[]}>('/skills/import-selected',{scanId:scan.scanId,candidateIds:selected});onImported(result.imported);setNotice(context==='trial'?`已加入本次评测：${result.imported.length} 个技能。`:`已导入 ${result.imported.length} 个技能并加入配置草稿，请保存配置。`);setSelected([]);}
     catch(e){setError((e as Error).message);}
   };
-  return <section className={context==='trial'?'space-y-3':'panel p-5 space-y-4'}>{context!=='trial'&&<h2 className="font-semibold">Skills 技能库</h2>}<p className="muted">选择来源并勾选；悬停名称查看说明，点击详情查看路径。</p>
+  return <section className={context==='trial'?'space-y-3':'panel p-5 space-y-4'}>{context!=='trial'?<h2 className="font-semibold">Skills 技能库</h2>:<h4 className="font-medium">从本地添加技能</h4>}<p className="muted">选择来源并勾选；悬停名称查看说明，点击详情查看路径。</p>
     <div className="grid sm:grid-cols-2 gap-3"><Field label="技能来源"><select value={scope} onChange={e=>{setScope(e.target.value);invalidate();}}><option value="global">本机用户级技能</option><option value="project">某个项目的技能</option><option value="custom">指定技能库 / 插件技能目录</option></select></Field>
       {scope!=='global'&&<Field label={scope==='project'?'项目根目录':'技能库目录'} hint={scope==='project'?'只读取这个项目的 .agents/skills 与兼容目录。':'选择一次根目录，列出其下技能；不会安装插件或外部工具。'}><input value={path} onChange={e=>{setPath(e.target.value);invalidate();}} placeholder="D:\我的项目"/></Field>}</div>
     <button type="button" className="btn-secondary" disabled={loading||(scope!=='global'&&!path.trim())} onClick={()=>void discover()}>{loading?'正在读取技能…':'读取技能列表'}</button>
     {error&&<p role="alert" className="alert-error">{error}</p>}{notice&&<p role="status" className="muted">{notice}</p>}
-    {scan&&<><Details title="本次读取的目录">{scan.sources.map(s=><p className="muted break-all" key={s.path}>{s.label} · {s.path} · {s.exists?'存在':'不存在'}</p>)}</Details>
+    {scan&&<section className="skill-results space-y-3"><div className="flex items-center justify-between gap-3"><h4 className="font-semibold">读取结果 · {scan.candidates.length} 个技能</h4><button type="button" className="btn-secondary" aria-expanded={expanded} aria-controls={resultsId} onClick={()=>setExpanded(!expanded)}>{expanded?'收起技能列表':'展开技能列表'}</button></div><p className="muted">已勾选 {selected.length} 个；收起不会清空选择或重新读取。</p><div id={resultsId} hidden={!expanded} className="space-y-3">{expanded&&<>
       <Field label="搜索技能"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="名称、用途或路径"/></Field>
       <div className="flex gap-3 flex-wrap items-center"><span className="muted">显示 {visible.length} / {scan.candidates.length} 个 · 已选 {selected.length} 个</span><button type="button" className="btn-ghost" onClick={()=>setSelected([...new Set([...selected,...visible.filter(s=>!s.error&&!s.duplicateName).map(s=>s.id)])].slice(0,30))}>选中筛选结果（跳过重名）</button><button type="button" className="btn-ghost" onClick={()=>setSelected([])}>清空选择</button></div>
       <div className="skill-options">{visible.map(s=><SkillChoice key={s.id} skill={s} checked={selected.includes(s.id)} disabled={!!s.error||(!selected.includes(s.id)&&selected.length>=30)} onChange={checked=>setSelected(current=>checked?[...current,s.id]:current.filter(id=>id!==s.id))}/>)}</div>
       {!visible.length&&<p className="muted">没有找到符合条件的技能；可切换来源或搜索词。</p>}
       {conflict&&<p role="alert" className="alert-error">所选技能存在同名，请保留一个来源。</p>}
       <button type="button" className="btn-primary" disabled={!selected.length||conflict} onClick={()=>void importBatch()}>{context==='trial'?'添加到本次评测':'导入并选中'} {selected.length} 个技能</button>
-    </>}
+      <Details title="来源路径（仅核对读取位置）">{scan.sources.map(s=><p className="muted break-all" key={s.path}>{s.label} · {s.path} · {s.exists?'存在':'不存在'}</p>)}</Details></>}</div></section>}
   </section>;
 }
 

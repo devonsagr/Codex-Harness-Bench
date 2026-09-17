@@ -178,3 +178,12 @@ button:focus-visible,summary:focus-visible { outline:2px solid #71717a;outline-o
 .codex-apply { border-top:1px solid #cbd5e1;padding-top:1.25rem;margin-top:1rem; }
 .rubric-row { display:grid;grid-template-columns:minmax(0,1fr) 100px auto;gap:1rem;align-items:center;padding:.8rem 0;border-bottom:1px solid #cbd5e1; }
 @media(max-width:600px){.rubric-row { grid-template-columns:minmax(0,1fr) 80px; }.rubric-row>button { grid-column:1/-1;justify-self:start; }}
+
+.skill-results { border-top:1px solid #cbd5e1; padding-top:1rem; }
+.skill-results [hidden] { display:none; }
+.score-section { border-top:1px solid #cbd5e1; padding-top:1.5rem; }
+.score-check { border-bottom:1px solid #e2e8f0; padding-bottom:1rem; }
+.score-notice { background:#f1f5f9; color:#334155; padding:1rem; border-radius:.5rem; }
+.score-guide { border-top:1px solid #cbd5e1; padding-top:1rem; }
+.dark .score-section,.dark .skill-results,.dark .score-guide,.dark .score-check { border-color:#3f3f46; }
+.dark .score-notice { background:#27272a; color:#e4e4e7; }
