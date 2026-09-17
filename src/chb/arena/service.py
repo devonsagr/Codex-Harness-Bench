@@ -225,6 +225,8 @@ class Arena:
                                                'sourceSkillMode':config.get('skillMode','auto')}
                 config.update(skills=skills,skillMode=mode)
         scoring_policy=policy(data.get('policy'))
+        if scoring_policy.get('dimensionUnit')=='percent' and scoring_policy['objectiveWeight'] and any(not t['checks'] for t in selected):
+            raise ValueError('所选题目没有自动检查，请选择纯人工方案，或先在题库配置检查。')
         selected=[{**freeze_prompts(normalize_contract(t)), 'sourceSchemaVersion':t.get('schemaVersion',1)} for t in selected]
         if scoring_policy['humanWeight'] and any(not t.get('hasFrontendUI') for t in selected):
             if not sum(v for k,v in scoring_policy['dimensions'].items() if k!='ux'):
@@ -372,6 +374,20 @@ class Arena:
                     raise ValueError('请用停止检查按钮终止本工具拥有的后台进程。')
                 t['state']='interrupted';t['interruption']={'reason':text(data.get('reason'),3000),'at':now()}
                 self.event(run,'已记录外部执行中断；本按钮不会终止桌面 Codex，请在桌面停止任务。',tid)
+            elif action=='objective-review':
+                from .scoring import number
+                if t['state'] not in {'captured','completed','interrupted'} or not t['captures']:raise ValueError('请在回收并结束后台检查后裁定。')
+                capture=t['captures'][-1];score=calculate(run,t)
+                if data.get('captureId')!=capture['id'] or data.get('evidenceKey')!=score['objectiveEvidenceKey']:raise ValueError('检查证据已变化，请刷新后重新裁定。')
+                if score['objective'] is None:raise ValueError('自动检查尚无完整原分，不能用人工裁定补成已验证。')
+                for c in t['captures']:
+                    verify_snapshot(folder/'captures'/c['id']/'files',c['manifest'])
+                entry={'id':'decision-'+uuid.uuid4().hex[:12],'at':now(),'captureId':capture['id'],'evidenceKey':score['objectiveEvidenceKey'],
+                       'score':number(data['score']) if data.get('score') is not None else None,
+                       'reason':text(data.get('reason'),3000),'evidence':text(data.get('evidence'),5000),
+                       'originalScore':score['objective']}
+                t.setdefault('objectiveReviews',[]).append(entry)
+                self.event(run,'人工裁定另存；自动原分与必要项结论保持原始证据。',tid)
             elif action=='review':
                 if not t['captures']:raise ValueError('先回收产物，再提交评分。')
                 if data.get('captureId')!=t['captures'][-1]['id']:raise ValueError('评分对象已变化，请刷新后复审最新快照。')
