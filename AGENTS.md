@@ -6,7 +6,7 @@
 - 文档索引：`docs/README.md`；Gemini对齐审计及模块合同：`docs/architecture/`。主架构第8节B00–B10是唯一工作包状态来源，模块合同保存细则/接口/验收，不再各自维护路线。U10要求以用户原文、Gemini源代码和当前实现三方核对；不能以保留主题导航或基础测试通过宣称完整接入。
 - 用户 U07 已否定旧前端产品逻辑，指定采用 Gemini 前端。源目录 `D:\AAAcodex项目\杂\codex-harness-arena` 只读；工程副本 `frontend/`，来源回执 `.local/sources/gemini-frontend-20260915.json`。不要恢复随机成绩/模拟执行。
 - 用户 U08：桌面端为正式评测，准备独立工作区，在 Codex 桌面手动执行，回收产物后验收。CLI 自动跑单独标注。单配置、项目构建为主，Bug 修复分开；多轮明确等用户确认。
-- 工作区规则是叠加层，仍继承宿主全局 AGENTS/技能/插件；不能宣称全部隔离或替换。不得自动改宿主 Codex 配置。
+- 工作区规则是叠加层，仍继承宿主全局 AGENTS/技能/插件；不能宣称全部隔离或替换。不得暗改宿主 Codex 配置；U15授权用户点击“一键应用到Codex”后写入所选设置，必须备份、校验及可撤销。开发验证只使用隔离CODEX_HOME，不替用户选一套日常全局配置。
 - Obsidian 镜像：none；未指定镜像根，声明集合为空。不回写日记，不扫描 Vault。
 - Python 3.12+；本机 `.venv\Scripts\python.exe`（3.13）。安装 `uv sync --frozen`。
 - 前端 Node.js + pnpm；安装 `pnpm --dir frontend install --frozen-lockfile`；类型检查 `pnpm --dir frontend exec tsc --noEmit`；构建 `pnpm --dir frontend build`。

@@ -41,7 +41,7 @@ flowchart TD
 |编号|原型意图/源位置|当前真实行为|审计判定与去向|
 |---|---|---|---|
 |G01|App、ArenaHeader：六个入口|当前 App 有工作台/配置/题库/历史/结果/说明|保留入口；不能据此判定全部页面逻辑对齐|
-|G02|ArenaHeader、index.css：浅色/炭黑、字体切换|保留主题与字体基础|已承接；后续视觉减法 B09|
+|G02|ArenaHeader、index.css：浅色/炭黑、字体切换|保留主题，U15移除无效字体切换|全宽准备步骤与技能浮层已接，完整可用性仍归B09|
 |G03|BenchmarkRunnerView 的 benchMode=single|Prepare 默认一套配置|对齐，继续保留|
 |G04|单题焦点、批量可选|Prepare 单题默认，可选批量准备|对齐主线；批量不代发桌面任务|
 |G05|TaskBankView：paradigm/channel/difficulty/search|题库与准备页共用三轴+标题/描述/提示词搜索|已接并操作验证；准备度状态仍待补|

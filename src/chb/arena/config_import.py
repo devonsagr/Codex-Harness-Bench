@@ -3,6 +3,7 @@ from pathlib import Path
 import tomllib
 from .files import hash_bytes, now, safe_path
 from .skills import codex_home, checked_directory
+from .codex_apply import OPTIONS
 
 
 def preview(app,data):
@@ -31,9 +32,11 @@ def preview(app,data):
             'agentsPrompt':rules,'baseModel':native.get('model','gpt-6-astra'),
             'reasoning':native.get('model_reasoning_effort','medium'),'interactiveMode':'adaptive',
             'skills':[],'skillMode':'auto','customConstraints':[],
+            'nativeSettings':{k:v for k,v in native.items() if k in OPTIONS and v in OPTIONS[k]},
+            'integrations':{g:{k:v.get('enabled',True) for k,v in native.get(g,{}).items() if isinstance(v,dict) and type(v.get('enabled',True))==bool} for g in ['mcp_servers','plugins']},
             'tagline':'只导入规则、模型和推理档位；Skills 在面板选择。',
             'importSource':{'scope':scope,'root':str(root),'files':files,'at':now(),'warnings':warnings,
-                            'note':'只读本层规则/设置，不是完整有效配置；未导入认证、插件和 MCP。'}}
+                            'note':'只读本层规则/设置与已配置工具开关，不是完整有效配置；未迁移认证、工具命令或插件安装文件。'}}
 
 
 def commit(app,data):

@@ -1,4 +1,5 @@
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useRef,useState,useId} from 'react';
+import {createPortal} from 'react-dom';
 import type {Act,Config,Imported} from './types';
 import {request} from './api';
 import {Details,Field} from './ui';
@@ -56,8 +57,16 @@ export function ProjectConfigImport({act,onImported}:{act:Act;onImported:(config
 
 type SkillInfo={id:string;name:string;description?:string;sourceLabel?:string;sourcePath?:string;sha256?:string;fileCount?:number;manifest?:Imported['manifest'];duplicateName?:boolean;error?:string|null;warnings?:string[]};
 export function SkillChoice({skill:s,checked,onChange,disabled=false}:{skill:SkillInfo;checked:boolean;onChange:(checked:boolean)=>void;disabled?:boolean}){
-  return <div className={'skill-option '+(checked?'skill-option-selected':'')}>
-    <label className="check-row" title={[s.description,s.sourceLabel,s.sourcePath].filter(Boolean).join('\n')}><input type="checkbox" aria-label={`选择技能 ${s.name} ${s.sourceLabel||''}`} checked={checked} disabled={disabled} onChange={e=>onChange(e.target.checked)}/><span className="break-words">{s.name}</span>{s.duplicateName&&<small className="muted">{s.sourceLabel}</small>}{s.error&&<small className="text-rose-600">不可导入</small>}</label>
-    <details className="skill-info"><summary aria-label={`${s.name} 详情`}>详情</summary><div className="muted break-all space-y-1"><p>{s.description||'未提供用途说明'}</p><p>{s.sourceLabel||'已导入技能'} · {s.sourcePath}</p><p>{s.fileCount??Object.keys(s.manifest?.files||{}).length} 文件 · {(s.sha256||s.manifest?.sha256)?.slice(0,12)}</p>{s.error&&<p>{s.error}</p>}{s.warnings?.map(w=><p key={w}>{w}</p>)}</div></details>
+  const [position,setPosition]=useState<{left:number;top:number}|null>(null);const [pinned,setPinned]=useState(false);const id=useId();
+  const anchor=useRef<HTMLButtonElement>(null);const timer=useRef<ReturnType<typeof setTimeout>>();
+  const show=()=>{clearTimeout(timer.current);const r=anchor.current?.getBoundingClientRect();if(r)setPosition({left:Math.max(16,Math.min(r.left,window.innerWidth-376)),top:Math.max(16,Math.min(r.bottom+8,window.innerHeight*.42))});};
+  const leave=()=>{if(!pinned)timer.current=setTimeout(()=>setPosition(null),180);};
+  useEffect(()=>()=>clearTimeout(timer.current),[]);
+  const close=()=>{clearTimeout(timer.current);anchor.current?.focus();setPosition(null);setPinned(false);};
+  useEffect(()=>{if(!position)return;const escape=(e:KeyboardEvent)=>{if(e.key==='Escape')close();};document.addEventListener('keydown',escape);return()=>document.removeEventListener('keydown',escape);},[position]);
+  return <div className={'skill-option '+(checked?'skill-option-selected':'')} onMouseEnter={show} onMouseLeave={leave}>
+    <label className="check-row"><input type="checkbox" aria-label={`选择技能 ${s.name} ${s.sourceLabel||''}`} checked={checked} disabled={disabled} onChange={e=>onChange(e.target.checked)}/><span className="break-words">{s.name}</span>{s.duplicateName&&<small className="muted">{s.sourceLabel}</small>}{s.error&&<small className="text-rose-600">不可导入</small>}</label>
+    <button type="button" className="btn-ghost" ref={anchor} aria-label={`${s.name} 详情`} aria-expanded={!!position} aria-controls={position?id:undefined} onFocus={show} onBlur={leave} onClick={()=>{setPinned(true);show();}}>详情</button>
+    {position&&createPortal(<aside id={id} className="skill-popover space-y-3" role="dialog" aria-label={s.name+' 技能详情'} style={position} onMouseEnter={()=>clearTimeout(timer.current)} onMouseLeave={leave}><div className="flex justify-between gap-3"><strong>{s.name}</strong><button type="button" className="btn-ghost" aria-label="关闭技能详情" onClick={close}>关闭</button></div><p className="text-sm whitespace-pre-wrap">{s.description||'未提供用途说明'}</p><p className="muted">{s.sourceLabel||'已导入技能'} · {s.sourcePath}</p><p className="muted">{s.fileCount??Object.keys(s.manifest?.files||{}).length} 文件 · {(s.sha256||s.manifest?.sha256)?.slice(0,12)}</p>{s.error&&<p>{s.error}</p>}{s.warnings?.map(w=><p className="muted" key={w}>{w}</p>)}<p className="muted">点击详情可固定阅读；Esc 关闭。</p></aside>,document.body)}
   </div>;
 }

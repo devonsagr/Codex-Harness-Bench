@@ -10,6 +10,7 @@ from .service import identifier, text
 from .jobs import start_job, stop_job
 from . import task_import
 from . import skills, config_import
+from . import codex_apply
 from .contracts import task_view
 
 
@@ -17,6 +18,10 @@ def post(app,route,data):
     parts=route.removeprefix('/api/arena/').split('/')
     with app.lock:
         if parts==['configs','save']:return app.save_config(data)
+        if parts==['codex','status']:return codex_apply.status(app)
+        if parts==['codex','apply']:return codex_apply.apply(app,data)
+        if parts==['codex','switch']:return codex_apply.switch(app,data)
+        if parts==['codex','restore']:return codex_apply.restore(app,data)
         if parts==['tasks','save']:return app.save_task(data)
         if parts==['tasks','import-preview']:return task_import.preview(app,data.get('document'))
         if parts==['tasks','import']:return task_import.commit(app,data)
@@ -39,6 +44,16 @@ def post(app,route,data):
         if len(parts)==3 and parts[0]=='runs' and parts[2]=='restore-config':return app.restore_config(identifier(parts[1]),identifier(data.get('configId')))
         if len(parts)==5 and parts[0]=='runs' and parts[2]=='trials':
             rid,tid,action=identifier(parts[1]),identifier(parts[3]),parts[4]
+            if action=='apply-config':
+                run,trial=app.trial(rid,tid)
+                if run.get('archived') or trial['state']!='prepared':raise ValueError('仅在本题开始前应用冻结配置。')
+                config=next(c for c in run['configs'] if c['id']==trial['configId'])
+                result=codex_apply.switch(app,{'revision':config['revision']},frozen=config)
+                trial['codexApplicationId']=result['id']
+                trial['appliedHostFingerprint']=app.host_fingerprint()
+                app.event(run,'已将本题冻结配置写入本机 Codex；桌面实际生效仍需核对。',tid)
+                app.db.save('run',run,run['revision'])
+                return result
             if action in {'check','judge'}:return start_job(app,rid,tid,action,data)
             if action=='stop':return stop_job(app,rid,tid)
             return app.mutate(rid,tid,action,data)

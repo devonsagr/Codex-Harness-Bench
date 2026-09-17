@@ -11,9 +11,10 @@ import uuid
 
 from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
-from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS
+from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, RUBRICS
 from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks
 from .skills import invocation, codex_home
+from .codex_apply import settings, connections, project_settings
 
 
 def identifier(value):
@@ -101,6 +102,8 @@ class Arena:
         allowed=['id','name','agentsPrompt','baseModel','reasoning','interactiveMode','skills','customConstraints','tagline','author','specialFeatures']
         body={k:value[k] for k in allowed if k in value}
         body['skillMode']=mode
+        body['nativeSettings']=settings(value.get('nativeSettings',{}))
+        body['integrations']=connections(value.get('integrations',{}))
         if import_source is not None:body['importSource']=import_source
         elif value.get('id') and value.get('revision'):
             previous=self.db.get('config',identifier(value['id']))
@@ -177,7 +180,7 @@ class Arena:
         return {'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
                 'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
-                'models':self.models(),'defaultPolicy':DEFAULT_POLICY,'dimensions':DIMENSIONS,
+                'models':self.models(),'defaultPolicy':DESKTOP_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
                 'mode':'desktop','source':'SQLite 与本机冻结文件','legacyExperiments':len(list((self.root/'runs').glob('*/plan.json')))}
 
     def event(self,run,message,trial=None):
@@ -264,6 +267,9 @@ class Arena:
                 if config['interactiveMode']=='step-by-step-confirm':instructions+='\n每个实施阶段结束后先给出结果并等待用户确认，不自动继续下一阶段。\n'
                 if config['interactiveMode']=='one-shot-direct':instructions+='\n根据当前阶段的需求完成可交付结果；有必要信息缺口时明确提出，不擅自编造。\n'
                 (workspace/'AGENTS.override.md').write_text(instructions,encoding='utf-8')
+                native_path=safe_path(workspace,'.codex/config.toml')
+                native_bytes=project_settings(config,native_path.read_bytes() if native_path.is_file() else b'')
+                native_path.parent.mkdir(parents=True,exist_ok=True);native_path.write_bytes(native_bytes)
                 skills=[]
                 for sid in config.get('skills',[]):
                     skill=self.db.get('skill',sid);src=self.local/'skills'/sid/'files'
@@ -333,7 +339,7 @@ class Arena:
                 capture={'id':cid,'stageIndex':t['stageIndex'],'at':now(),'manifest':manifest,'facts':changes,
                          'response':text(data.get('response',''),60000,False),'checks':[],
                          'checksConfigured':len(applicable_checks(task,t['stageIndex'])),
-                         'harnessUnchanged':harness_files(manifest)==harness_files(t['baseline']),'hostUnchanged':self.host_fingerprint()==run['hostFingerprint']}
+                         'harnessUnchanged':harness_files(manifest)==harness_files(t['baseline']),'hostUnchanged':self.host_fingerprint()==t.get('appliedHostFingerprint',run['hostFingerprint'])}
                 t['captures'].append(capture);t['state']='captured'
                 self.event(run,'产物已封存，包括新增/删除文件；之后修改工作区不会改写这份证据。',tid)
             elif action=='trace':
@@ -371,7 +377,7 @@ class Arena:
                 if data.get('captureId')!=t['captures'][-1]['id']:raise ValueError('评分对象已变化，请刷新后复审最新快照。')
                 capture=t['captures'][-1]
                 verify_snapshot(folder/'captures'/capture['id']/'files',capture['manifest'])
-                review=validate_review(data,task,config.get('customConstraints',[]),capture)
+                review=validate_review(data,task,config.get('customConstraints',[]),capture,run['policy'])
                 if task.get('schemaVersion')==2 and any(r['kind']=='human' and r['captureId']==capture['id'] for r in t['reviews']) and not review['revisionReason'].strip():
                     raise ValueError('修改已有复审时，请填写本次修订原因。')
                 review.update(id='review-'+uuid.uuid4().hex[:12],kind='human',at=now(),captureId=data['captureId'])
