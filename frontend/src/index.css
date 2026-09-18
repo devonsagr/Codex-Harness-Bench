@@ -187,3 +187,29 @@ button:focus-visible,summary:focus-visible { outline:2px solid #71717a;outline-o
 .score-guide { border-top:1px solid #cbd5e1; padding-top:1rem; }
 .dark .score-section,.dark .skill-results,.dark .score-guide,.dark .score-check { border-color:#3f3f46; }
 .dark .score-notice { background:#27272a; color:#e4e4e7; }
+
+/* Preparation is a sequential flow; progress labels are not competing links. */
+.prepare-tabs > span:not(.muted) { padding:.65rem 1rem;border-radius:.5rem;font-size:.875rem; }
+.prepare-selection { height:auto;min-height:1.5rem;margin-top:.5rem;margin-bottom:1.25rem; }
+.prepare-footer-row,.prepare-footer-buttons,.prepare-skill-heading,.picker-footer { display:flex;align-items:center;justify-content:space-between;gap:1rem; }
+.prepare-footer-buttons { justify-content:flex-end; }
+.prepare-action { display:grid;gap:1rem;padding:1.25rem 0; }
+.config-select-row,.picker-path { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:end; }
+.config-select-row > button,.picker-path > button,.rubric-add-row > button { min-height:2.5rem;white-space:nowrap; }
+.prepare-skills { border-top:1px solid #cbd5e1;padding-top:1.5rem;margin-top:1.5rem; }
+.prepare-skill-heading h3 { font-weight:600; }
+.picker-toolbar,.score-weight-row { display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:end; }
+.rubric-add-row { display:flex;gap:1rem;align-items:end;flex-wrap:wrap; }
+.rubric-add-row .field { min-width:12rem; }
+.work-dialog { width:min(900px,calc(100vw - 32px));max-height:85vh;overflow:auto;padding:1.5rem;border:1px solid #cbd5e1;border-radius:1rem;background:white;color:#1e293b; }
+.work-dialog::backdrop { background:rgb(15 23 42 / .4); }
+.work-dialog > header { display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.5rem; }
+.work-dialog > header h2 { font-size:1.125rem;font-weight:600; }
+.work-dialog-body { display:grid;gap:1.25rem; }
+.work-dialog .skill-options { max-height:45vh; }
+.config-facts { display:grid;grid-template-columns:auto minmax(0,1fr);gap:.75rem 1.5rem;font-size:.875rem;overflow-wrap:anywhere; }
+.config-facts dt { color:#64748b; }
+.dark .work-dialog { background:#18181b;color:#f4f4f5;border-color:#3f3f46; }
+.dark .prepare-skills { border-color:#3f3f46; }
+.dark .config-facts dt { color:#a1a1aa; }
+@media(max-width:600px){.picker-toolbar{grid-template-columns:1fr;}.prepare-footer-row{flex-wrap:wrap;}.prepare-footer-buttons{margin-left:auto;}.work-dialog{padding:1rem;}.prepare-tabs{gap:.5rem;}.prepare-tabs>span:not(.muted){padding:.5rem;}.score-weight-row{gap:.75rem;}}

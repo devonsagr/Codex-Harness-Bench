@@ -21,7 +21,7 @@
 
 ## 2. 导入、保存、修改、恢复
 
-配置导入仅放在配置管理；评测准备只选择已保存版本并预览规则、原生设置、工具开关和技能。临时Skills调整仍只进入本次Run。技能来源与“读取技能列表”在结果外；读取后结果有独立展开/收起按钮，收起整个搜索/批选/技能列表区且保留勾选和搜索词。路径核对放在结果末尾，不能用折叠目录冒充折叠技能。
+配置导入仅放在配置管理；评测准备只选择已保存版本并预览规则、原生设置、工具开关和技能。临时Skills调整仍只进入本次Run。准备页使用统一技能面板，来源/搜索/勾选在同一处，勾选时自动冻结并选中；配置管理保留批量导入。配置正文使用独立预览，不堆叠在选择区。
 
 1. 新建配置得到新 ID 和 revision=1。编辑必须携带已读取的 revision；过期提交拒绝，保留用户草稿，不自动覆盖。
 2. “另存副本”生成新 ID。它是新候选，不表示已经测过，也不继承旧分数。
@@ -127,3 +127,8 @@
 新工作区另生成.codex/config.toml，让模型/推理/原生设置随试次冻结。受信任项目才加载项目层；已有任务覆盖、重载/重启、组织策略仍可影响有效配置。UI状态为“文件已写入”，正式执行前仍核对桌面实际值。对准备态试次的显式应用保留原hostFingerprint，并记录appliedHostFingerprint及应用ID，后续回收按应用后的预期值检查；不改旧回收。
 
 依据：[OpenAI配置层](https://learn.chatgpt.com/docs/config-file/config-basic)、[配置字段](https://learn.chatgpt.com/docs/config-file/config-reference)、[Superpowers安装入口](https://github.com/obra/superpowers#codex-app)。
+
+
+应用状态同时区分历史回执与当前文件：/codex/status对活动应用返回fileChecks、filesMatch及当前全局instructionsFile，仅读取；不输出文件正文、认证或备份。文件变化不自动推断某个设置失效，也不强制覆盖。页面可手动“核对当前文件”，显示匹配/变化的相对路径；已写入不等于桌面当前任务已采用。
+
+本工具写AGENTS.override.md并保留原AGENTS.md，因此Codex个性化页可能继续显示原文并提示被override覆盖。该提示与官方[全局规则优先级](https://learn.chatgpt.com/docs/agent-configuration/agents-md)一致，不是应用失败。检查全局文件后仍需区分项目覆盖与当前任务设置，开发时不自动修改用户日常配置。

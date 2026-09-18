@@ -46,6 +46,28 @@ class CodexApplyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'其他操作'):self.undo(r)
         self.assertIn('external-edit',(self.home/'config.toml').read_text())
 
+    def test_status_distinguishes_receipt_from_current_file_state(self):
+        receipt=self.apply()
+        status=codex_apply.status(self.app)
+        self.assertEqual(status['instructionsFile'],'AGENTS.override.md')
+        self.assertTrue(status['applications'][0]['filesMatch'])
+        changed=(self.home/'config.toml').read_bytes()+b'\n# desktop changed an unrelated setting\n'
+        (self.home/'config.toml').write_bytes(changed)
+        status=codex_apply.status(self.app)
+        row=status['applications'][0]
+        self.assertEqual(row['status'],'applied')
+        self.assertFalse(row['filesMatch'])
+        self.assertEqual({f['path']:f['matches'] for f in row['fileChecks']},{'config.toml':False,'AGENTS.override.md':True})
+        self.assertNotIn('secret-token',json.dumps(status))
+        self.assertEqual((self.home/'config.toml').read_bytes(),changed)
+        self.assertEqual(receipt['id'],row['id'])
+
+    def test_status_after_restore_uses_base_instructions(self):
+        self.undo(self.apply())
+        status=codex_apply.status(self.app)
+        self.assertEqual(status['instructionsFile'],'AGENTS.md')
+        self.assertNotIn('filesMatch',status['applications'][0])
+
     def test_mid_write_failure_restores_prior_files(self):
         real=codex_apply.write_file;failed=False
         def fail(path,data):

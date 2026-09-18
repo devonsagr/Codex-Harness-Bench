@@ -2,7 +2,7 @@ import {useEffect,useRef,useState,useId} from 'react';
 import {createPortal} from 'react-dom';
 import type {Act,Config,Imported} from './types';
 import {request} from './api';
-import {Details,Field} from './ui';
+import {Details,Field,Dialog} from './ui';
 
 type Candidate={id:string;name:string;description:string;sourcePath:string;scope:string;sourceLabel:string;sha256?:string;fileCount?:number;error:string|null;warnings:string[];duplicateName:boolean};
 type Scan={scanId:string;sources:{path:string;label:string;exists:boolean}[];candidates:Candidate[]};
@@ -68,6 +68,40 @@ export function SkillChoice({skill:s,checked,onChange,disabled=false}:{skill:Ski
   return <div className={'skill-option '+(checked?'skill-option-selected':'')} onMouseEnter={show} onMouseLeave={leave}>
     <label className="check-row"><input type="checkbox" aria-label={`选择技能 ${s.name} ${s.sourceLabel||''}`} checked={checked} disabled={disabled} onChange={e=>onChange(e.target.checked)}/><span className="break-words">{s.name}</span>{s.duplicateName&&<small className="muted">{s.sourceLabel}</small>}{s.error&&<small className="text-rose-600">不可导入</small>}</label>
     <button type="button" className="btn-ghost" ref={anchor} aria-label={`${s.name} 详情`} aria-expanded={!!position} aria-controls={position?id:undefined} onFocus={show} onBlur={leave} onClick={()=>{setPinned(true);show();}}>详情</button>
-    {position&&createPortal(<aside id={id} className="skill-popover space-y-3" role="dialog" aria-label={s.name+' 技能详情'} style={position} onMouseEnter={()=>clearTimeout(timer.current)} onMouseLeave={leave}><div className="flex justify-between gap-3"><strong>{s.name}</strong><button type="button" className="btn-ghost" aria-label="关闭技能详情" onClick={close}>关闭</button></div><p className="text-sm whitespace-pre-wrap">{s.description||'未提供用途说明'}</p><p className="muted">{s.sourceLabel||'已导入技能'} · {s.sourcePath}</p><p className="muted">{s.fileCount??Object.keys(s.manifest?.files||{}).length} 文件 · {(s.sha256||s.manifest?.sha256)?.slice(0,12)}</p>{s.error&&<p>{s.error}</p>}{s.warnings?.map(w=><p className="muted" key={w}>{w}</p>)}<p className="muted">点击详情可固定阅读；Esc 关闭。</p></aside>,document.body)}
+    {position&&createPortal(<aside id={id} className="skill-popover space-y-3" role="dialog" aria-label={s.name+' 技能详情'} style={position} onMouseEnter={()=>clearTimeout(timer.current)} onMouseLeave={leave}><div className="flex justify-between gap-3"><strong>{s.name}</strong><button type="button" className="btn-ghost" aria-label="关闭技能详情" onClick={close}>关闭</button></div><p className="text-sm whitespace-pre-wrap">{s.description||'未提供用途说明'}</p><p className="muted">{s.sourceLabel||'已导入技能'} · {s.sourcePath}</p><p className="muted">{s.fileCount??Object.keys(s.manifest?.files||{}).length} 文件 · {(s.sha256||s.manifest?.sha256)?.slice(0,12)}</p>{s.error&&<p>{s.error}</p>}{s.warnings?.map(w=><p className="muted" key={w}>{w}</p>)}<p className="muted">点击详情可固定阅读；Esc 关闭。</p></aside>,anchor.current?.closest('dialog')||document.body)}
   </div>;
+}
+
+
+// Scanning stays read-only. A checked local item is frozen and selected in one action.
+export function SkillPicker({act,library,value,onChange}:{act:Act;library:Imported[];value:string[];onChange:(ids:string[])=>void}){
+  const [open,setOpen]=useState(false);const [scope,setScope]=useState('global');const [path,setPath]=useState('');
+  const [scan,setScan]=useState<Scan|null>(null);const [query,setQuery]=useState('');const [busy,setBusy]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState('');
+  const [cache,setCache]=useState<Imported[]>([]);const generation=useRef(0);const saving=useRef(false);
+  const all=[...library,...cache.filter(s=>!library.some(x=>x.id===s.id))];
+  const load=async(source=scope)=>{const n=++generation.current;setLoading(true);setScan(null);setError('');try{const result=await request<Scan>('/skills/scan',{scope:source,path});if(n===generation.current)setScan(result);}catch(e){if(n===generation.current)setError((e as Error).message);}finally{if(n===generation.current)setLoading(false);}};
+  useEffect(()=>()=>{generation.current++;},[]);
+  const selected=all.filter(s=>value.includes(s.id));
+  const matching=(s:Candidate)=>all.find(x=>x.name===s.name&&x.manifest.sha256===s.sha256);
+  const change=async(s:Candidate,checked:boolean)=>{
+    if(saving.current)return;const existing=matching(s);
+    if(!checked){if(existing)onChange(value.filter(id=>id!==existing.id));return;}
+    if(value.length>=30){setError('最多选择30个技能。');return;}
+    if(selected.some(x=>x.name.toLowerCase()===s.name.toLowerCase())){setError('已有同名技能，请先取消原选择。');return;}
+    if(existing){onChange([...value,existing.id]);return;}
+    if(!scan)return;saving.current=true;setBusy(true);setError('');
+    try{const result=await act<{imported:Imported[]}>('/skills/import-selected',{scanId:scan.scanId,candidateIds:[s.id]});setCache(c=>[...c,...result.imported]);onChange([...value,...result.imported.map(x=>x.id)]);}catch(e){setError((e as Error).message);}finally{saving.current=false;setBusy(false);}
+  };
+  const matches=(s:{name:string;description?:string;sourcePath?:string})=>(s.name+' '+(s.description||'')+' '+(s.sourcePath||'')).toLowerCase().includes(query.toLowerCase());
+  const saved=all.filter(s=>matches(s)&&(scope==='saved'||value.includes(s.id)||!scan?.candidates.some(c=>c.name===s.name&&c.sha256===s.manifest.sha256)));
+  return <><div className="prepare-skill-heading"><h3>本次 Skills <span className="muted">{value.length} 个</span></h3><button type="button" className="btn-secondary" onClick={()=>{setOpen(true);if(!scan&&scope==='global')void load();}}>选择技能</button></div>
+    {!!selected.length&&<div className="flex flex-wrap gap-2">{selected.map(s=><span className="skill-chip" key={s.id}>{s.name}<button type="button" disabled={busy} aria-label={'移除技能 '+s.name} onClick={()=>onChange(value.filter(id=>id!==s.id))}>×</button></span>)}</div>}
+    <Dialog title={'选择 Skills · 已选 '+value.length+' / 30'} open={open} onClose={()=>{if(!busy)setOpen(false);}}>
+      <div className="picker-toolbar"><Field label="来源"><select disabled={busy} value={scope} onChange={e=>{const v=e.target.value;setScope(v);generation.current++;setScan(null);setLoading(false);setError('');if(v==='global')void load(v);}}><option value="global">本机技能</option><option value="saved">已保存技能</option><option value="project">项目技能</option><option value="custom">其他技能目录</option></select></Field><Field label="搜索"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="名称或用途"/></Field></div>
+      {['project','custom'].includes(scope)&&<div className="picker-path"><Field label={scope==='project'?'项目根目录':'技能目录'}><input disabled={busy} value={path} onChange={e=>{setPath(e.target.value);generation.current++;setScan(null);setLoading(false);}}/></Field><button type="button" className="btn-secondary" disabled={busy||loading||!path.trim()} onClick={()=>void load()}>读取目录</button></div>}
+      {error&&<p role="alert" className="alert-error">{error}</p>}{loading&&<p role="status">正在读取技能…</p>}
+      <div className="skill-options">{saved.map(s=><SkillChoice key={s.id} skill={s} checked={value.includes(s.id)} disabled={busy||(!value.includes(s.id)&&value.length>=30)} onChange={checked=>{if(checked&&selected.some(x=>x.name.toLowerCase()===s.name.toLowerCase())){setError('已有同名技能，请先取消原选择。');return;}onChange(checked?[...value,s.id]:value.filter(id=>id!==s.id));}}/>)}{scope!=='saved'&&scan?.candidates.filter(matches).filter(s=>!saved.some(x=>x.id===matching(s)?.id)).map(s=><SkillChoice key={s.id} skill={s} checked={!!matching(s)&&value.includes(matching(s)!.id)} disabled={busy||!!s.error||(!matching(s)&&value.length>=30)} onChange={checked=>void change(s,checked)}/>)}</div>
+      {!loading&&!saved.length&&!(scan?.candidates.filter(matches).length)&&<p>没有匹配的技能。</p>}
+      <footer className="picker-footer"><span className="muted" role="status">{busy?'正在保存选择…':'勾选即加入本次评测'}</span><button type="button" className="btn-primary" disabled={busy} onClick={()=>setOpen(false)}>完成选择</button></footer>
+    </Dialog></>;
 }

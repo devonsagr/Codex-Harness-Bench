@@ -188,3 +188,6 @@ arena-review-v2保存dimensions权重和rubrics={id:{label,description}}，最�
 新准备页额外冻结dimensionUnit=percent（dimensions合计100）和requireDimensionEvidence=true。review请求增加dimensionEvidence={维度ID:实际依据}，集合须与适用计分维度一致，各项非空、最多3000字；旧策略未启用时不新增必填。
 
 Trial.objectiveReviews保存id/at/captureId/evidenceKey/score/reason/evidence/originalScore。score新增objectiveEvidenceKey、adjudicatedObjective、adjudicatedOverall、objectiveReviewId；未裁定/撤回/失效时裁定值为null。evidenceKey由各阶段最新回收清单、检查回执及冻结检查定义生成，服务核对文件哈希后追加裁定。reason/evidence分别最多3000/5000字。归档只读、锁和版本控制沿用Trial动作约束。
+
+
+/codex/status新增instructionsFile；活动applications项新增filesMatch与fileChecks=[{path,matches}]，按当前磁盘内容对应用后hash核对。历史status=applied只证明当时写入成功，不能替代当前匹配字段。响应不含备份/配置正文；撤销仍使用原有冲突保护，不依据前端核对结果越过后端校验。
