@@ -1,9 +1,9 @@
 import {useEffect,useState} from 'react';
 import type {Act,Config} from './types';
 import {request} from './api';
-import {Field} from './ui';
-type Receipt={id:string;configName:string;status:string;message:string;home:string};
-type Host={home:string;connections:Record<string,{id:string;enabled:boolean}[]>;applications:Receipt[]};
+import {Field,Details} from './ui';
+type Receipt={id:string;configName:string;status:string;message:string;home:string;configRevision:number;filesMatch?:boolean;fileChecks?:{path:string;matches:boolean}[]};
+type Host={home:string;instructionsFile:string;connections:Record<string,{id:string;enabled:boolean}[]>;applications:Receipt[]};
 
 export function CodexApply({config,act,save,trialRoute,disabled=false}:{config:Config;act:Act;save?:()=>Promise<Config>;trialRoute?:string;disabled?:boolean}){
   const [host,setHost]=useState<Host|null>(null);const [error,setError]=useState('');const [result,setResult]=useState('');
@@ -12,9 +12,11 @@ export function CodexApply({config,act,save,trialRoute,disabled=false}:{config:C
   const active=host?.applications.find(r=>['applying','applied','restore_failed'].includes(r.status));
   const apply=async()=>{setError('');try{const c=save?await save():config;const r=await act<Receipt>(trialRoute||'/codex/switch',{configId:c.id,revision:c.revision});setResult(r.message);await refresh();}catch(e){setError((e as Error).message);await refresh().catch(()=>{});}};
   const undo=async()=>{setError('');try{const r=await act<Receipt>('/codex/restore',{applicationId:active?.id});setResult(r.message);await refresh();}catch(e){setError((e as Error).message);}};
-  return <section className="codex-apply space-y-3"><h3 className="font-semibold">工作台 → Codex</h3><p className="muted">将{trialRoute?'本题冻结配置':'当前配置'}写入本机 Codex：模型、推理、原生设置、规则、Skills 和已配置工具的启用状态。先备份，可撤销。</p>
-    <p className="muted break-all">应用范围：本机全局 · {host?.home||'正在读取目标…'}。全局 override 规则替换为所选配置并保留备份；影响后续任务，项目设置可能覆盖，已有任务不会自动切换。</p>
-    <div className="flex gap-3 flex-wrap items-center"><button type="button" className="btn-primary" disabled={disabled||!host||(!save&&!config.id)} onClick={()=>void apply()}>{save?'保存并一键应用到 Codex':active?'一键切换为本题配置':'一键应用到 Codex'}</button>{active&&<><span className="text-sm">已应用：{active.configName}</span><button type="button" className="btn-secondary" onClick={()=>void undo()}>撤销上次应用</button></>}</div>
+  return <section className="codex-apply space-y-3"><h3 className="font-semibold">应用到 Codex</h3>
+    <p className="muted">写入本机全局配置并备份；新任务使用，已有任务不保证切换。</p>
+    <div className="flex gap-3 flex-wrap items-center"><button type="button" className="btn-primary" disabled={disabled||!host||(!save&&!config.id)} onClick={()=>void apply()}>{save?'保存并应用到 Codex':active?'切换为本题配置':'应用到 Codex'}</button>{active&&<button type="button" className="btn-secondary" disabled={disabled} onClick={()=>void undo()}>撤销上次应用</button>}<button type="button" className="btn-ghost" onClick={()=>{setError('');void refresh().catch(e=>setError(e.message));}}>核对当前文件</button></div>
+    {active&&<p role="status" className={active.filesMatch?'text-sm':'alert-error'}>{active.configName} · v{active.configRevision}：{active.status==='applied'?(active.filesMatch?'写入文件与回执一致':'应用后文件已变化，请展开核对'):'应用尚未完整结束，请核对回执'}</p>}
+    <Details title="写入位置与当前状态"><p className="muted break-all">{host?.home||'读取中…'}</p><p className="text-sm">规则来源：{host?.instructionsFile||'读取中…'}。使用 AGENTS.override.md 时，Codex 个性化页会提示原 AGENTS.md 被覆盖；这是文件优先级提示。</p><p className="muted">模型与原生设置写入 config.toml；规则写入 AGENTS.override.md；选定技能放入 skills。文件匹配只能确认落盘，项目覆盖、任务选择及桌面重载仍影响实际值。</p>{active?.fileChecks?.map(f=><p className="text-sm break-all" key={f.path}>{f.path} · {f.matches?'与应用回执一致':'已变化或缺失'}</p>)}</Details>
     {error&&<p role="alert" className="alert-error">{error}</p>}{result&&<p role="status" className="muted">{result}</p>}
   </section>;
 }

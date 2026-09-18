@@ -40,8 +40,23 @@ def status(app):
     receipts=[]
     for p in sorted(folder.glob('*/receipt.json'),key=lambda p:p.stat().st_mtime,reverse=True):
         r=json.loads(p.read_text(encoding='utf-8'))
-        if r['home']==str(home):receipts.append(public(r))
-    return {'home':str(home),'settings':{k:doc[k] for k in OPTIONS if k in doc},'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
+        if r['home']==str(home):
+            item=public(r)
+            if r['status'] in {'applying','applied','restore_failed'}:
+                checks=[]
+                for name,entry in r['files'].items():
+                    try:
+                        target=safe_path(home,name)
+                        matches=target.is_file() and hash_bytes(target.read_bytes())==entry['afterHash']
+                    except (OSError,ValueError):matches=False
+                    checks.append({'path':name,'matches':matches})
+                item['fileChecks']=checks
+                item['filesMatch']=all(c['matches'] for c in checks)
+            receipts.append(item)
+    override=safe_path(home,'AGENTS.override.md')
+    has_override=override.is_file() and bool(override.read_text(encoding='utf-8-sig').strip())
+    return {'home':str(home),'instructionsFile':'AGENTS.override.md' if has_override else 'AGENTS.md',
+            'settings':{k:doc[k] for k in OPTIONS if k in doc},'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
 
 def public(r):
     return {k:r[k] for k in ['id','configId','configName','configRevision','at','status','home','message']}
