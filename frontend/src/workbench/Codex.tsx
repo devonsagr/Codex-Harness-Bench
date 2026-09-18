@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import type {Act,Config} from './types';
 import {request} from './api';
 import {Field,Details} from './ui';
-type Receipt={id:string;configName:string;status:string;message:string;home:string;configRevision:number;filesMatch?:boolean;fileChecks?:{path:string;matches:boolean}[]};
+type Receipt={id:string;configName:string;status:string;message:string;home:string;configRevision:number;filesMatch?:boolean;canPreserveChanges?:boolean;fileChecks?:{path:string;matches:boolean}[]};
 type Host={home:string;instructionsFile:string;connections:Record<string,{id:string;enabled:boolean}[]>;applications:Receipt[]};
 
 export function CodexApply({config,act,save,trialRoute,disabled=false}:{config:Config;act:Act;save?:()=>Promise<Config>;trialRoute?:string;disabled?:boolean}){
@@ -10,12 +10,13 @@ export function CodexApply({config,act,save,trialRoute,disabled=false}:{config:C
   const refresh=()=>request<Host>('/codex/status',{}).then(setHost);
   useEffect(()=>{let live=true;request<Host>('/codex/status',{}).then(h=>{if(live)setHost(h);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[]);
   const active=host?.applications.find(r=>['applying','applied','restore_failed'].includes(r.status));
-  const apply=async()=>{setError('');try{const c=save?await save():config;const r=await act<Receipt>(trialRoute||'/codex/switch',{configId:c.id,revision:c.revision});setResult(r.message);await refresh();}catch(e){setError((e as Error).message);await refresh().catch(()=>{});}};
-  const undo=async()=>{setError('');try{const r=await act<Receipt>('/codex/restore',{applicationId:active?.id});setResult(r.message);await refresh();}catch(e){setError((e as Error).message);}};
+  const apply=async()=>{setError('');try{const c=save?await save():config;const r=await act<Receipt>(trialRoute||'/codex/switch',{configId:c.id,revision:c.revision});setResult(r.message);await refresh();}catch{await refresh().catch(()=>{});}};
+  const undo=async(preserveUnrelated=false)=>{setError('');try{const r=await act<Receipt>('/codex/restore',{applicationId:active?.id,preserveUnrelated});setResult(r.message);await refresh();}catch{await refresh().catch(()=>{});}};
   return <section className="codex-apply space-y-3"><h3 className="font-semibold">应用到 Codex</h3>
     <p className="muted">写入本机全局配置并备份；新任务使用，已有任务不保证切换。</p>
     <div className="flex gap-3 flex-wrap items-center"><button type="button" className="btn-primary" disabled={disabled||!host||(!save&&!config.id)} onClick={()=>void apply()}>{save?'保存并应用到 Codex':active?'切换为本题配置':'应用到 Codex'}</button>{active&&<button type="button" className="btn-secondary" disabled={disabled} onClick={()=>void undo()}>撤销上次应用</button>}<button type="button" className="btn-ghost" onClick={()=>{setError('');void refresh().catch(e=>setError(e.message));}}>核对当前文件</button></div>
-    {active&&<p role="status" className={active.filesMatch?'text-sm':'alert-error'}>{active.configName} · v{active.configRevision}：{active.status==='applied'?(active.filesMatch?'写入文件与回执一致':'应用后文件已变化，请展开核对'):'应用尚未完整结束，请核对回执'}</p>}
+    {active&&<p role="status" className="text-sm">{active.configName} · v{active.configRevision}：{active.status==='applied'?(active.filesMatch?'写入文件与回执一致':'应用后文件已变化，请展开核对'):'应用尚未完整结束，请核对回执'}</p>}
+    {active?.filesMatch===false&&<div className="score-notice space-y-3"><p className="text-sm">发生变化：{active.fileChecks?.filter(f=>!f.matches).map(f=>f.path).join('、')}。这不等于配置全部失效。</p>{active.canPreserveChanges?<><p className="muted">可仅撤销工作台写入的设置，保留后来添加的项目、注释和其他设置；撤销后再应用本题配置。</p><button type="button" className="btn-secondary" disabled={disabled} onClick={()=>void undo(true)}>保留其他修改并撤销</button></>:<p className="muted">规则、技能或本工具写入的设置存在冲突。请在“写入位置与当前状态”核对文件，处理冲突后再点“核对当前文件”；当前文件和原备份均保留。</p>}</div>}
     <Details title="写入位置与当前状态"><p className="muted break-all">{host?.home||'读取中…'}</p><p className="text-sm">规则来源：{host?.instructionsFile||'读取中…'}。使用 AGENTS.override.md 时，Codex 个性化页会提示原 AGENTS.md 被覆盖；这是文件优先级提示。</p><p className="muted">模型与原生设置写入 config.toml；规则写入 AGENTS.override.md；选定技能放入 skills。文件匹配只能确认落盘，项目覆盖、任务选择及桌面重载仍影响实际值。</p>{active?.fileChecks?.map(f=><p className="text-sm break-all" key={f.path}>{f.path} · {f.matches?'与应用回执一致':'已变化或缺失'}</p>)}</Details>
     {error&&<p role="alert" className="alert-error">{error}</p>}{result&&<p role="status" className="muted">{result}</p>}
   </section>;

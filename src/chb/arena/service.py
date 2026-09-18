@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import threading
 import uuid
+from urllib.parse import urlencode, quote
 
 from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
@@ -327,10 +328,19 @@ class Arena:
                 t.update(state='working',startedAt=now())
                 self.event(run,'用户确认桌面设置，开始记录本轮。工作台不会自动发送提示词。',tid)
             elif action=='open':
-                if not shutil.which('codex'):raise ValueError('本机找不到 codex 命令。可复制工作区路径到桌面打开。')
-                result=shell(['codex','app',str(workspace)],timeout=15)
-                if result.returncode:raise ValueError('无法自动打开桌面；请复制工作区路径到 Codex 桌面打开。')
-                self.event(run,'已请求打开 Codex 桌面工作区；未据此推断任务已开始。',tid)
+                if data.get('draft'):
+                    if t['stageIndex']!=0:raise ValueError('后续轮次请继续原对话，不新建任务。')
+                    prompt=t['executionPrompts'][0] if t.get('executionPrompts') else stage_prompt(task,0)
+                    url='codex://threads/new?'+urlencode({'path':str(workspace.resolve()),'prompt':prompt['text']},quote_via=quote)
+                    if os.name!='nt':raise ValueError('当前只支持 Windows 打开对话草稿；请使用打开目录与复制提示词。')
+                    try:os.startfile(url)
+                    except OSError as exc:raise ValueError('无法打开 Codex 对话草稿；请打开目录并复制本轮提示词。') from exc
+                    self.event(run,'已请求 Codex 新对话并预填本轮提示词；需在桌面确认工作区并发送，尚未开始计时。',tid)
+                else:
+                    if not shutil.which('codex'):raise ValueError('本机找不到 codex 命令。可复制工作区路径到桌面打开。')
+                    result=shell(['codex','app',str(workspace)],timeout=15)
+                    if result.returncode:raise ValueError('无法自动打开桌面；请复制工作区路径到 Codex 桌面打开。')
+                    self.event(run,'已请求打开 Codex 桌面工作区；未据此推断任务已开始。',tid)
             elif action=='capture':
                 if t['state'] not in {'working','prepared','waiting_confirmation','captured','completed','interrupted'}:raise ValueError('检查运行中，请等待或停止后台检查。')
                 cid='capture-'+uuid.uuid4().hex[:12]

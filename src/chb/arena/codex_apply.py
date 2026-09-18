@@ -52,6 +52,11 @@ def status(app):
                     checks.append({'path':name,'matches':matches})
                 item['fileChecks']=checks
                 item['filesMatch']=all(c['matches'] for c in checks)
+                if not item['filesMatch']:
+                    try:
+                        restore_plan(app,r,home,True)
+                        item['canPreserveChanges']=True
+                    except (ValueError,OSError):item['canPreserveChanges']=False
             receipts.append(item)
     override=safe_path(home,'AGENTS.override.md')
     has_override=override.is_file() and bool(override.read_text(encoding='utf-8-sig').strip())
@@ -137,7 +142,7 @@ def apply(app,data,frozen=None):
     folder=app.local/'codex-applications'/aid;folder.mkdir(parents=True)
     r={'id':aid,'configId':config['id'],'configName':config['name'],'configRevision':config['revision'],'at':now(),
        'status':'applying','home':str(home),'message':'正在应用；异常中断可从备份撤销。',
-       'files':{n:{'before':base64.b64encode(b).decode() if b is not None else None,'afterHash':hash_bytes(changes[n])} for n,b in before.items()}}
+       'files':{n:{'before':base64.b64encode(b).decode() if b is not None else None,'afterHash':hash_bytes(changes[n]),'after':base64.b64encode(changes[n]).decode() if n=='config.toml' else None} for n,b in before.items()}}
     store(folder,r)
     try:
         for name,body in changes.items():
@@ -153,6 +158,60 @@ def apply(app,data,frozen=None):
         raise
     return public(r)
 
+def applied_toml(app,r,item):
+    if item.get('after'):
+        raw=base64.b64decode(item['after'])
+    else:
+        # Legacy receipts can only be reconstructed if the exact hash is proven.
+        with app.db.connect() as db:
+            row=db.execute("SELECT body FROM revisions WHERE kind='config' AND id=? AND revision=?",(r['configId'],r['configRevision'])).fetchone()
+        if not row:raise ValueError('旧回执缺少应用版本，不能自动合并撤销。')
+        config=json.loads(row['body'])
+        before=base64.b64decode(item['before']) if item['before'] is not None else b''
+        doc=tomlkit.parse(before.decode('utf-8-sig'))
+        for group,items in config.get('integrations',{}).items():
+            for key,enabled in items.items():doc[group][key]['enabled']=enabled
+        doc['model']=config['baseModel'];doc['model_reasoning_effort']=config['reasoning']
+        for key,value in config.get('nativeSettings',{}).items():doc[key]=value
+        raw=tomlkit.dumps(doc).encode()
+    if hash_bytes(raw)!=item['afterHash']:raise ValueError('不能核实原应用内容，请手动核对冲突文件。')
+    return raw
+
+def merge_restore(before,applied,current):
+    try:
+        old=tomlkit.parse((before or b'').decode('utf-8-sig'))
+        after=tomlkit.parse(applied.decode('utf-8-sig'))
+        live=tomlkit.parse(current.decode('utf-8-sig'))
+    except Exception as exc:raise ValueError('配置无法解析，不能合并撤销。') from exc
+    missing=object()
+    def merge(b,a,c,path=''):
+        for key in set(b)|set(a):
+            bv=b.get(key,missing);av=a.get(key,missing);cv=c.get(key,missing)
+            if bv==av:continue
+            name=path+key
+            if isinstance(av,dict) and (bv is missing or isinstance(bv,dict)) and isinstance(cv,dict):
+                merge({} if bv is missing else bv,av,cv,name+'.')
+                if bv is missing and not cv:del c[key]
+            elif cv==bv:continue
+            elif cv!=av:raise ValueError('本工具写入的设置也已改变：'+name+'；请先核对，未覆盖当前值。')
+            elif bv is missing:del c[key]
+            else:c[key]=bv
+    merge(old,after,live)
+    return tomlkit.dumps(live).encode()
+
+def restore_plan(app,r,home,preserve=False):
+    plan={}
+    for name,item in r['files'].items():
+        p=safe_path(home,name);current=p.read_bytes() if p.is_file() else None
+        before=base64.b64decode(item['before']) if item['before'] is not None else None
+        target=before
+        if current!=before and (current is None or hash_bytes(current)!=item['afterHash']):
+            if preserve and name=='config.toml' and current is not None:
+                target=merge_restore(before,applied_toml(app,r,item),current)
+            else:raise ValueError('应用后的文件已被其他操作修改：'+name+'；为保留你的修改，未执行撤销。')
+        plan[name]=(current,target)
+    return plan
+
 def restore(app,data):
     from .service import identifier
     if app.jobs or any(t['state']=='working' for run in app.db.list('run') for t in run['trials']):
@@ -163,22 +222,29 @@ def restore(app,data):
     home=checked_directory(r['home'])
     if home!=codex_home().resolve():raise ValueError('Codex 目录已改变，不能撤销其他环境的记录。')
     if r['status']=='restored':return public(r)
-    for name,item in r['files'].items():
-        p=safe_path(home,name);current=p.read_bytes() if p.is_file() else None
-        before=base64.b64decode(item['before']) if item['before'] is not None else None
-        if current!=before and (current is None or hash_bytes(current)!=item['afterHash']):
-            raise ValueError('应用后的文件已被其他操作修改；为保留你的修改，未执行撤销。')
+    plan=restore_plan(app,r,home,data.get('preserveUnrelated') is True)
+    # Persist a retryable plan and recovery copy before touching any live file.
+    if data.get('preserveUnrelated') is True:
+        for name,(current,target) in plan.items():
+            if target is not None:
+                entry=r['files'][name]
+                entry.setdefault('originalBefore',entry['before'])
+                entry['before']=base64.b64encode(target).decode()
+                entry['recoveryCopy']=base64.b64encode(current).decode() if current is not None else None
+                if current is not None:entry['afterHash']=hash_bytes(current)
+        store(folder,r)
     try:
-        for name,item in reversed(list(r['files'].items())):
+        for name,(current,target) in reversed(list(plan.items())):
             p=safe_path(home,name)
-            if item['before'] is None:
+            if (p.read_bytes() if p.is_file() else None)!=current:raise ValueError('撤销期间文件再次变化，已停止；请核对后重试。')
+            if target is None:
                 if p.is_file():p.unlink()
                 parent=p.parent
                 while parent!=home and parent.is_relative_to(home):
                     try:parent.rmdir()
                     except OSError:break
                     parent=parent.parent
-            else:write_file(p,base64.b64decode(item['before']))
+            else:write_file(p,target)
         r.update(status='restored',message='已恢复应用前的文件；新建任务后使用恢复的配置。')
     except Exception:
         r.update(status='restore_failed',message='撤销中断；备份保留，可重试。');store(folder,r);raise
