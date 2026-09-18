@@ -68,6 +68,46 @@ class CodexApplyTests(unittest.TestCase):
         self.assertEqual(status['instructionsFile'],'AGENTS.md')
         self.assertNotIn('filesMatch',status['applications'][0])
 
+    def test_selective_restore_preserves_external_projects_and_comments(self):
+        r=self.apply()
+        path=self.home/'config.toml'
+        path.write_bytes(path.read_bytes()+b'\n# desktop project\n[projects.example]\ntrust_level="trusted"\n')
+        self.assertTrue(codex_apply.status(self.app)['applications'][0]['canPreserveChanges'])
+        post(self.app,'/api/arena/codex/restore',{'applicationId':r['id'],'preserveUnrelated':True})
+        value=path.read_text();doc=tomllib.loads(value)
+        self.assertEqual(doc['model'],'old')
+        self.assertFalse(doc['mcp_servers']['local']['enabled'])
+        self.assertEqual(doc['projects']['example']['trust_level'],'trusted')
+        self.assertIn('# desktop project',value)
+        self.assertNotIn('model_reasoning_effort',doc)
+        self.assertFalse((self.home/'AGENTS.override.md').exists())
+
+    def test_selective_restore_rejects_changed_managed_value_before_any_write(self):
+        r=self.apply();path=self.home/'config.toml'
+        path.write_text(path.read_text().replace('test-model','external-model'))
+        before=path.read_bytes();rules=(self.home/'AGENTS.override.md').read_bytes()
+        self.assertFalse(codex_apply.status(self.app)['applications'][0]['canPreserveChanges'])
+        with self.assertRaisesRegex(ValueError,'model'):
+            post(self.app,'/api/arena/codex/restore',{'applicationId':r['id'],'preserveUnrelated':True})
+        self.assertEqual(path.read_bytes(),before)
+        self.assertEqual((self.home/'AGENTS.override.md').read_bytes(),rules)
+
+    def test_legacy_receipt_requires_exact_reconstructed_hash(self):
+        r=self.apply();receipt=self.app.local/'codex-applications'/r['id']/'receipt.json'
+        data=json.loads(receipt.read_text());data['files']['config.toml'].pop('after')
+        receipt.write_text(json.dumps(data))
+        path=self.home/'config.toml';path.write_bytes(path.read_bytes()+b'\n# later edit\n')
+        self.assertTrue(codex_apply.status(self.app)['applications'][0]['canPreserveChanges'])
+        post(self.app,'/api/arena/codex/restore',{'applicationId':r['id'],'preserveUnrelated':True})
+        self.assertIn('# later edit',path.read_text())
+
+    def test_changed_rules_remain_protected_during_selective_restore(self):
+        r=self.apply();(self.home/'AGENTS.override.md').write_text('user changed rules')
+        before=(self.home/'config.toml').read_bytes()
+        with self.assertRaisesRegex(ValueError,'AGENTS.override.md'):
+            post(self.app,'/api/arena/codex/restore',{'applicationId':r['id'],'preserveUnrelated':True})
+        self.assertEqual((self.home/'config.toml').read_bytes(),before)
+
     def test_mid_write_failure_restores_prior_files(self):
         real=codex_apply.write_file;failed=False
         def fail(path,data):

@@ -21,7 +21,7 @@ export function App(){
   useEffect(()=>{if(!activeJob)return;let live=true;let timer:ReturnType<typeof setTimeout>;
     const poll=async()=>{try{const s=await request<State>('/state');if(live)setState(s);}catch(e){if(live)setError((e as Error).message);}finally{if(live)timer=setTimeout(poll,1800);}};
     timer=setTimeout(poll,1800);return()=>{live=false;clearTimeout(timer);};},[activeJob]);
-  const act:Act=async<T,>(path:string,data?:unknown)=>{setBusy(true);setError('');setNotice('');try{const result=await request<T>(path,data??{});await refresh();setNotice('已保存。');return result;}catch(e){setError((e as Error).message);throw e;}finally{setBusy(false);}};
+  const act:Act=async<T,>(path:string,data?:unknown)=>{setBusy(true);setError('');setNotice('');try{const result=await request<T>(path,data??{});await refresh();setNotice(path.endsWith('/open')?'已请求打开 Codex，请在桌面核对目录与提示词。':'已保存。');return result;}catch(e){setError((e as Error).message);throw e;}finally{setBusy(false);}};
   const go=(id:string)=>{setRunId(id);setTab('workbench');};
   const run=state?.runs.find(r=>r.id===runId)||state?.archivedRuns.find(r=>r.id===runId);
   return <><ArenaHeader activeTab={tab} onTabChange={setTab} theme={theme} onToggleTheme={()=>setTheme(theme==='light'?'dark':'light')}/>

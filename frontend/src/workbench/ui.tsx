@@ -8,6 +8,11 @@ export function Empty({children}:{children:ReactNode}){return <div className="pa
 export function Details({title,children,open=false}:{title:string;children:ReactNode;open?:boolean}){return <details className="panel-subtle p-4" open={open||undefined}><summary className="cursor-pointer font-medium text-sm">{title}</summary><div className="mt-4 space-y-3">{children}</div></details>;}
 export function Json({value}:{value:unknown}){return <pre className="source">{JSON.stringify(value,null,2)}</pre>;}
 
+export function ScoreSlider({label,value,onChange,suffix='分',fixed=false}:{label:string;value:string;onChange:(v:string)=>void;suffix?:string;fixed?:boolean}){
+  const id=useId();const unknown=value==='';
+  return <div className="score-slider"><div className="score-slider-label"><label htmlFor={id}>{label}</label><output htmlFor={id}>{unknown?'未评分':Number(value).toFixed(fixed?2:1)+suffix}</output></div><input id={id} aria-label={label} aria-valuetext={unknown?'未评分':value+suffix} type="range" min="0" max="100" step={fixed?'0.01':'0.1'} value={unknown?0:value} onChange={e=>onChange(e.target.value)} onPointerUp={e=>{if(unknown)onChange(e.currentTarget.value);}} onKeyUp={e=>{if(unknown&&['ArrowLeft','ArrowDown','Home'].includes(e.key))onChange(e.currentTarget.value);}}/>{!fixed&&<div className="score-slider-fine"><input aria-label={label+'：精确分数'} type="number" required min="0" max="100" step="0.1" placeholder="未评分" value={value} onChange={e=>onChange(e.target.value)}/><button type="button" className="btn-ghost" disabled={unknown} onClick={()=>onChange('')}>清除</button></div>}</div>;
+}
+
 export function Dialog({title,open,onClose,children}:{title:string;open:boolean;onClose:()=>void;children:ReactNode}){
   const ref=useRef<HTMLDialogElement>(null);const id=useId();
   useEffect(()=>{const d=ref.current;if(open&&!d?.open)d?.showModal();if(!open&&d?.open)d.close();},[open]);

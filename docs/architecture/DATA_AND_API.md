@@ -191,3 +191,6 @@ Trial.objectiveReviews保存id/at/captureId/evidenceKey/score/reason/evidence/or
 
 
 /codex/status新增instructionsFile；活动applications项新增filesMatch与fileChecks=[{path,matches}]，按当前磁盘内容对应用后hash核对。历史status=applied只证明当时写入成功，不能替代当前匹配字段。响应不含备份/配置正文；撤销仍使用原有冲突保护，不依据前端核对结果越过后端校验。
+
+
+U19：/codex/status活动回执在有变化时增加canPreserveChanges（只读预检）；/codex/restore增加可选preserveUnrelated:true，后端再次三方核对，不信任前端旧状态。/runs/:rid/trials/:tid/open接受draft:true，仅首轮使用服务端冻结的executionPrompts文本和本试次workspace生成codex://threads/new?path=...&prompt=...；不得由客户端传入任意目录/协议/命令。Windows调用注册协议，失败不回滚已准备工作区，不自动开始计时或发送任务。默认open旧目录方式继续兼容。

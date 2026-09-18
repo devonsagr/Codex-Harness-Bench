@@ -13,7 +13,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const initial=state.tasks.find(t=>t.id===selectedTaskId);
   const [taskIds,setTasks]=useState<string[]>(initial?[initial.id]:[]);
   const [paradigm,setParadigm]=useState(initial?.taskParadigm||'open-ended-project');const [query,setQuery]=useState('');
-  const [compare,setCompare]=useState(false);const [batch,setBatch]=useState(false);
+  const [openDraft,setOpenDraft]=useState(true);const [compare,setCompare]=useState(false);const [batch,setBatch]=useState(false);
   const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
   const [policy,setPolicy]=useState(percentPolicy(structuredClone(state.defaultPolicy)));const [notes,setNotes]=useState('');
   const [selections,setSelections]=useState<Record<string,Selection>>({});
@@ -31,7 +31,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const create=async()=>{
     const data={configIds,taskIds,policy,notes,configOverrides:configs.map(c=>({configId:c.id,...effective(c)}))};
     const payload=JSON.stringify(data);if(pending.current?.payload!==payload)pending.current={payload,requestId:crypto.randomUUID()};
-    try{const run=await act<Run>('/runs/prepare',{...data,requestId:pending.current.requestId});pending.current=null;onCreated(run.id);}catch{/* Keep selections and request ID for a safe retry. */}
+    try{const run=await act<Run>('/runs/prepare',{...data,requestId:pending.current.requestId});pending.current=null;onCreated(run.id);if(openDraft&&run.trials.length===1)await act(`/runs/${run.id}/trials/${run.trials[0].id}/open`,{draft:true});}catch{/* Keep selections and request ID for a safe retry. */}
   };
   return <><div className="space-y-2"><h1 className="page-title">开始一次评测</h1><p className="muted">选题、选配置，在这里准备好本次工作区。</p></div>
     <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选择题目'],['config','配置与 Skills'],['scoring','评分方案']] as const).map(([id,label])=><span aria-current={pane===id?'step':undefined} className={pane===id?'selected':''} key={id}>{['tasks','config','scoring'].indexOf(id)+1}. {label}</span>)}<span className="muted">已选 {taskIds.length} 道题 · {configs.length} 套配置</span></nav>
@@ -61,7 +61,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
         </div>
       </section>
       <footer className="prepare-action">
-        {pane==='scoring'&&<div className="space-y-2">
+        {pane==='scoring'&&<div className="space-y-2">{configs.length===1&&taskIds.length===1&&<label className="check-row"><input type="checkbox" checked={openDraft} onChange={e=>setOpenDraft(e.target.checked)}/>创建后打开 Codex 新对话并预填提示词</label>}
           {policy.objectiveWeight>0&&selected.some(t=>!t.checks.length)&&<p className="score-notice">所选题目没有自动检查，请在评分方案中选择纯人工验收。</p>}
           {!validPercentPolicy(policy)&&<p role="alert" className="alert-error">人工内部占比须合计100%。</p>}
         </div>}

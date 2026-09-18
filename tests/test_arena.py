@@ -1,4 +1,5 @@
 import copy
+import os
 import io
 import json
 from pathlib import Path
@@ -27,6 +28,21 @@ class ArenaTests(unittest.TestCase):
     def prepare(self,**patch):
         return post(self.app,'/api/arena/runs/prepare',{'requestId':'qa-1','configIds':['minimal'],'taskIds':[self.task['id']],**patch})
     def mutate(self,r,action,**data):return self.app.mutate(r['id'],r['trials'][0]['id'],action,data)
+    @unittest.skipUnless(os.name=="nt", "Windows protocol launcher")
+    def test_desktop_draft_uses_frozen_prompt_and_does_not_start_execution(self):
+        from urllib.parse import urlparse,parse_qs
+        r=self.prepare();trial=r['trials'][0]
+        with patch('chb.arena.service.os.startfile',create=True) as launch:
+            result=self.mutate(r,'open',draft=True)
+        url=launch.call_args.args[0];query=parse_qs(urlparse(url).query)
+        self.assertTrue(url.startswith('codex://threads/new?'))
+        self.assertEqual(query['path'],[str(Path(trial['workspacePath']).resolve())])
+        self.assertEqual(query['prompt'],[trial['currentStage']['executionPrompt']])
+        self.assertEqual(result['trials'][0]['state'],'prepared')
+        self.assertNotIn('startedAt',result['trials'][0])
+        with patch('chb.arena.service.os.startfile',side_effect=OSError('unavailable'),create=True):
+            with self.assertRaisesRegex(ValueError,'复制本轮提示词'):self.mutate(r,'open',draft=True)
+
     def test_freeze_single_workspace_and_idempotency(self):
         r=self.prepare();self.assertEqual(r['executionMode'],'desktop');self.assertEqual(len(r['trials']),1)
         self.assertEqual(self.prepare()['id'],r['id'])
