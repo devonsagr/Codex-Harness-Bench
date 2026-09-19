@@ -12,7 +12,7 @@ from urllib.parse import urlencode, quote
 
 from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
-from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, RUBRICS
+from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, MACHINE_POLICY, RUBRICS
 from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks
 from .skills import invocation, codex_home
 from .codex_apply import settings, connections, project_settings
@@ -181,7 +181,7 @@ class Arena:
         return {'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
                 'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
-                'models':self.models(),'defaultPolicy':DESKTOP_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
+                'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
                 'mode':'desktop','source':'SQLite 与本机冻结文件','legacyExperiments':len(list((self.root/'runs').glob('*/plan.json')))}
 
     def event(self,run,message,trial=None):
@@ -231,7 +231,7 @@ class Arena:
         selected=[{**freeze_prompts(normalize_contract(t)), 'sourceSchemaVersion':t.get('schemaVersion',1)} for t in selected]
         if scoring_policy['humanWeight'] and any(not t.get('hasFrontendUI') for t in selected):
             if not sum(v for k,v in scoring_policy['dimensions'].items() if k!='ux'):
-                raise ValueError('非界面题至少需要一个非视觉人工维度的权重大于零。')
+                raise ValueError('非界面题至少需要一个非视觉维度的权重大于零。')
         # Reject an ambiguous baseline/selected skill collision before creating any workspace.
         for task in selected:
             if not task.get('baselineId'):continue
@@ -398,6 +398,17 @@ class Arena:
                        'originalScore':score['objective']}
                 t.setdefault('objectiveReviews',[]).append(entry)
                 self.event(run,'人工裁定另存；自动原分与必要项结论保持原始证据。',tid)
+            elif action=='machine-correction':
+                from .machine import validate_correction
+                if run['policy']['version']!='arena-machine-v1' or t['state'] not in {'captured','completed','interrupted'}:
+                    raise ValueError('请先结束机器评分，再修正本次结果。')
+                score=calculate(run,t)
+                changes=validate_correction(data,score)
+                capture=t['captures'][-1]
+                verify_snapshot(folder/'captures'/capture['id']/'files',capture['manifest'])
+                t.setdefault('machineCorrections',[]).append({'id':'correction-'+uuid.uuid4().hex[:12],'at':now(),
+                    'captureId':capture['id'],'reviewId':score['machineReviewId'],'evidenceKey':score['machineEvidenceKey'],'changes':changes})
+                self.event(run,'人工修正已保存；机器原分和执行证据保留。',tid)
             elif action=='review':
                 if not t['captures']:raise ValueError('先回收产物，再提交评分。')
                 if data.get('captureId')!=t['captures'][-1]['id']:raise ValueError('评分对象已变化，请刷新后复审最新快照。')

@@ -54,3 +54,22 @@
 结论是本项目的设计取舍：同时呈现结果、质量、过程、效率、可靠性，分清证据来源；采用可编辑人工量表，保留具体任务脚本。桌面版本、模型、题目/起点、预算、宿主工具状态和介入协议影响可比性。当前未找到可以不经适配就覆盖“Codex桌面固有Harness + 个人配置”的现成统一标准；不声称市场完全不存在类似项目。
 
 [Superpowers](https://github.com/obra/superpowers#codex-app)当前说明通过Codex插件市场安装，插件不等同于Skills目录；应记录插件可用性与启用状态，不能用复制技能代替完整安装。
+
+## 2026-09-19：通用机器评分（U20）
+
+用户要求机器先给分，人工只修正；不能要求每题手写专用脚本。下列一手资料已查阅，参考方法和本项目实际接入分开。
+
+|开源项目与评分资料|评分方式|本项目采用或保留的边界|
+|---|---|---|
+|[Harbor Rewardkit](https://docs.harborframework.com/core-concepts/rewardkit/judge-criteria)、[内置准则](https://docs.harborframework.com/core-concepts/rewardkit/built-in-criteria)|程序、模型和Agent准则组合，按要求评估产物|复用既有Harbor执行层，让裁判读取/运行副本；本轮未安装独立Rewardkit或宣称已经接入其全部准则|
+|[Promptfoo agent-rubric](https://www.promptfoo.dev/docs/configuration/expected-outputs/model-graded/agent-rubric/)|有工具的裁判按照量表检查实际结果|借鉴主动取证，避免只读交付说明；不另引入第二套Agent runner|
+|[Agent-as-a-Judge](https://github.com/metauto-ai/agent-as-a-judge)|围绕需求使用工具检查工程与证据|用冻结需求作为裁判输入；通用工具流程仍需要具体任务的成功定义|
+|[Inspect AI](https://inspect.aisi.org.uk/model-graded.html)|模型评分器、模板与可追溯记录|保留裁判模型/版本、量表和引用，不能把框架支持等同评分已校准|
+|[DeepEval Task Completion](https://deepeval.com/docs/metrics-task-completion)|根据任务、工具调用与结果判断完成情况|借鉴结果和轨迹联合评价；缺失轨迹不编造过程分|
+|[SWE-bench harness](https://www.swebench.com/SWE-bench/api/harness/)、[Terminal-Bench](https://www.tbench.ai/news/announcement)|明确环境和可执行任务验证器|适合严肃回归和固定题榜单，但新业务项目通常仍需专门测试或Agent补充验证|
+
+**可泛化的是评分流程，不是所有任务共用一个成功断言。** 通用流程为冻结题面/要求 → 自动运行已有构建与测试 → 独立裁判探索产物并尝试实际操作 → 每个量表项返回分数、方法、理由和可核对引用 → 人工按项修正。没有专用脚本也能调用该流程；强业务约束仍应逐步增加可靠验证器。
+
+机器分不是客观真值。裁判可能偏好自身风格、受材料中的提示影响或执行不足；[LLM-as-a-Judge研究](https://arxiv.org/abs/2306.05685)讨论偏差，[Terminal-Bench榜单完整性说明](https://www.tbench.ai/news/leaderboard-integrity-update)说明验证器本身也需要审计。本项目校验引用真实存在，但未证明结论正确；未知项为空，保留机器覆盖率、原分和人工修正记录。
+
+当前实现采用arena-machine-v1，具体协议见[评分合同](../architecture/EVALUATION.md)。默认需求50、健壮性20、交互15、交付10、维护5是可编辑的产品起点，不是行业公认权重。新需求自动生成结构化量表、校准集、多裁判一致性仍未实现；真实机器裁判镜像与项目运行验证受本机Docker启动失败阻塞，不能以单元测试替代真实验收。

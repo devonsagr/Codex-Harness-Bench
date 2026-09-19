@@ -21,6 +21,10 @@ RUBRICS = {
 DESKTOP_POLICY = {'version':'arena-review-v2','objectiveWeight':50,'humanWeight':50,
                   'dimensions':{k:1 for k in list(RUBRICS)[:7]},
                   'rubrics':{k:{'label':v[0],'description':v[1]} for k,v in list(RUBRICS.items())[:7]}}
+MACHINE_POLICY = {'version':'arena-machine-v1','objectiveWeight':0,'humanWeight':100,
+                  'dimensionUnit':'percent','requireDimensionEvidence':True,
+                  'dimensions':{'intent':50,'robustness':20,'ux':15,'handoff':10,'maintainability':5},
+                  'rubrics':{k:{'label':RUBRICS[k][0],'description':RUBRICS[k][1]} for k in ['intent','robustness','ux','handoff','maintainability']}}
 
 
 def number(value, minimum=0, maximum=100):
@@ -33,7 +37,7 @@ def policy(value):
     value = value or DEFAULT_POLICY
     a, b = number(value.get('objectiveWeight')), number(value.get('humanWeight'))
     dims = value.get('dimensions', {})
-    if value.get('version')=='arena-review-v2':
+    if value.get('version') in {'arena-review-v2','arena-machine-v1'}:
         rubrics=value.get('rubrics',{})
         if not isinstance(dims,dict) or not isinstance(rubrics,dict) or not 1<=len(dims)<=16 or set(dims)!=set(rubrics):raise ValueError('评分项与权重需对应，最多16项。')
         for k,v in rubrics.items():
@@ -47,7 +51,8 @@ def policy(value):
         if 'requireDimensionEvidence' in value:
             if type(value['requireDimensionEvidence'])!=bool:raise ValueError('评分证据设置无效。')
             extra['requireDimensionEvidence']=value['requireDimensionEvidence']
-        return {'version':'arena-review-v2','objectiveWeight':a,'humanWeight':b,'dimensions':dims,'rubrics':rubrics,**extra}
+        if value['version']=='arena-machine-v1' and (a!=0 or b!=100):raise ValueError('机器评分使用统一维度权重，人工仅作修正。')
+        return {'version':value['version'],'objectiveWeight':a,'humanWeight':b,'dimensions':dims,'rubrics':rubrics,**extra}
     if set(dims) != set(DIMENSIONS) or any(number(v) < 0 for v in dims.values()) or sum(dims.values()) <= 0 or a+b != 100:
         raise ValueError('主权重之和须为 100；人工维度须完整且至少一项权重大于零。')
     return {'version': 'arena-review-v1', 'objectiveWeight': a, 'humanWeight': b, 'dimensions': dims}
@@ -128,6 +133,9 @@ def acceptance(task, trial, review, by_stage):
 
 
 def calculate(run, trial):
+    if run['policy']['version']=='arena-machine-v1':
+        from .machine import calculate_machine
+        return calculate_machine(run,trial)
     stages = trial.get('captures', [])
     latest = stages[-1] if stages else None
     task=next(t for t in run['tasks'] if t['id']==trial['taskId'])

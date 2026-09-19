@@ -62,7 +62,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
       </section>
       <footer className="prepare-action">
         {pane==='scoring'&&<div className="space-y-2">{configs.length===1&&taskIds.length===1&&<label className="check-row"><input type="checkbox" checked={openDraft} onChange={e=>setOpenDraft(e.target.checked)}/>创建后打开 Codex 新对话并预填提示词</label>}
-          {policy.objectiveWeight>0&&selected.some(t=>!t.checks.length)&&<p className="score-notice">所选题目没有自动检查，请在评分方案中选择纯人工验收。</p>}
+          {policy.objectiveWeight>0&&selected.some(t=>!t.checks.length)&&<p className="score-notice">所选题目缺少脚本检查，可新建机器评分方案。</p>}
           {!validPercentPolicy(policy)&&<p role="alert" className="alert-error">人工内部占比须合计100%。</p>}
         </div>}
         {invalid&&<p role="alert" className="alert-error">技能同名、不可用或超过30个，请调整选择。</p>}

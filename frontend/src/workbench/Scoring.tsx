@@ -9,6 +9,7 @@ export function percentPolicy(p:Policy):Policy{
 }
 export const validPercentPolicy=(p:Policy)=>Math.abs(Object.values(p.dimensions).reduce((a,b)=>a+b,0)-100)<.005;
 export function ScoringSettings({state,tasks,policy,onChange}:{state:State;tasks:Task[];policy:Policy;onChange:(p:Policy)=>void}){
+  if(policy.version==='arena-machine-v1')return <MachineSettings state={state} tasks={tasks} policy={policy} onChange={onChange}/>;
   const share=(key:string)=>{
     const weight=policy.dimensions[key]||0;const nonUiTotal=Object.entries(policy.dimensions).filter(([k])=>k!=='ux').reduce((n,[,w])=>n+w,0);
     const fmt=(v:number)=>(Math.round((v+Number.EPSILON)*100)/100).toFixed(2);
@@ -32,6 +33,16 @@ export function ScoringSettings({state,tasks,policy,onChange}:{state:State;tasks
       <Details title="评分依据与分档"><RatingGuide/></Details>
     </section>
     <Details title="AI 审查与人工裁定的区别"><p className="muted">回收后可单独启动一次 AI 审查：它读取冻结需求、产物、差异和检查回执，引用文件指出问题；不是再执行原任务，也不是客观检查。它会使用模型额度，不能代替实际运行和人工视觉验收。</p><p className="muted">对自动结果有异议时，可在结果页填写“人工裁定”，附理由与证据；保留自动原分并单列裁定后的分数，不把人工修正伪装成脚本通过。Token、耗时、介入与可靠性另列。</p></Details>
+  </section>;
+}
+function MachineSettings({state,tasks,policy,onChange}:{state:State;tasks:Task[];policy:Policy;onChange:(p:Policy)=>void}){
+  const items=policy.rubrics||{};
+  return <section className="space-y-5"><div><h3 className="font-semibold">机器先评分，人工按需修正</h3><p className="muted mt-2">回收后点击自动评分。裁判检查产物、尝试运行并逐项给分；无需另开对话或逐题编写脚本。</p></div>
+    <div className="score-notice">需求完成度优先 · 权重合计 100% · 人工修正不额外占比分</div>
+    <div className="rubric-list">{Object.entries(items).map(([key,item])=><div className="rubric-row" key={key}><div><strong>{item.label}</strong><p className="muted">{item.description}</p>{key==='ux'&&tasks.some(t=>!t.hasFrontendUI)&&<small>无界面题自动排除此项，其余权重归一。</small>}</div><ScoreSlider label={item.label+'权重'} suffix="%" fixed value={String(policy.dimensions[key]||0)} onChange={value=>onChange({...policy,dimensions:adjustWeight(policy.dimensions,key,Number(value))})}/><button className="btn-ghost" disabled={Object.keys(items).length<=1} onClick={()=>{const dimensions={...policy.dimensions};const rubrics={...items};delete dimensions[key];delete rubrics[key];onChange(percentPolicy({...policy,dimensions,rubrics}));}}>移除</button></div>)}</div>
+    <Field label="添加评分维度"><select value="" onChange={e=>{const key=e.target.value;onChange(percentPolicy({...policy,dimensions:{...policy.dimensions,[key]:10},rubrics:{...items,[key]:state.rubricCatalog[key]}}));}}><option value="">选择适用维度</option>{Object.entries(state.rubricCatalog).filter(([k])=>!items[k]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></Field>
+    <Details title="本题评分依据与检查方式">{tasks.map(task=><div key={task.id}><strong>{task.title}</strong><p className="muted">{task.criteria?.length||0} 条结构化要求 · {task.checks.length} 项专用脚本 · 同时对照完整题面</p><p className="muted">{task.criteria?.map(c=>c.label).join('；')||task.inputPrompt}</p></div>)}<p className="muted">先运行已有检查，再由独立 AI 查文件、尝试构建和实际操作。文件行与执行输出需可核对；未知项显示未验证。默认权重是本项目的起点，可调整，不是行业统一标准。</p><RatingGuide machine/></Details>
+    <Details title="自动评分环境与费用"><p className="muted">需要 Docker 和专用机器评分镜像；点击后使用所选裁判模型额度，单次裁判最多 8 分钟。仅向裁判提供冻结产物，不改变 Codex 桌面执行方式。缺少依赖或外部服务时会保留未验证项。</p><code>.venv\Scripts\python.exe -X utf8 scripts/prepare_arena_review.py</code></Details>
   </section>;
 }
 export function EvaluationMetrics({trial:t}:{trial:Trial}){

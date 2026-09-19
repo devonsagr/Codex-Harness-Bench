@@ -2,4 +2,4 @@
 from chb.cli import ROOT, command
 
 if __name__ == '__main__':
-    command(['docker', 'build', '-t', 'chb-reviewer:codex-0.154.0', str(ROOT/'reviewer')], timeout=600)
+    command(['docker', 'build', '-t', 'chb-reviewer:machine-v1', '-t', 'chb-reviewer:codex-0.154.0', str(ROOT/'reviewer')], timeout=900)
