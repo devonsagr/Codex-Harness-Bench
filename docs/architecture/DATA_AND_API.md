@@ -33,10 +33,11 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |Capture|id/stageIndex/at/manifest/facts/response/checks/checksConfigured/harnessUnchanged/hostUnchanged|文件不可改写；检查尝试保留并可重跑|
 |CheckResult|id/label/weight/argv/imageId/status/exitCode/seconds/output|绑定 Capture；旧尝试在 checkAttempts 留存|
 |Human Review|id/kind=human/captureId/at/scores/notes/readiness/constraints/criteria/constraintNotes/revisionReason/contractVersion|追加新版本，不覆盖 AI 或检查|
-|AI Review|id/kind=ai/captureId/at/summary/findings/遗漏及执行元数据|独立意见，绑定回收哈希与模型|
+|AI Review|id/kind=ai/captureId/at/summary/findings/执行元数据；机器方案另有scoreSchema/ratings/criteria/commands/evidenceKey|按策略区分机器分与旧辅助意见，绑定回收哈希及模型|
+|MachineCorrection|id/at/captureId/reviewId/evidenceKey/changes|逐项score和reason；null撤回，追加历史|
 |Usage/TraceReceipt|sessionId/各累计Token/时间/models/reasoningLevels/errors，及原文hash和导入时间|同会话累计不回退，完整原文仅本地|
 
-当前 policy 版本固定 `arena-review-v1`；不是把用户传入任意版本号作为算法实现。Run 的 state 由所有 Trial 是否 completed 派生；Trial 的 completed 不是 accepted=true。
+当前新方案为 `arena-machine-v1`，兼容旧 `arena-review-v1/v2`；历史算法不自动迁移。Run 的 state 由所有 Trial 是否 completed 派生；Trial 的 completed 不是 accepted=true。
 
 ## 4. 文件布局和恢复含义
 
@@ -194,3 +195,5 @@ Trial.objectiveReviews保存id/at/captureId/evidenceKey/score/reason/evidence/or
 
 
 U19：/codex/status活动回执在有变化时增加canPreserveChanges（只读预检）；/codex/restore增加可选preserveUnrelated:true，后端再次三方核对，不信任前端旧状态。/runs/:rid/trials/:tid/open接受draft:true，仅首轮使用服务端冻结的executionPrompts文本和本试次workspace生成codex://threads/new?path=...&prompt=...；不得由客户端传入任意目录/协议/命令。Windows调用注册协议，失败不回滚已准备工作区，不自动开始计时或发送任务。默认open旧目录方式继续兼容。
+
+机器方案 POST `/runs/{rid}/trials/{tid}/judge` 请求captureId/model，串联可用脚本与机器裁判；无脚本允许启动。POST同试次`/machine-correction`请求reviewId/evidenceKey/changes，changes为维度到{score,reason}的映射；拒绝后台运行、过期证据或无理由。返回Run，分数由score.machine/machineCoverage/machineRatings/machineOverrides/effectiveScores/overall派生。machine是原分（缺项时暂定）；overall含当前人工修正，缺项或未completed为null。程序结果和criteria不被修正覆盖。

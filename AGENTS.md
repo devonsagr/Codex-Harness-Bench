@@ -12,7 +12,7 @@
 - 前端 Node.js + pnpm；安装 `pnpm --dir frontend install --frozen-lockfile`；类型检查 `pnpm --dir frontend exec tsc --noEmit`；构建 `pnpm --dir frontend build`。
 - 启动：双击 `launch-ui.cmd`，或 `.venv\Scripts\python.exe -X utf8 -m chb.cli ui`，默认 `http://127.0.0.1:8765`；`--no-browser` 不自动打开。Python 同源提供 React 构建与 API。
 - 本机 API：仅 127.0.0.1；Host、Origin、随机令牌保护。没有任意文件/宿主命令入口。业务数据以 `.local/arena/arena.sqlite3` 和冻结文件为准，不以 localStorage 为准。
-- 新后端：`src/chb/arena/`。配置、题目版本不可覆盖；回收生成新快照；人工评分、AI 意见和客观检查分存；缺失指标为 null；不编造固定误差与费用。
+- 新后端：`src/chb/arena/`。配置、题目版本不可覆盖；回收生成新快照；机器评分、人工修正、旧 AI 意见和客观检查分存；缺失指标为 null；不编造固定误差与费用。
 - 测试：`.venv\Scripts\python.exe -X utf8 -m unittest discover -s tests -v`；语法 `.venv\Scripts\python.exe -m compileall -q src scripts tests`；Python 无独立类型检查器。
 - 包构建 `uv build`；独立 wheel 不是完整数据/React 分发，支持仓库 editable 安装。
 - 容器准备 `.venv\Scripts\python.exe -X utf8 -m chb.cli prepare --checks-only`；可加 `--task storage-migration-v1` / `--task csv-catalog-v1`。题库内可显式导入三道完整原创题；31 份 Gemini 题面不能冒充31套已验证测试。

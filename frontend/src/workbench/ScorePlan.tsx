@@ -14,4 +14,4 @@ export function ObjectivePlan({tasks}:{tasks:Task[]}){
   </section>;
 }
 
-export function RatingGuide(){return <div className="score-guide space-y-2"><h4 className="font-medium">人工评分规则</h4><p className="muted">每项填0–100分，并记录实际操作、预期与结果、文件或检查证据；没有检查过的维度保持未评分，不用0代替未知。所有计分维度有证据后才形成完整人工分。</p><p className="muted">0–39：核心要求失败或结果不可用；40–59：部分成立但有重大缺口；60–79：主流程可用，仍有明确问题；80–94：主要要求与关键边界有验证；95–100：完整要求和关键边界有可复现证据，不能只凭观感。高分不能抵销必要条目未满足。</p></div>;}
+export function RatingGuide({machine=false}:{machine?:boolean}){return <div className="score-guide space-y-2"><h4 className="font-medium">{machine?'机器评分与人工修正规则':'人工评分规则'}</h4><p className="muted">{machine?'机器逐项给0–100分并引用证据；缺证据保持未验证。人工可修正单项，须保留理由，原分不变。':'每项填0–100分，并记录实际操作、预期与结果、文件或检查证据；没有检查过的维度保持未评分，不用0代替未知。所有计分维度有证据后才形成完整人工分。'}</p><p className="muted">0–39：核心要求失败或结果不可用；40–59：部分成立但有重大缺口；60–79：主流程可用，仍有明确问题；80–94：主要要求与关键边界有验证；95–100：完整要求和关键边界有可复现证据，不能只凭观感。高分不能抵销必要条目未满足。</p></div>;}
