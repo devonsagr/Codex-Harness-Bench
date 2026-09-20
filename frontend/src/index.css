@@ -230,3 +230,45 @@ input[type=range]:focus-visible { outline:2px solid #71717a;outline-offset:2px;b
 .check-plan-heading { display:flex;align-items:center;justify-content:space-between;gap:1rem; }
 .check-plan-task { display:grid;gap:.75rem; }
 .check-plan-task + .check-plan-task { border-top:1px solid #cbd5e1;padding-top:1rem; }
+
+/* A run has one task header and three task-oriented views, not a long dashboard. */
+.run-detail { max-width:1120px;margin-inline:auto; }
+.run-toolbar,.run-actions,.trial-meta,.config-apply-entry { display:flex;align-items:center;gap:.75rem;flex-wrap:wrap; }
+.run-toolbar { justify-content:space-between; }
+.run-toolbar>.muted { margin-right:auto; }
+.trial-heading { display:flex;justify-content:space-between;align-items:start;gap:1.5rem; }
+.trial-heading>div { min-width:0; }
+.trial-heading h1 { font-size:1.375rem;line-height:1.5;overflow-wrap:anywhere; }
+.trial-meta { margin-top:.75rem;font-size:.8125rem;color:#475569; }
+.config-apply-entry { flex-shrink:0;justify-content:flex-end;max-width:18rem; }
+.run-status-warning { font-size:.8125rem;color:#92400e;text-decoration:underline;text-underline-offset:3px; }
+.run-warning { display:flex;justify-content:space-between;align-items:center;gap:1rem;font-size:.8125rem;padding:.5rem 0;color:#92400e; }
+.run-tabs { display:flex;gap:1.5rem;border-bottom:1px solid #cbd5e1; }
+.run-tabs button { padding:.75rem .25rem;font-size:.875rem;border-bottom:2px solid transparent;color:#475569; }
+.run-tabs button[aria-selected=true] { border-bottom-color:#18181b;color:#18181b;font-weight:600; }
+.run-tab-panel[hidden] { display:none; }
+.run-tab-panel>.panel { box-shadow:none; }
+.run-tab-panel details.panel-subtle { border:0;border-radius:0;background:transparent;padding:.75rem 0;border-top:1px solid #e2e8f0; }
+.run-tab-panel details>summary { min-height:1.5rem; }
+.judge-toolbar { display:flex;align-items:end;gap:.75rem;flex-wrap:wrap; }
+.judge-toolbar>.field { flex:1;min-width:min(100%,14rem); }
+.judge-toolbar>button { min-height:2.5rem; }
+.run-stats { display:flex;gap:1.5rem 3rem;flex-wrap:wrap;padding:.75rem 0; }
+.run-stats dt { font-size:.8125rem;color:#475569; }
+.run-stats dd { margin-top:.375rem;font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums; }
+.score-totals dd { font-size:1.375rem; }
+.machine-rating { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:start;padding:1rem 0;border-bottom:1px solid #e2e8f0; }
+.machine-rating summary { cursor:pointer;font-size:.875rem; }
+.machine-rating summary .muted { display:block;padding-left:1rem; }
+.rating-actions { display:flex;align-items:center;gap:1rem;font-size:.875rem;font-variant-numeric:tabular-nums; }
+.score-empty { padding:1.5rem 0;font-size:.875rem; }
+.score-rules { display:grid;gap:1rem; }
+.score-rules dt { display:flex;justify-content:space-between;gap:1rem;font-size:.875rem; }
+.score-rules dt span,.score-rules dd { font-size:.8125rem;color:#475569; }
+.score-rules dd { margin-top:.25rem; }
+.dark .trial-meta,.dark .run-tabs button,.dark .run-stats dt,.dark .score-rules dt span,.dark .score-rules dd { color:#a1a1aa; }
+.dark .run-tabs,.dark .machine-rating,.dark .run-tab-panel details.panel-subtle { border-color:#3f3f46; }
+.dark .run-tabs button[aria-selected=true] { color:#fafafa;border-bottom-color:#fafafa; }
+.dark .run-warning,.dark .run-status-warning { color:#fcd34d; }
+.work-dialog .codex-apply { border:0;margin:0;padding:0; }
+@media(max-width:600px){.trial-heading{flex-direction:column;gap:.75rem;}.config-apply-entry{justify-content:flex-start;max-width:none;}.run-toolbar>.muted{order:3;width:100%;}.run-tabs{gap:1rem;}.run-warning{align-items:start;}.run-stats{gap:1rem 2rem;}.machine-rating{gap:.5rem;}.rating-actions{gap:.5rem;}.score-rules dt{flex-wrap:wrap;gap:.25rem;}}
