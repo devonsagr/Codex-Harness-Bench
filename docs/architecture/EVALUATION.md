@@ -49,11 +49,11 @@ Docker裁判镜像 `chb-reviewer:machine-v1` 包含 Codex CLI、Node、Python、
 
 返回 `summary/findings/ratings/criteria`。每个计分维度必须有score、method、reason、evidence；score为0–100有限数或null。method为static/runtime/unverified。非空分必须有引用，UX/性能必须有runtime记录。逐条需求覆盖冻结ID，状态为met/partial/unmet/unverified；已判定项必须有引用。
 
-引用可为快照文件path/line/quote、已有checkId/output quote、裁判实际命令及输出quote。命令来自Codex事件日志，不能由返回JSON自行伪造执行记录。引用无法匹配则拒绝这份评分，原始日志保留。程序只能核实出处，不能确认命令是否真的测到了需求；runtime不等于客观正确，仍须查看命令语义。
+引用可为快照文件path/line/quote、已有checkId/output quote、裁判实际命令及输出quote。命令来自Codex事件日志，不能由返回JSON自行伪造执行记录。文件行号不匹配时，仅在同一冻结文件内有唯一逐字匹配的行才重新定位，并保存reportedLine和定位方式；不存在或歧义的引用不采纳。某项引用无效则该评分项置null/需求项置unverified，并记录validationWarnings；其他有效项保留。字段结构、维度集合、非法数值仍拒绝整份报告。原始日志和回答不改写。程序只能核实出处，不能确认命令是否真的测到了需求；runtime不等于客观正确，仍须查看命令语义。
 
-截图可留在各自审查目录的artifacts，但未提供截图浏览/引用验证的完整界面。已有主题题历史报告包含Chromium交互证据；本轮新的无Docker前端实跑遇到依赖代理问题及裁判额度不足，未生成有效评分。已隔离个人npm代理配置，尚未完成再次实跑，不能宣称通用视觉评测已验收。
+截图可留在各自审查目录的artifacts，但未提供截图浏览/引用验证的完整界面。已有主题题历史报告包含Chromium交互证据；当前Windows本机裁判运行Edge发生受限令牌IPC权限拒绝和崩溃，尚未接通无Docker浏览器取证。裁判指令不再要求在该环境启动浏览器，UX/浏览器性能保持未验证；这不是已完成自动视觉评分。npm用户/全局配置已拆成两个独立空文件，避免double-loading错误和意外继承个人代理；不允许裁判清空这些变量绕回个人配置。
 
-裁判输入的evaluationScope明确stage/final、目标阶段及总阶段数；中途仅检查当前及此前阶段，不以总体目标中的后续功能扣分。源码行号由冻结source-lines.json提供，不能靠模型猜测。引用不匹配仍拒绝采纳，错误显示具体文件与行号并保存validation-error.json；不会自动改写错误报告或补成有效分数。
+裁判输入的evaluationScope明确stage/final、目标阶段及总阶段数；中途仅检查当前及此前阶段，不以总体目标中的后续功能扣分。源码行号由冻结source-lines.json提供，不能靠模型猜测。引用按本节逐项核实和降级；结构错误仍显示具体失败原因并保存validation-error.json。早期回收被用户指定为整题交付时scope为final，但不追加未发送的后续提示词；旧stage报告不能转成最终分。
 
 ## 5. 人工修正和版本
 
@@ -81,5 +81,5 @@ U20复用Harbor，U22依用户无需Docker要求增加固定本机审查入口�
 - **S-AC2**：未评分、0分、部分满足和不适用分别存储与展示。
 - **S-AC3**：需求和评分可追到证据，历史保留当时条目与依据。
 - **S-AC4**：必要持久化失败不会被高视觉分掩盖为验收通过。
-- **S-AC5**：机器评分伪造引用导致报告拒绝；真实引用下的误判可人工修正，原报告保留；旧辅助意见仍按原规则过滤。
+- **S-AC5**：机器评分伪造引用导致相关项未验证，不保留其分数；唯一原文定位有原行号记录；真实引用下的误判可人工修正，原报告保留；旧辅助意见仍按原规则过滤。
 - **S-AC6**：策略冻结、修正另存、新证据使旧修正失效，原始记录不改写。

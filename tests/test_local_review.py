@@ -21,6 +21,7 @@ class LocalReviewTests(unittest.TestCase):
                 self.assertIn('--ignore-user-config',args);self.assertIn('--output-schema',args)
                 self.assertNotIn('OPENAI_API_KEY',kwargs['env'])
                 self.assertEqual(Path(kwargs['env']['NPM_CONFIG_USERCONFIG']).read_text(),'')
+                self.assertNotEqual(kwargs['env']['NPM_CONFIG_USERCONFIG'],kwargs['env']['NPM_CONFIG_GLOBALCONFIG'])
                 self.assertTrue(Path(kwargs['env']['TMP']).is_relative_to(kwargs['cwd']))
                 copied_home.append(Path(kwargs['env']['CODEX_HOME']))
                 self.assertTrue((copied_home[-1]/'auth.json').exists())

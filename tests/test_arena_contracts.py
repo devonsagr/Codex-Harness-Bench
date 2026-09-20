@@ -32,7 +32,7 @@ class ContractTests(unittest.TestCase):
     def prepare(self,definition=None):
         task=self.app.save_task(definition or self.definition)
         pol={**DEFAULT_POLICY,'objectiveWeight':0,'humanWeight':100}
-        return self.app.prepare({'requestId':'contract-qa','configIds':['minimal'],'taskIds':[task['id']],'policy':pol})
+        return self.app.prepare({'deliveryMode':'staged','requestId':'contract-qa','configIds':['minimal'],'taskIds':[task['id']],'policy':pol})
     def mutate(self,run,action,**data):return self.app.mutate(run['id'],run['trials'][0]['id'],action,data)
     def review_data(self,run,status='unverified'):
         return {'captureId':run['trials'][0]['captures'][-1]['id'],'scores':{k:99 for k in DEFAULT_POLICY['dimensions']},

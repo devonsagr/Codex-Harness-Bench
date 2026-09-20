@@ -20,7 +20,7 @@ class DesktopSyncTests(unittest.TestCase):
         cfg=self.app.save_config({'name':'Fixture','agentsPrompt':'','baseModel':'fixture','reasoning':'low','interactiveMode':'adaptive','skills':[]})
         task=self.app.save_task({'title':'Fixture','inputPrompt':'Write hello','taskParadigm':'open-ended-project','hasFrontendUI':False,'channel':'deepswe-core','checks':[],
                                 'stages':[{'title':'First','prompt':'Write hello'},{'title':'Second','prompt':'Add export'}]})
-        self.run=self.app.prepare({'configIds':[cfg['id']],'taskIds':[task['id']],'requestId':'sync'})
+        self.run=self.app.prepare({'configIds':[cfg['id']],'taskIds':[task['id']],'requestId':'sync','deliveryMode':'staged'})
         self.trial=self.run['trials'][0];self.workspace=Path(self.trial['workspacePath'])
         self.db=sqlite3.connect(self.home/'state_5.sqlite');self.db.execute('CREATE TABLE threads (id TEXT, rollout_path TEXT, cwd TEXT)')
 

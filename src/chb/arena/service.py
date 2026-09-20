@@ -14,7 +14,7 @@ from urllib.parse import urlencode, quote
 from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
 from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, MACHINE_POLICY, RUBRICS
-from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks
+from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks, delivery_task
 from .skills import invocation, codex_home
 from .codex_apply import settings, connections, project_settings
 
@@ -228,6 +228,8 @@ class Arena:
                 for name in ['AGENTS.md','AGENTS.override.md','config.toml']}
 
     def prepare(self,data):
+        delivery_mode=data.get('deliveryMode','single-delivery')
+        if delivery_mode not in {'single-delivery','staged'}:raise ValueError('交付方式无效。')
         ids=data.get('configIds',[]); tasks=data.get('taskIds',[])
         if not isinstance(ids,list) or not 1<=len(ids)<=2 or len(set(ids))!=len(ids): raise ValueError('选择一套配置；需要对比时可选两套不同配置。')
         if not isinstance(tasks,list) or not 1<=len(tasks)<=10 or len(set(tasks))!=len(tasks): raise ValueError('选择 1–10 道题，批量选择不代表自动启动。')
@@ -263,9 +265,9 @@ class Arena:
                                                'sourceSkillMode':config.get('skillMode','auto')}
                 config.update(skills=skills,skillMode=mode)
         scoring_policy=policy(data.get('policy'))
+        selected=[{**freeze_prompts(delivery_task(t,delivery_mode)), 'sourceSchemaVersion':t.get('schemaVersion',1)} for t in selected]
         if scoring_policy.get('dimensionUnit')=='percent' and scoring_policy['objectiveWeight'] and any(not t['checks'] for t in selected):
             raise ValueError('所选题目没有自动检查，请选择纯人工方案，或先在题库配置检查。')
-        selected=[{**freeze_prompts(normalize_contract(t)), 'sourceSchemaVersion':t.get('schemaVersion',1)} for t in selected]
         if scoring_policy['humanWeight'] and any(not t.get('hasFrontendUI') for t in selected):
             if not sum(v for k,v in scoring_policy['dimensions'].items() if k!='ux'):
                 raise ValueError('非界面题至少需要一个非视觉维度的权重大于零。')
@@ -305,7 +307,7 @@ class Arena:
                 active=[c for c in config.get('customConstraints',[]) if c.get('isActive')]
                 if active:instructions+='\n\n'+ '\n'.join(c['title']+': '+c.get('ruleDesc','') for c in active)
                 if config['interactiveMode']=='step-by-step-confirm':instructions+='\n每个实施阶段结束后先给出结果并等待用户确认，不自动继续下一阶段。\n'
-                if config['interactiveMode']=='one-shot-direct':instructions+='\n根据当前阶段的需求完成可交付结果；有必要信息缺口时明确提出，不擅自编造。\n'
+                if config['interactiveMode']=='one-shot-direct':instructions+='\n根据给定需求完成可交付结果；有必要信息缺口时明确提出，不擅自编造。\n'
                 (workspace/'AGENTS.override.md').write_text(instructions,encoding='utf-8')
                 native_path=safe_path(workspace,'.codex/config.toml')
                 native_bytes=project_settings(config,native_path.read_bytes() if native_path.is_file() else b'')
@@ -390,6 +392,7 @@ class Arena:
                          'checksConfigured':len(applicable_checks(task,t['stageIndex'])),
                          'harnessUnchanged':harness_files(manifest)==harness_files(t['baseline']),'hostUnchanged':self.host_fingerprint()==t.get('appliedHostFingerprint',run['hostFingerprint'])}
                 t['captures'].append(capture);t['state']='captured'
+                t.pop('finalCaptureId',None)
                 self.event(run,'产物已封存，包括新增/删除文件；之后修改工作区不会改写这份证据。',tid)
             elif action=='trace':
                 from .telemetry import read_trace
@@ -408,14 +411,18 @@ class Arena:
                     t['observations'].append('日志：实际模型或推理档位不同/未完整记录；不能视为条件一致。')
                 self.event(run,'原生日志已绑定到此工作区和会话；原文只保存在本地。',tid)
             elif action=='continue':
+                if t.get('finalCaptureId'):raise ValueError('已标记整题交付；后续修改可继续原对话并再次回收。')
                 if t['state'] not in {'captured','completed'} or not t['captures'] or t['captures'][-1]['stageIndex']!=t['stageIndex']:raise ValueError('请先回收当前轮产物，再确认下一轮。')
                 if t['stageIndex']+1>=len(task['stages']):raise ValueError('已经是最后一个预定阶段；追加需求请另建题目版本。')
                 t['stageIndex']+=1;t['state']='waiting_confirmation';t['continueRequestedAt']=now()
                 self.event(run,'用户确认进入下一轮。请在同一桌面任务发送本轮提示词。',tid)
             elif action=='complete':
-                if t['state']!='captured' or t['stageIndex']+1!=len(task['stages']):raise ValueError('请先完成并回收全部预定阶段。')
+                if t['state']!='captured' or not t['captures']:raise ValueError('请先回收需要评估的产物。')
+                if t['stageIndex']+1<len(task['stages']) and run['policy']['version']!='arena-machine-v1':
+                    raise ValueError('旧版脚本计分记录保留原阶段规则；请新建机器评分评测。')
+                t['finalCaptureId']=t['captures'][-1]['id']
                 t['state']='completed';t['completedAt']=now()
-                self.event(run,'用户标记交付结束；是否通过与评分依据仍分别显示。',tid)
+                self.event(run,'用户标记当前产物为整题交付；后续按完整需求评分，既有阶段检查保留在历史中。',tid)
             elif action=='interrupt':
                 if t['state'] in {'checking','judging'}:
                     raise ValueError('请用停止检查按钮终止本工具拥有的后台进程。')

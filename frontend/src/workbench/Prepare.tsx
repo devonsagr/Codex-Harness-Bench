@@ -13,6 +13,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const initial=state.tasks.find(t=>t.id===selectedTaskId);
   const [taskIds,setTasks]=useState<string[]>(initial?[initial.id]:[]);
   const [paradigm,setParadigm]=useState(initial?.taskParadigm||'open-ended-project');const [query,setQuery]=useState('');
+  const [deliveryMode,setDeliveryMode]=useState('single-delivery');
   const [openDraft,setOpenDraft]=useState(true);const [compare,setCompare]=useState(false);const [batch,setBatch]=useState(false);
   const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
   const [policy,setPolicy]=useState(percentPolicy(structuredClone(state.defaultPolicy)));const [notes,setNotes]=useState('');
@@ -29,7 +30,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const selected=state.tasks.filter(t=>taskIds.includes(t.id));
   const pending=useRef<{payload:string;requestId:string}|null>(null);
   const create=async()=>{
-    const data={configIds,taskIds,policy,notes,configOverrides:configs.map(c=>({configId:c.id,...effective(c)}))};
+    const data={configIds,taskIds,policy,notes,deliveryMode,configOverrides:configs.map(c=>({configId:c.id,...effective(c)}))};
     const payload=JSON.stringify(data);if(pending.current?.payload!==payload)pending.current={payload,requestId:crypto.randomUUID()};
     try{const run=await act<Run>('/runs/prepare',{...data,requestId:pending.current.requestId});pending.current=null;onCreated(run.id);if(openDraft&&run.trials.length===1)await act(`/runs/${run.id}/trials/${run.trials[0].id}/open`,{draft:true});}catch{/* Keep selections and request ID for a safe retry. */}
   };
@@ -39,8 +40,10 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
       <div className="prepare-tasks" hidden={pane!=='tasks'}><Panel title="选择题目" aside={<label className="check-row"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>批量选择</label>}>
         <div className="grid sm:grid-cols-2 gap-3"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);}}><option value="open-ended-project">项目构建</option><option value="deterministic-bugfix">Bug 修复</option></select><input aria-label="搜索评测题目" placeholder="搜索需求或题目" value={query} onChange={e=>setQuery(e.target.value)}/></div>
         <TaskFilters channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/>
-        <div className="prepare-task-list">{tasks.map(t=><label key={t.id} className={'list-card '+(taskIds.includes(t.id)?'selected':'')}><div className="flex items-start gap-3"><input className="mt-1" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id])}/><strong>{t.title}</strong></div><span>{t.difficulty} · {t.stages.length} 阶段 · {t.checks.length} 项检查</span><small>{t.baselineId?'已导入源码起点':t.taskParadigm==='deterministic-bugfix'?'缺少源码 · 暂不可开始':'空目录构建 · 无预装依赖'} · {t.hasFrontendUI?'含界面':'工程或文档'}</small></label>)}</div>
+        <div className="prepare-task-list">{tasks.map(t=><label key={t.id} className={'list-card '+(taskIds.includes(t.id)?'selected':'')}><div className="flex items-start gap-3"><input className="mt-1" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id])}/><strong>{t.title}</strong></div><span>{t.difficulty} · {t.checks.length} 项检查</span><small>{t.baselineId?'已导入源码起点':t.taskParadigm==='deterministic-bugfix'?'缺少源码 · 暂不可开始':'空目录构建 · 无预装依赖'} · {t.hasFrontendUI?'含界面':'工程或文档'}</small></label>)}</div>
         {!tasks.length&&<Empty>没有符合筛选的题目。</Empty>}
+        <Field label="交付方式"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="single-delivery">完整需求 · 不限定对话轮数</option><option value="staged">按题目预设步骤分阶段（可选）</option></select></Field>
+        <p className="muted">{deliveryMode==='single-delivery'?'一次提供全部需求。由模型和你的配置决定实施过程，完成后回收评分。':'只有需要分步实验时选用。每步提示词需在原对话发送，也可以提前结束并评估整题。'}</p>
         {selected.map(t=><Details key={t.id} title={'题目详情：'+t.title}><pre className="source">{t.inputPrompt}</pre><ContractView task={t}/></Details>)}
 
       </Panel></div>

@@ -93,7 +93,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |/tasks/import-preview|document：题目对象/数组/版本题包|valid/tasks/errors/warnings/fingerprint；不写入数据库|
 |/tasks/import|document、fingerprint、requestId|receipt和imported；整个包与回执同一事务创建|
 |/{configs\|tasks\|runs}/{id}/archive|revision、archived 布尔值|归档/恢复后的实体|
-|/runs/prepare|requestId、configIds(1–2)、taskIds(1–10)、policy、notes、可选configOverrides|冻结后的 Run；相同请求内容可幂等返回|
+|/runs/prepare|requestId、configIds(1–2)、taskIds(1–10)、policy、notes、deliveryMode（默认single-delivery）、可选configOverrides|冻结后的 Run；相同请求内容可幂等返回|
 |/runs/{rid}/restore-config|configId|历史配置的新副本|
 
 相同 requestId 携带不同内容会拒绝；网络返回不确定时前端复用原 ID。正常“再测一次”必须用新 requestId。
@@ -106,7 +106,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |start|settingsConfirmed:true|记录用户已核对并开始该轮|
 |capture|可选 response|封存新 Capture|
 |continue|{}|已回收后进入下一预定阶段，仍等待开始|
-|complete|{}|最终阶段已回收后记录交付结束|
+|complete|{}|机器策略任意回收后记录整题交付；旧v1/v2仍需最终阶段|
 |interrupt|reason|外部中断记录，不停止桌面|
 |trace|raw(JSONL 字符串)|归属校验后保存原文和累计用量|
 |review|captureId、scores、notes、readiness、constraints；v2加criteria、constraintNotes、revisionReason|只接受最新回收；条目集合必须完整，修订已有复审须原因；始终新建版本|
@@ -198,3 +198,7 @@ Trial.objectiveReviews保存id/at/captureId/evidenceKey/score/reason/evidence/or
 U19：/codex/status活动回执在有变化时增加canPreserveChanges（只读预检）；/codex/restore增加可选preserveUnrelated:true，后端再次三方核对，不信任前端旧状态。/runs/:rid/trials/:tid/open接受draft:true，仅首轮使用服务端冻结的executionPrompts文本和本试次workspace生成codex://threads/new?path=...&prompt=...；不得由客户端传入任意目录/协议/命令。Windows调用注册协议，失败不回滚已准备工作区，不自动开始计时或发送任务。默认open旧目录方式继续兼容。
 
 机器方案 POST `/runs/{rid}/trials/{tid}/judge` 请求captureId/model/environment，Docker串联可用脚本与机器裁判，本机跳过容器脚本；无脚本允许启动。POST同试次`/machine-correction`请求reviewId/evidenceKey/changes，changes为维度到{score,reason}的映射；拒绝后台运行、过期证据或无理由。返回Run，分数由score.machine/machineCoverage/machineRatings/machineOverrides/effectiveScores/overall派生。machine是原分（缺项时暂定）；overall含当前人工修正，缺项或未completed为null。程序结果和criteria不被修正覆盖。
+
+### U24交付方式与引用状态
+
+/runs/prepare新增deliveryMode：single-delivery（默认）/staged。仅转换新Run的执行副本，保留authoredStages/authoredChecks；expectedTurns为null，不由步骤推断回复次数。机器策略complete允许任意已回收版本，记录finalCaptureId；新回收清除它。早期结束后的整题报告须evaluationScope.kind=final，原阶段分不参与最终分。ratings/criteria引用失败仅降级对应项并返回validationWarnings；文件唯一原文定位保留reportedLine/anchor。旧记录只读兼容，不迁移或回填分数。
