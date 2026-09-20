@@ -53,6 +53,8 @@ Docker裁判镜像 `chb-reviewer:machine-v1` 包含 Codex CLI、Node、Python、
 
 截图可留在各自审查目录的artifacts，但未提供截图浏览/引用验证的完整界面。已有主题题历史报告包含Chromium交互证据；本轮新的无Docker前端实跑遇到依赖代理问题及裁判额度不足，未生成有效评分。已隔离个人npm代理配置，尚未完成再次实跑，不能宣称通用视觉评测已验收。
 
+裁判输入的evaluationScope明确stage/final、目标阶段及总阶段数；中途仅检查当前及此前阶段，不以总体目标中的后续功能扣分。源码行号由冻结source-lines.json提供，不能靠模型猜测。引用不匹配仍拒绝采纳，错误显示具体文件与行号并保存validation-error.json；不会自动改写错误报告或补成有效分数。
+
 ## 5. 人工修正和版本
 
 `machineCorrections` 是追加记录，绑定capture、reviewId和包含检查结果的evidenceKey。修改单项必须填写理由与复核证据；score=null表示撤回该项修正，恢复机器原分。修正不能改写ratings、criteria或脚本结果。

@@ -6,7 +6,7 @@ export function ModelSelect({label='模型',value,onChange,models,disabled=false
   const known=models.some(m=>m.id===value);
   return <select aria-label={label} required disabled={disabled} value={value} onChange={e=>onChange(e.target.value)}>
     {!value&&<option value="">选择模型</option>}{value&&!known&&<option value={value}>{value}（当前配置）</option>}
-    {models.map(m=><option key={m.id} value={m.id}>{m.name===m.id?m.id:`${m.name} · ${m.id}`}</option>)}
+    {models.map(m=><option key={m.id} value={m.id}>{m.name||m.id}</option>)}
   </select>;
 }
 export function Field({label,children,hint}:{label:string;children:ReactNode;hint?:string}){const id=useId();return <div className="field"><label htmlFor={id}>{label}</label>{Children.map(children,child=>isValidElement(child)&&['input','select','textarea'].includes(String(child.type))?cloneElement(child as React.ReactElement<{id:string;'aria-describedby'?:string}>,{id,'aria-describedby':hint?id+'-hint':undefined}):child)}{hint&&<small id={id+'-hint'}>{hint}</small>}</div>;}

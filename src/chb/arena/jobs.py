@@ -169,9 +169,12 @@ def review_packet(app,rid,tid,capture,task):
         if len(value)>30000 or total+len(value)>100000:omitted.append(name);continue
         texts[name]=value;total+=len(value)
     # Review the captured stage, even when the live trial has moved on.
+    scope={'kind':'final' if capture['stageIndex']+1==len(task['stages']) else 'stage',
+           'stageIndex':capture['stageIndex'],'totalStages':len(task['stages']),
+           'stageTitle':task['stages'][capture['stageIndex']]['title']}
     task={**task,'stages':task.get('stages',[])[:capture['stageIndex']+1],
           'promptSnapshots':task.get('promptSnapshots',[])[:capture['stageIndex']+1]}
-    return {'task':task,'stageIndex':capture['stageIndex'],'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
+    return {'task':task,'evaluationScope':scope,'stageIndex':capture['stageIndex'],'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
             'files':texts,'omittedFiles':omitted,'checks':capture['checks'],'facts':capture['facts']}
 
 
@@ -225,6 +228,11 @@ def run_judge(app,rid,tid,capture,task,data,control):
         candidate=source/'environment'/'candidate'
         candidate.parent.mkdir(parents=True)
         snapshot(frozen,candidate)
+        # A tool-readable line map prevents guessing line numbers from raw files.
+        # Keep it outside candidate so it is not confused with submitted code.
+        (source/'environment'/'source-lines.json').write_text(json.dumps(
+            {name:[{'line':i+1,'text':line} for i,line in enumerate(body.splitlines())]
+             for name,body in packet['files'].items()},ensure_ascii=False),encoding='utf-8')
         prompt_packet={k:v for k,v in packet.items() if k not in {'files','facts'}}
         prompt_packet['fileNames']=list(packet['files'])
         prompt_packet['dimensions']=dimensions(run['policy'],task)
@@ -237,6 +245,8 @@ def run_judge(app,rid,tid,capture,task,data,control):
             '截图等材料保存到 /logs/artifacts/。检查项目需要的外部服务不可用、无法安装依赖或无法实际验证时，明确标未验证。'
             '没有任务专用脚本也要按需求主动检查。需求完成度优先；构建成功不代表业务成功。'
             '首先对照完整 inputPrompt 和截至当前轮已发送的 promptSnapshots。criteria 和 projectSpec 只能辅助解释，不能添加开发者未见过的强制要求；没有公开依据的条目标 unverified 并说明原因，不据此扣分。'
+            'evaluationScope.kind=stage表示可选的阶段检查：总体需求只作目标背景，按当前及此前阶段的交付范围判断，后续阶段功能缺失不得扣分；尚不适用的整题条目标unverified。kind=final才按完整原始需求检查最终产物。'
+            '引用源码前读取 /app/source-lines.json 中对应文件的line/text，最终提交前逐条核对。行号从1开始，不要猜测；quote必须是该行原文子串。工具输出中的行号或你记忆的行号不能替代此冻结映射。'
             '每个维度给0–100或null。0–39核心失败；40–59重大缺口；60–79主流程成立但有问题；80–94主要要求有验证；95–100全面且有复现证据。'
             '静态阅读标static，真实运行标runtime，缺证据标unverified并score:null。UX/性能必须runtime。'
             '每个非空分数、每个已判定需求必须引用文件的原文行，或实际执行命令及其输出原文，或已有checkId及其输出原文。'
@@ -248,6 +258,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
             '\n冻结材料：\n'+json.dumps(prompt_packet,ensure_ascii=False))
     if local:
         instruction=instruction.replace('/app/candidate','environment/candidate').replace('/tmp/chb-eval','scratch').replace('/logs/artifacts/','artifacts/')
+        instruction=instruction.replace('/app/source-lines.json','environment/source-lines.json')
         instruction=instruction.replace('可用 Node require("playwright") 的 Chromium（launch 时 args:["--no-sandbox"]），Python3、npm、pnpm。',
             '这是本机原生沙箱；先探测实际可用的 Python、Node 和浏览器工具，不假定已安装。可在 scratch 用 npm install --cache ./npm-cache playwright 安装浏览器工具；Windows 可探测系统 Edge（Playwright channel: msedge），无现成浏览器才在本目录安装 Chromium。使用浏览器默认沙箱，禁止 --no-sandbox。服务器仅绑定 127.0.0.1 并由系统分配空闲端口，不使用工作台的 8765/8877。临时文件、浏览器配置及依赖仅放在本次审查目录；截图取证后必须结束服务器和浏览器。不可请求提权或关闭沙箱；被拒绝的操作标为未验证，不绕过限制。')
         instruction+='\n仅在当前审查目录内取证。不要进入父目录、个人目录或其他任务。原始快照不在可写目录内。'
@@ -315,5 +326,8 @@ def run_judge(app,rid,tid,capture,task,data,control):
             from .machine import validate_machine
             result.update(validate_machine(value,packet,commands))
             verify_snapshot(frozen,capture['manifest'])
-    except (ValueError,TypeError,KeyError) as exc:raise ValueError('AI 审查结果格式或引用无效，已保留原始记录，未产生评分。') from exc
-    return {**result,'model':model,'reasoningEffort':'low','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}
+    except (ValueError,TypeError,KeyError) as exc:
+        reason='裁判返回的 JSON 无法解析。' if isinstance(exc,json.JSONDecodeError) else str(exc) if isinstance(exc,ValueError) and any('\u4e00'<=c<='\u9fff' for c in str(exc)) else '裁判返回的字段结构不正确。'
+        (folder/'validation-error.json').write_text(json.dumps({'reason':reason,'captureId':capture['id']},ensure_ascii=False),encoding='utf-8')
+        raise ValueError(f'评分报告未通过校验：{reason[:150]} 原始报告已保留；本次未生成分数。') from exc
+    return {**result,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':'low','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}

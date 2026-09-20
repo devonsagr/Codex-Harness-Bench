@@ -31,7 +31,8 @@ def validate_machine(value, packet, commands):
             if 'path' in item:
                 if not isinstance(item['path'],str):raise ValueError('文件引用路径无效。')
                 lines=packet['files'].get(item['path'],'').splitlines();line=item.get('line')
-                if type(line) is not int or not 1<=line<=len(lines) or quote not in lines[line-1]:raise ValueError('机器评分引用的文件行不存在。')
+                if type(line) is not int or not 1<=line<=len(lines) or quote not in lines[line-1]:
+                    raise ValueError(f'文件 {item["path"][:80]} 第 {line if type(line) is int else "无效"} 行与引用原文不符。')
                 verified.append({'path':item['path'],'line':line,'quote':quote})
             elif 'command' in item:
                 command=item['command']

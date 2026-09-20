@@ -144,6 +144,9 @@ class MachineScoringTests(unittest.TestCase):
             test.assertEqual((source/'environment/candidate/main.py').read_text(),'print("hello")\n')
             test.assertFalse((source/'environment/Dockerfile').exists())
             test.assertIn('ratings',(source/'instruction.md').read_text(encoding='utf-8'))
+            line_map=json.loads((source/'environment/source-lines.json').read_text(encoding='utf-8'))
+            test.assertEqual(line_map['main.py'],[{'line':1,'text':'print("hello")'}])
+            test.assertIn('/app/source-lines.json',(source/'instruction.md').read_text(encoding='utf-8'))
             logs=Path(cfg.jobs_dir)/'fixture/agent';logs.mkdir(parents=True)
             events=[{'type':'item.completed','item':{'id':'cmd1','type':'command_execution','command':'python3 main.py','aggregated_output':'hello\n','exit_code':0}},
                     {'type':'item.completed','item':{'type':'agent_message','text':json.dumps(test.value)}}]
@@ -184,9 +187,25 @@ class MachineScoringTests(unittest.TestCase):
 
     def test_review_packet_only_contains_captured_stage_prompts(self):
         from chb.arena.jobs import review_packet
-        task={**self.task,'stages':[{'prompt':'now'},{'prompt':'future'}],
+        task={**self.task,'stages':[{'title':'Now','prompt':'now'},{'title':'Future','prompt':'future'}],
               'promptSnapshots':[{'text':'sent'},{'text':'not yet sent'}]}
         packet=review_packet(self.app,self.rid,self.tid,{**self.capture,'stageIndex':0},task)
         self.assertEqual(packet['stageIndex'],0)
+        self.assertEqual(packet['evaluationScope'],{'kind':'stage','stageIndex':0,'totalStages':2,'stageTitle':task['stages'][0].get('title')})
         self.assertEqual(packet['task']['promptSnapshots'],[{'text':'sent'}])
         self.assertEqual(len(task['stages']),2)
+
+    def test_wrong_line_is_explicit_and_not_silently_accepted(self):
+        value=copy.deepcopy(self.value)
+        value['ratings']['intent']['evidence']=[{'path':'main.py','line':124,'quote':'hello'}]
+        with self.assertRaisesRegex(ValueError,'main.py 第 124 行'):
+            validate_machine(value,self.packet,self.commands)
+
+    def test_intermediate_review_does_not_create_final_score(self):
+        run=self.app.db.get('run',self.rid)
+        run['tasks'][0]['stages'].append({'id':'stage-2','title':'Next','prompt':'Future requirement'})
+        run['trials'][0]['state']='captured'
+        self.app.db.save('run',run,run['revision'])
+        self.report()
+        self.assertEqual(self.current()['score']['machine'],80)
+        self.assertIsNone(self.current()['score']['overall'])
