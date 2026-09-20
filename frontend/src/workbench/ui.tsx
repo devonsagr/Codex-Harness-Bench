@@ -2,6 +2,13 @@ import {Children,cloneElement,isValidElement,useId,useEffect,useRef,type ReactNo
 export const labels:Record<string,string>={prepared:'待桌面执行',working:'桌面执行中',captured:'已回收',waiting_confirmation:'等待本轮确认',completed:'交付结束',interrupted:'执行中断',checking:'检查运行中',judging:'AI 复审中',passed:'通过',failed:'未通过',timeout:'超时',cancelled:'已停止',error:'环境错误'};
 export const num=(v:number|null|undefined,suffix='')=>v==null?'—':v.toLocaleString()+suffix;
 export const date=(s:string)=>new Date(s).toLocaleString('zh-CN',{hour12:false});
+export function ModelSelect({label='模型',value,onChange,models,disabled=false}:{label?:string;value:string;onChange:(v:string)=>void;models:{id:string;name:string}[];disabled?:boolean}){
+  const known=models.some(m=>m.id===value);
+  return <select aria-label={label} required disabled={disabled} value={value} onChange={e=>onChange(e.target.value)}>
+    {!value&&<option value="">选择模型</option>}{value&&!known&&<option value={value}>{value}（当前配置）</option>}
+    {models.map(m=><option key={m.id} value={m.id}>{m.name===m.id?m.id:`${m.name} · ${m.id}`}</option>)}
+  </select>;
+}
 export function Field({label,children,hint}:{label:string;children:ReactNode;hint?:string}){const id=useId();return <div className="field"><label htmlFor={id}>{label}</label>{Children.map(children,child=>isValidElement(child)&&['input','select','textarea'].includes(String(child.type))?cloneElement(child as React.ReactElement<{id:string;'aria-describedby'?:string}>,{id,'aria-describedby':hint?id+'-hint':undefined}):child)}{hint&&<small id={id+'-hint'}>{hint}</small>}</div>;}
 export function Panel({title,children,aside}:{title:string;children:ReactNode;aside?:ReactNode}){return <section className="panel p-5 space-y-4"><div className="flex items-center justify-between gap-4"><h2 className="font-semibold">{title}</h2>{aside}</div>{children}</section>;}
 export function Empty({children}:{children:ReactNode}){return <div className="panel-subtle p-6 text-sm text-slate-500 dark:text-zinc-400">{children}</div>;}

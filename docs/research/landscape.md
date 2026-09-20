@@ -73,3 +73,14 @@
 机器分不是客观真值。裁判可能偏好自身风格、受材料中的提示影响或执行不足；[LLM-as-a-Judge研究](https://arxiv.org/abs/2306.05685)讨论偏差，[Terminal-Bench榜单完整性说明](https://www.tbench.ai/news/leaderboard-integrity-update)说明验证器本身也需要审计。本项目校验引用真实存在，但未证明结论正确；未知项为空，保留机器覆盖率、原分和人工修正记录。
 
 当前实现采用arena-machine-v1，具体协议见[评分合同](../architecture/EVALUATION.md)。默认需求50、健壮性20、交互15、交付10、维护5是可编辑的产品起点，不是行业公认权重。新需求自动生成结构化量表、校准集、多裁判一致性仍未实现；真实机器裁判镜像与项目运行验证受本机Docker启动失败阻塞，不能以单元测试替代真实验收。
+
+## 2026-09-20：运行环境与前端评分补查（U22）
+
+|一手资料|能复用的方式|不能据此宣称|
+|---|---|---|
+|[SWE-bench evaluation](https://www.swebench.com/SWE-bench/guides/evaluation/)|固定仓库/版本/测试环境，以可执行测试确认修复|程序通过率不是视觉或开放需求的统一质量分|
+|[Inspect scorers](https://inspect.aisi.org.uk/scorers.html)|确定性与模型评分器组合，支持不同评分类型和记录|框架不能消除逐题成功标准差异|
+|[DesignBench](https://github.com/WebPAI/DesignBench)|覆盖前端生成、编辑和修复，结合可运行工程与视觉评估|尚未作为本项目依赖接入，不能冒充已完成其基准|
+|[WebArena Verified](https://github.com/ServiceNow/webarena-verified)|基于轨迹/状态验证网页任务结果|任务成功不等于审美优秀|
+
+推导出的实现选择：程序提供执行事实，独立AI针对原始需求主动操作产物并按量表连续打分，人类修正争议。交互验证结合页面状态、键盘/点击、控制台；视觉判断需要截图，而非读取源码后猜分。通用的是工具和取证流程，业务含义仍由每题需求决定。固定题榜单常采用Docker提高可复现性；Docker不是模型评分的理论必要条件。U22本机裁判使用原生沙箱，代价是环境差异更大，暂不纳入严格比较。最新实跑与失败记录见当前交接，不沿用U20的Docker阻塞作为所有评分的前提。

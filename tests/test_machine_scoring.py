@@ -164,3 +164,29 @@ class MachineScoringTests(unittest.TestCase):
             while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
             judge.assert_called_once()
         self.assertEqual(self.current()['score']['machine'],80)
+
+    def test_windows_newlines_match_but_fabricated_text_still_fails(self):
+        commands=[{'id':'x','command':'python3 main.py','output':'hello\r\nexit=0\r\n','exitCode':0}]
+        value=copy.deepcopy(self.value)
+        value['ratings']['intent']['evidence']=[{'command':'python3 main.py','quote':'hello\nexit=0'}]
+        self.assertEqual(validate_machine(value,self.packet,commands)['ratings']['intent']['score'],80)
+        value['ratings']['intent']['evidence'][0]['quote']='hello\nexit=1'
+        with self.assertRaises(ValueError):validate_machine(value,self.packet,commands)
+
+    def test_local_judge_never_runs_docker_checks(self):
+        run=self.app.db.get('run',self.rid);run['tasks'][0]['checks']=[{'id':'c','label':'check','image':'fixture','argv':['true'],'weight':1}]
+        self.app.db.save('run',run,run['revision'])
+        with patch('chb.arena.jobs.run_checks') as checks,patch('chb.arena.jobs.run_judge',return_value=validate_machine(self.value,self.packet,self.commands)):
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','environment':'local'})
+            deadline=time.monotonic()+5
+            while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
+            checks.assert_not_called()
+
+    def test_review_packet_only_contains_captured_stage_prompts(self):
+        from chb.arena.jobs import review_packet
+        task={**self.task,'stages':[{'prompt':'now'},{'prompt':'future'}],
+              'promptSnapshots':[{'text':'sent'},{'text':'not yet sent'}]}
+        packet=review_packet(self.app,self.rid,self.tid,{**self.capture,'stageIndex':0},task)
+        self.assertEqual(packet['stageIndex'],0)
+        self.assertEqual(packet['task']['promptSnapshots'],[{'text':'sent'}])
+        self.assertEqual(len(task['stages']),2)

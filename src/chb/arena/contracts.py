@@ -152,19 +152,18 @@ def freeze_prompts(task):
     value = copy.deepcopy(task)
     prompts = []
     for index, stage in enumerate(value['stages']):
-        text = f"总体需求：\n{value['inputPrompt']}"
-        contract = contract_text(value)
-        if contract:
-            text += '\n\n项目契约：\n' + contract
-        text += f"\n\n当前阶段 {index + 1}/{len(value['stages'])}：{stage['title']}\n{stage['prompt']}"
+        text = value['inputPrompt']
+        if stage['prompt'].strip() != value['inputPrompt'].strip():
+            text += f"\n\n当前阶段 {index + 1}/{len(value['stages'])}：{stage['title']}\n{stage['prompt']}"
         prompts.append({'stageId': stage['id'], 'text': text, 'sha256': hashlib.sha256(text.encode('utf-8')).hexdigest()})
     value['promptSnapshots'] = prompts
+    value['executionPromptVersion'] = 'user-requirements-v3'
     return value
 
 
 def stage_prompt(task, index):
     if 'promptSnapshots' in task:
-        return {**task['promptSnapshots'][index], 'source': 'frozen-contract-v2'}
+        return {**task['promptSnapshots'][index], 'source': task.get('executionPromptVersion','frozen-contract-v2')}
     stage = task['stages'][index]
     text = f"总体需求：\n{task['inputPrompt']}\n\n本轮任务：\n{stage['prompt']}" if index == 0 and stage['prompt'] != task['inputPrompt'] else stage['prompt']
     return {'text': text, 'sha256': hashlib.sha256(text.encode('utf-8')).hexdigest(), 'source': 'legacy-text-only'}

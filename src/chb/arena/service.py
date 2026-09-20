@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import threading
+import time
 import uuid
 from urllib.parse import urlencode, quote
 
@@ -49,6 +50,7 @@ class Arena:
         self.db=Database(self.local/'arena.sqlite3')
         self.lock=threading.RLock()
         self.jobs={}
+        self._last_trace_sync=0.0
         self._seed()
         for run in self.db.list('run'):
             if any(t['state'] in {'checking','judging'} or t.get('ownedContainers') for t in run['trials']):
@@ -177,12 +179,45 @@ class Arena:
         return list({m['id']:m for m in models}.values())
 
     def state(self):
+        self.sync_desktop_traces()
         runs=[self.present_run(r) for r in self.db.list('run')]
         return {'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
                 'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
                 'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
                 'mode':'desktop','source':'SQLite 与本机冻结文件','legacyExperiments':len(list((self.root/'runs').glob('*/plan.json')))}
+
+    def sync_desktop_traces(self):
+        from .telemetry import discover_trace
+        with self.lock:
+            if time.monotonic()-self._last_trace_sync<5:return
+            self._last_trace_sync=time.monotonic()
+            for run in self.db.list('run'):
+                changed=False
+                for trial in run['trials']:
+                    if trial['state'] in {'checking','judging'}:continue
+                    before=copy.deepcopy(trial)
+                    try:
+                        usage,message=discover_trace(codex_home(),trial['workspacePath'],trial.get('sessionId'))
+                        if usage:
+                            old=trial.get('usage') or {}
+                            if any(old.get(k) is not None and (usage.get(k) is None or usage[k]<old[k]) for k in ['inputTokens','outputTokens','cacheReadTokens']):
+                                raise ValueError('日志累计值回退，保留上次有效用量。')
+                            trial['usage']=usage;trial['sessionId']=usage['sessionId']
+                            new_turn=usage.get('lastStartedAt') and usage['lastStartedAt']>trial.get('continueRequestedAt','')
+                            if trial['state'] in {'prepared','waiting_confirmation'} and new_turn:
+                                trial['state']='working';trial['startedAt']=usage['lastStartedAt']
+                            config=next(c for c in run['configs'] if c['id']==trial['configId'])
+                            trial['observations']=[m for m in trial['observations'] if not m.startswith('日志：')]
+                            if usage['models']!=[config['baseModel']] or usage['reasoningLevels']!=[config['reasoning']]:
+                                trial['observations'].append('日志：实际模型或推理档位不同/未完整记录；不能视为条件一致。')
+                        trial['telemetryStatus']=message
+                    except (OSError,ValueError,KeyError,TypeError) as exc:
+                        trial['telemetryStatus']=str(exc) if isinstance(exc,ValueError) and any('\u4e00'<=c<='\u9fff' for c in str(exc)) else '本题日志暂不可读，保留上次记录。'
+                    except Exception:
+                        trial['telemetryStatus']='本机会话索引暂不可读，可手动导入日志。'
+                    changed=changed or before!=trial
+                if changed:self.db.save('run',run,run['revision'])
 
     def event(self,run,message,trial=None):
         run.setdefault('events',[]).append({'at':now(),'message':message,'trialId':trial})
@@ -198,6 +233,8 @@ class Arena:
         if not isinstance(tasks,list) or not 1<=len(tasks)<=10 or len(set(tasks))!=len(tasks): raise ValueError('选择 1–10 道题，批量选择不代表自动启动。')
         configs=[self.db.get('config',identifier(x)) for x in ids]
         selected=[self.db.get('task',identifier(x)) for x in tasks]
+        if any(t['taskParadigm']=='deterministic-bugfix' and not t.get('baselineId') for t in selected):
+            raise ValueError('Bug 修复题尚未准备项目源码。请在题库导入起始项目后再开始；参考链接不等于已下载环境。')
         if any(x.get('archived') for x in configs+selected): raise ValueError('归档配置或题目不可创建新评测。')
         request_id=identifier(data.get('requestId'))
         existing=[r for r in self.db.list('run')+self.db.list('run',True) if r.get('requestId')==request_id]
@@ -373,7 +410,7 @@ class Arena:
             elif action=='continue':
                 if t['state'] not in {'captured','completed'} or not t['captures'] or t['captures'][-1]['stageIndex']!=t['stageIndex']:raise ValueError('请先回收当前轮产物，再确认下一轮。')
                 if t['stageIndex']+1>=len(task['stages']):raise ValueError('已经是最后一个预定阶段；追加需求请另建题目版本。')
-                t['stageIndex']+=1;t['state']='waiting_confirmation'
+                t['stageIndex']+=1;t['state']='waiting_confirmation';t['continueRequestedAt']=now()
                 self.event(run,'用户确认进入下一轮。请在同一桌面任务发送本轮提示词。',tid)
             elif action=='complete':
                 if t['state']!='captured' or t['stageIndex']+1!=len(task['stages']):raise ValueError('请先完成并回收全部预定阶段。')
