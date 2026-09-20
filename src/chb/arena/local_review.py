@@ -108,8 +108,9 @@ def execute_local(folder,source,instruction,model,packet,control,timeout):
         runtime_temp=source/'tmp';runtime_temp.mkdir()
         env.update(CODEX_HOME=temp_home,NO_COLOR='1',TEMP=str(runtime_temp),TMP=str(runtime_temp),TMPDIR=str(runtime_temp))
         # Do not inherit personal npm proxy, auth tokens or install hooks/config.
-        npmrc=source/'.review-npmrc';npmrc.write_text('',encoding='utf-8')
-        env.update(NPM_CONFIG_USERCONFIG=str(npmrc),NPM_CONFIG_GLOBALCONFIG=str(npmrc),NPM_CONFIG_CACHE=str(source/'npm-cache'))
+        npmrc=source/'.review-user.npmrc';npmrc.write_text('',encoding='utf-8')
+        global_npmrc=source/'.review-global.npmrc';global_npmrc.write_text('',encoding='utf-8')
+        env.update(NPM_CONFIG_USERCONFIG=str(npmrc),NPM_CONFIG_GLOBALCONFIG=str(global_npmrc),NPM_CONFIG_CACHE=str(source/'npm-cache'))
         args=[executable,'exec','--ignore-user-config','--ignore-rules','--ephemeral','--skip-git-repo-check','--json',
               '-C',str(source),'-s','workspace-write','-m',model,'-c','approval_policy="never"',
               '-c','project_doc_max_bytes=0','-c','model_reasoning_effort="low"','-c','web_search="disabled"',

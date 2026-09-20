@@ -147,13 +147,34 @@ def contract_text(task):
     return '\n\n'.join(parts)
 
 
+def delivery_task(task, mode):
+    """Adapt only a new run's copy; preserve the authored task and its steps."""
+    value = normalize_contract(task)
+    value['deliveryMode'] = mode
+    value['expectedTurns'] = None
+    if mode == 'staged':
+        return value
+    value['authoredStages'] = copy.deepcopy(value['stages'])
+    value['authoredChecks'] = copy.deepcopy(value['checks'])
+    # Intermediate verifiers can require states that no longer exist in the final
+    # product. Keep final checks and explicitly declared final regressions only.
+    value['checks'] = [{**c, 'stageIndex': 0} for c in applicable_checks(value, len(value['stages']) - 1)]
+    additions = list(dict.fromkeys(s['prompt'].strip() for s in value['stages']
+                                  if s['prompt'].strip() and s['prompt'].strip() != value['inputPrompt'].strip()))
+    prompt = value['inputPrompt']
+    if additions:
+        prompt += '\n\n题目补充要求：\n' + '\n'.join('- ' + text for text in additions)
+    value['stages'] = [{'id': stable_id('stage', 'complete-delivery'), 'title': '完整交付', 'prompt': prompt}]
+    return value
+
+
 def freeze_prompts(task):
     """Freeze every stage now; later frontend edits cannot change what was prepared."""
     value = copy.deepcopy(task)
     prompts = []
     for index, stage in enumerate(value['stages']):
-        text = value['inputPrompt']
-        if stage['prompt'].strip() != value['inputPrompt'].strip():
+        text = stage['prompt'] if value.get('deliveryMode') == 'single-delivery' else value['inputPrompt']
+        if value.get('deliveryMode') != 'single-delivery' and stage['prompt'].strip() != value['inputPrompt'].strip():
             text += f"\n\n当前阶段 {index + 1}/{len(value['stages'])}：{stage['title']}\n{stage['prompt']}"
         prompts.append({'stageId': stage['id'], 'text': text, 'sha256': hashlib.sha256(text.encode('utf-8')).hexdigest()})
     value['promptSnapshots'] = prompts

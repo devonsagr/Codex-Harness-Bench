@@ -109,7 +109,7 @@ class SkillLibraryTests(unittest.TestCase):
         c=self.app.save_config(config);b=self.app.save_config({**config,'name':'plain','skills':[]})
         task=self.app.save_task({'title':'task','inputPrompt':'build','taskParadigm':'open-ended-project','channel':'deepswe-core',
                                 'hasFrontendUI':False,'stages':[{'title':'one','prompt':'design'},{'title':'two','prompt':'build'}],'checks':[]})
-        run=self.app.prepare({'requestId':'once','configIds':[c['id'],b['id']],'taskIds':[task['id']]})
+        run=self.app.prepare({'deliveryMode':'staged','requestId':'once','configIds':[c['id'],b['id']],'taskIds':[task['id']]})
         first=run['trials'][0];second=run['trials'][1]
         self.assertIn('明确请求使用',first['currentStage']['executionPrompt'])
         self.assertNotIn('alpha',second['currentStage']['executionPrompt'])

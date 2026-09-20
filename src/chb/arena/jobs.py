@@ -1,6 +1,7 @@
 """Owned background checks: pinned containers, immutable inputs, explicit cancellation."""
 import asyncio
 import json
+import os
 from pathlib import Path
 import subprocess
 import threading
@@ -169,11 +170,15 @@ def review_packet(app,rid,tid,capture,task):
         if len(value)>30000 or total+len(value)>100000:omitted.append(name);continue
         texts[name]=value;total+=len(value)
     # Review the captured stage, even when the live trial has moved on.
-    scope={'kind':'final' if capture['stageIndex']+1==len(task['stages']) else 'stage',
+    _,trial=app.trial(rid,tid)
+    final=trial.get('finalCaptureId')==capture['id'] or capture['stageIndex']+1==len(task['stages'])
+    scope={'kind':'final' if final else 'stage',
            'stageIndex':capture['stageIndex'],'totalStages':len(task['stages']),
            'stageTitle':task['stages'][capture['stageIndex']]['title']}
-    task={**task,'stages':task.get('stages',[])[:capture['stageIndex']+1],
-          'promptSnapshots':task.get('promptSnapshots',[])[:capture['stageIndex']+1]}
+    if not final:
+        task={**task,'stages':task.get('stages',[])[:capture['stageIndex']+1]}
+    # Finishing early does not mean future step prompts were sent to the agent.
+    task={**task,'promptSnapshots':task.get('promptSnapshots',[])[:capture['stageIndex']+1]}
     return {'task':task,'evaluationScope':scope,'stageIndex':capture['stageIndex'],'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
             'files':texts,'omittedFiles':omitted,'checks':capture['checks'],'facts':capture['facts']}
 
@@ -260,7 +265,10 @@ def run_judge(app,rid,tid,capture,task,data,control):
         instruction=instruction.replace('/app/candidate','environment/candidate').replace('/tmp/chb-eval','scratch').replace('/logs/artifacts/','artifacts/')
         instruction=instruction.replace('/app/source-lines.json','environment/source-lines.json')
         instruction=instruction.replace('可用 Node require("playwright") 的 Chromium（launch 时 args:["--no-sandbox"]），Python3、npm、pnpm。',
-            '这是本机原生沙箱；先探测实际可用的 Python、Node 和浏览器工具，不假定已安装。可在 scratch 用 npm install --cache ./npm-cache playwright 安装浏览器工具；Windows 可探测系统 Edge（Playwright channel: msedge），无现成浏览器才在本目录安装 Chromium。使用浏览器默认沙箱，禁止 --no-sandbox。服务器仅绑定 127.0.0.1 并由系统分配空闲端口，不使用工作台的 8765/8877。临时文件、浏览器配置及依赖仅放在本次审查目录；截图取证后必须结束服务器和浏览器。不可请求提权或关闭沙箱；被拒绝的操作标为未验证，不绕过限制。')
+            '这是本机原生沙箱；先探测实际可用的 Python、Node，不假定已安装。npm已隔离个人配置，不得清空或覆盖NPM_CONFIG_USERCONFIG/GLOBALCONFIG以重新加载个人代理和凭据。浏览器仅在环境明确支持时使用；Playwright必须chromiumSandbox:true，禁止--no-sandbox。服务器仅绑定127.0.0.1并由系统分配空闲端口，不使用工作台的8765/8877。临时文件、浏览器配置及依赖仅放在本次审查目录；取证后结束服务器和浏览器。不可请求提权或关闭沙箱；被拒绝的操作标为未验证，不绕过限制。')
+        if os.name=='nt':
+            instruction=instruction.replace('界面题须实际打开页面并尝试需求中的关键操作。',
+                '此Windows本机沙箱尚不支持浏览器取证：不得启动Edge、Chrome、Chromium或其他浏览器，也不得通过其他进程或关闭沙箱绕过。不要重试已知会因IPC权限失败的浏览器路径。UX与浏览器性能维度须为null，说明环境未验证；可以继续源码、构建和非浏览器测试。')
         instruction+='\n仅在当前审查目录内取证。不要进入父目录、个人目录或其他任务。原始快照不在可写目录内。'
     (source/'instruction.md').write_text(instruction,encoding='utf-8')
     timeout=480 if machine else 180

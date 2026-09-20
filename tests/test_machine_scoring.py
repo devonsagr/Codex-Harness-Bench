@@ -95,9 +95,12 @@ class MachineScoringTests(unittest.TestCase):
 
     def test_fabricated_command_and_source_citations_rejected(self):
         for ref in [{'command':'pytest','quote':'hello'},{'command':'python3 main.py','quote':'all passed'},
-                    {'path':'missing.py','line':1,'quote':'hello'},{'path':'main.py','line':2,'quote':'hello'}]:
+                    {'path':'missing.py','line':1,'quote':'hello'},{'path':'main.py','line':2,'quote':'fabricated'}]:
             value=copy.deepcopy(self.value);value['ratings']['intent']['evidence']=[ref]
-            with self.assertRaises(ValueError):validate_machine(value,self.packet,self.commands)
+            report=validate_machine(value,self.packet,self.commands)
+            self.assertIsNone(report['ratings']['intent']['score'])
+            self.assertEqual(report['ratings']['handoff']['score'],80)
+            self.assertEqual(len(report['validationWarnings']),1)
 
     def test_visual_score_requires_execution_evidence(self):
         packet=copy.deepcopy(self.packet);packet['task']['hasFrontendUI']=True
@@ -174,7 +177,7 @@ class MachineScoringTests(unittest.TestCase):
         value['ratings']['intent']['evidence']=[{'command':'python3 main.py','quote':'hello\nexit=0'}]
         self.assertEqual(validate_machine(value,self.packet,commands)['ratings']['intent']['score'],80)
         value['ratings']['intent']['evidence'][0]['quote']='hello\nexit=1'
-        with self.assertRaises(ValueError):validate_machine(value,self.packet,commands)
+        self.assertIsNone(validate_machine(value,self.packet,commands)['ratings']['intent']['score'])
 
     def test_local_judge_never_runs_docker_checks(self):
         run=self.app.db.get('run',self.rid);run['tasks'][0]['checks']=[{'id':'c','label':'check','image':'fixture','argv':['true'],'weight':1}]
@@ -189,22 +192,57 @@ class MachineScoringTests(unittest.TestCase):
         from chb.arena.jobs import review_packet
         task={**self.task,'stages':[{'title':'Now','prompt':'now'},{'title':'Future','prompt':'future'}],
               'promptSnapshots':[{'text':'sent'},{'text':'not yet sent'}]}
+        run=self.app.db.get('run',self.rid);run['trials'][0].pop('finalCaptureId',None);self.app.db.save('run',run,run['revision'])
         packet=review_packet(self.app,self.rid,self.tid,{**self.capture,'stageIndex':0},task)
         self.assertEqual(packet['stageIndex'],0)
         self.assertEqual(packet['evaluationScope'],{'kind':'stage','stageIndex':0,'totalStages':2,'stageTitle':task['stages'][0].get('title')})
         self.assertEqual(packet['task']['promptSnapshots'],[{'text':'sent'}])
         self.assertEqual(len(task['stages']),2)
 
-    def test_wrong_line_is_explicit_and_not_silently_accepted(self):
+    def test_wrong_line_resolves_only_exact_unique_quote_and_keeps_original(self):
         value=copy.deepcopy(self.value)
+        value['ratings']['intent']['method']='static'
         value['ratings']['intent']['evidence']=[{'path':'main.py','line':124,'quote':'hello'}]
-        with self.assertRaisesRegex(ValueError,'main.py 第 124 行'):
-            validate_machine(value,self.packet,self.commands)
+        report=validate_machine(value,self.packet,self.commands)
+        ref=report['ratings']['intent']['evidence'][0]
+        self.assertEqual((ref['line'],ref['reportedLine']),(1,124))
+        packet=copy.deepcopy(self.packet);packet['files']['main.py']+='print("hello")\n'
+        report=validate_machine(value,packet,self.commands)
+        self.assertIsNone(report['ratings']['intent']['score'])
+        self.assertIn('唯一定位',report['validationWarnings'][0]['message'])
+
+    def test_early_completion_requires_fresh_full_scope_and_keeps_history(self):
+        from chb.arena.jobs import review_packet
+        run=self.app.db.get('run',self.rid)
+        run['tasks'][0]['stages'].append({'id':'second','title':'Extra','prompt':'extra'})
+        run['tasks'][0]['promptSnapshots'].append({'text':'not sent'})
+        trial=run['trials'][0];trial['state']='captured';trial.pop('finalCaptureId',None)
+        self.app.db.save('run',run,run['revision'])
+        self.report();self.assertEqual(self.current()['score']['machine'],80)
+        result=self.app.mutate(self.rid,self.tid,'complete',{})
+        trial=result['trials'][0]
+        self.assertEqual(trial['stageIndex'],0)
+        self.assertEqual(len(trial['reviews']),1)
+        self.assertIsNone(trial['score']['overall'])
+        self.assertIsNone(trial['score']['machineReviewId'])
+        packet=review_packet(self.app,self.rid,self.tid,self.capture,result['tasks'][0])
+        self.assertEqual(packet['evaluationScope']['kind'],'final')
+        self.assertEqual(len(packet['task']['promptSnapshots']),1)
+        report=validate_machine(self.value,self.packet,self.commands)
+        report['evaluationScope']=packet['evaluationScope']
+        with patch('chb.arena.jobs.run_judge',return_value=report):
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','environment':'local'})
+            deadline=time.monotonic()+5
+            while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
+        self.assertEqual(self.current()['score']['overall'],80)
+        self.app.mutate(self.rid,self.tid,'capture',{})
+        self.assertNotIn('finalCaptureId',self.current())
+        self.assertIsNone(self.current()['score']['overall'])
 
     def test_intermediate_review_does_not_create_final_score(self):
         run=self.app.db.get('run',self.rid)
         run['tasks'][0]['stages'].append({'id':'stage-2','title':'Next','prompt':'Future requirement'})
-        run['trials'][0]['state']='captured'
+        run['trials'][0]['state']='captured';run['trials'][0].pop('finalCaptureId',None)
         self.app.db.save('run',run,run['revision'])
         self.report()
         self.assertEqual(self.current()['score']['machine'],80)

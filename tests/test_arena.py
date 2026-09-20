@@ -26,8 +26,34 @@ class ArenaTests(unittest.TestCase):
         self.task=self.app.save_task({'id':'qa-task','title':'QA two stages','inputPrompt':'Build a text utility','taskParadigm':'open-ended-project','channel':'deepswe-core','hasFrontendUI':False,'stages':[{'title':'Design','prompt':'Design first'},{'title':'Build','prompt':'Implement'}],'checks':[]})
     def tearDown(self):self.tmp.cleanup()
     def prepare(self,**patch):
-        return post(self.app,'/api/arena/runs/prepare',{'requestId':'qa-1','configIds':['minimal'],'taskIds':[self.task['id']],**patch})
+        return post(self.app,'/api/arena/runs/prepare',{'deliveryMode':'staged','requestId':'qa-1','configIds':['minimal'],'taskIds':[self.task['id']],**patch})
     def mutate(self,r,action,**data):return self.app.mutate(r['id'],r['trials'][0]['id'],action,data)
+
+    def test_default_delivery_contains_all_requirements_without_stage_gate(self):
+        run=self.app.prepare({'requestId':'default-delivery','configIds':['minimal'],'taskIds':[self.task['id']]})
+        task=run['tasks'][0];prompt=run['trials'][0]['currentStage']['executionPrompt']
+        self.assertEqual(task['deliveryMode'],'single-delivery')
+        self.assertEqual(len(task['stages']),1)
+        self.assertEqual(len(task['authoredStages']),2)
+        self.assertIn('Build a text utility',prompt)
+        self.assertIn('Design first',prompt);self.assertIn('Implement',prompt)
+        self.assertNotIn('当前阶段',prompt)
+        self.assertEqual(len(self.app.db.get('task',self.task['id'])['stages']),2)
+        run=self.mutate(run,'capture');run=self.mutate(run,'complete')
+        self.assertEqual(run['trials'][0]['state'],'completed')
+        run=self.mutate(run,'capture')
+        self.assertEqual(len(run['trials'][0]['captures']),2)
+
+    def test_single_delivery_keeps_final_checks_not_transient_stage_checks(self):
+        from chb.arena.contracts import delivery_task
+        task=copy.deepcopy(self.task)
+        task['checks']=[{'id':'transient','stageIndex':0},
+                        {'id':'regression','stageIndex':0,'runOnFinal':True},
+                        {'id':'final','stageIndex':1}]
+        result=delivery_task(task,'single-delivery')
+        self.assertEqual([c['id'] for c in result['checks']],['regression','final'])
+        self.assertTrue(all(c['stageIndex']==0 for c in result['checks']))
+        self.assertEqual([c['id'] for c in result['authoredChecks']],[c['id'] for c in task['checks']])
     @unittest.skipUnless(os.name=="nt", "Windows protocol launcher")
     def test_desktop_draft_uses_frozen_prompt_and_does_not_start_execution(self):
         from urllib.parse import urlparse,parse_qs
