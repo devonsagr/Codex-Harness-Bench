@@ -6,7 +6,7 @@ import threading
 import unittest
 from unittest.mock import patch,MagicMock
 
-from chb.arena.local_review import execute_local, output_schema, ProcessTree, failure_reason
+from chb.arena.local_review import execute_local, output_schema, ProcessTree, failure_reason, codex_executable
 
 
 class LocalReviewTests(unittest.TestCase):
@@ -19,6 +19,7 @@ class LocalReviewTests(unittest.TestCase):
                 self.assertEqual(args[args.index('-s')+1],'workspace-write')
                 self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',args)
                 self.assertIn('--ignore-user-config',args);self.assertIn('--output-schema',args)
+                self.assertIn('model_reasoning_effort="max"',args)
                 self.assertNotIn('OPENAI_API_KEY',kwargs['env'])
                 self.assertEqual(Path(kwargs['env']['NPM_CONFIG_USERCONFIG']).read_text(),'')
                 self.assertNotEqual(kwargs['env']['NPM_CONFIG_USERCONFIG'],kwargs['env']['NPM_CONFIG_GLOBALCONFIG'])
@@ -32,6 +33,12 @@ class LocalReviewTests(unittest.TestCase):
                 _,answer,_=execute_local(folder,source,'fixture','fixture',{}, {'stop':threading.Event()},1)
                 self.assertEqual(json.loads(answer)['summary'],'fixture');tree.return_value.close.assert_called_once()
             self.assertFalse(copied_home[0].exists());self.assertFalse((folder/'auth.json').exists())
+
+    def test_nonstandard_cli_path_can_be_explicitly_configured(self):
+        with tempfile.TemporaryDirectory() as temp:
+            binary=Path(temp)/'codex-custom.exe';binary.write_bytes(b'fixture')
+            with patch.dict(os.environ,{'CHB_CODEX_BIN':str(binary)},clear=False):
+                self.assertEqual(codex_executable(),str(binary.resolve()))
 
     def test_stop_cleans_owned_tree(self):
         with tempfile.TemporaryDirectory() as temp:

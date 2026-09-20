@@ -8,7 +8,20 @@
 
 ## 启动
 
-需要 Python 3.12+、uv、Node.js 和 pnpm。桌面执行需已安装并登录 Codex；容器检查及 Docker 裁判需要 Docker Linux 引擎；本机裁判需要已登录的 Codex CLI，不需要 Docker。
+需要 Python 3.12+、uv、Node.js 和 pnpm。桌面执行需已安装并登录 Codex；容器检查及 Docker 裁判需要 Docker Linux 引擎；本机裁判需要已安装并登录官方 Codex CLI，不需要 Docker。
+
+### 本机裁判的前置条件
+
+本仓库不打包 Codex CLI，也不假定作者电脑上的安装路径。工作台启动本机评分时按系统 `PATH` 查找 `codex`；如果 CLI 安装在非标准位置，可在启动工作台前设置 `CHB_CODEX_BIN` 为可执行文件的完整路径。先在同一个终端确认：
+
+```powershell
+codex --version
+codex login status
+```
+
+应能看到 CLI 版本和已登录状态。登录可使用 Codex 支持的 ChatGPT 账户方式；也可以使用 API Key，但两种方式的额度/计费归属不同。当前机器若显示 `Logged in using ChatGPT`，评分使用当前 ChatGPT/Codex 账户的 Codex 限额，不是仓库自带额度。换一台机器必须自行安装、登录并确认模型可用；仓库不会替用户安装 CLI、登录账户或复制认证文件。未满足条件时，配置、题库、工作区准备和桌面执行仍可用，本机评分会明确报“未安装/未登录”，也可以改选 Docker 裁判。
+
+本机评分默认选择 `gpt-5.6-luna`、推理档位 `max`；账户没有该模型时页面回退到可见的本机模型，仍需在评分页确认。模型可用不等于评分正确：每次评分都是一次新的无历史 Codex CLI 进程，结果可能因模型随机性、依赖和环境变化而不同，系统保存原始提示词、命令、输出和报告，不自动把一次结果当成稳定基准。
 
 ```powershell
 uv venv --python 3.13
@@ -22,7 +35,7 @@ pnpm --dir frontend build
 
 Linux/macOS 使用 `.venv/bin/python`；当前真实操作验证以 Windows 为主。支持从源码仓库 editable 安装，独立 wheel 不包含完整题库和 React 构建，不作为完整应用分发。
 
-**Docker 不是网站启动条件。** 配置、题库、桌面工作区准备、产物回收与历史浏览可不启动 Docker。评分可选本机 Codex 原生沙箱，复制回收产物后独立取证，使用模型额度；本机模式不启动容器脚本。固定程序检查和 Harbor 裁判仍需 Docker 及对应镜像；尚未提供无需安装依赖的完整应用包。Docker 的数据盘位置由 Docker Desktop 管理，工作台通过 Docker CLI 连接当前引擎，无需在项目里填写磁盘路径。
+**Docker 不是网站启动条件。** 配置、题库、桌面工作区准备、产物回收与历史浏览可不启动 Docker。评分可选本机 Codex 原生沙箱，复制回收产物后独立取证，使用当前登录账户的模型额度；本机模式不启动容器脚本。固定程序检查和 Harbor 裁判仍需 Docker 及对应镜像；尚未提供无需安装依赖的完整应用包。Docker 的数据盘位置由 Docker Desktop 管理，工作台通过 Docker CLI 连接当前引擎，无需在项目里填写磁盘路径。
 
 遇到 `Failed to fetch` 或“无法连接本地工作台”：先确认启动进程仍在运行，再点“刷新记录”。服务重启后访问令牌会变化，需先保留未提交的表单内容，再重新加载页面。断连不等于项目执行或评分失败，也不自动删除落盘数据；先在评测历史核对回收版本和执行状态，避免重复提交。Codex 已生成的文件仍在独立工作区，尚未回收的成果可在桌面停止写入后点“回收产物”。
 

@@ -14,6 +14,17 @@ from contextlib import contextmanager
 from .skills import codex_home
 
 
+def codex_executable():
+    """Resolve the local Codex CLI without assuming the author's install path."""
+    configured=os.environ.get('CHB_CODEX_BIN','').strip()
+    if configured:
+        path=Path(configured).expanduser()
+        if not path.is_file():
+            raise ValueError(f'CHB_CODEX_BIN 指向的 Codex CLI 不存在：{path}')
+        return str(path.resolve())
+    return shutil.which('codex')
+
+
 @contextmanager
 def review_workspace():
     # Python's private 0700 temp directories deny Windows restricted tokens even
@@ -88,8 +99,8 @@ class ProcessTree:
         self.process.wait(timeout=10)
 
 
-def execute_local(folder,source,instruction,model,packet,control,timeout):
-    executable=shutil.which('codex')
+def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='max'):
+    executable=codex_executable()
     if not executable:raise ValueError('本机未安装 Codex CLI。请安装并登录后使用本机裁判，或选择 Docker 裁判。')
     auth=codex_home()/'auth.json'
     if not auth.is_file():raise ValueError('本机裁判需要 Codex CLI 登录凭据，请先运行 codex login。')
@@ -113,7 +124,7 @@ def execute_local(folder,source,instruction,model,packet,control,timeout):
         env.update(NPM_CONFIG_USERCONFIG=str(npmrc),NPM_CONFIG_GLOBALCONFIG=str(global_npmrc),NPM_CONFIG_CACHE=str(source/'npm-cache'))
         args=[executable,'exec','--ignore-user-config','--ignore-rules','--ephemeral','--skip-git-repo-check','--json',
               '-C',str(source),'-s','workspace-write','-m',model,'-c','approval_policy="never"',
-              '-c','project_doc_max_bytes=0','-c','model_reasoning_effort="low"','-c','web_search="disabled"',
+              '-c','project_doc_max_bytes=0','-c',f'model_reasoning_effort="{reasoning}"','-c','web_search="disabled"',
               '-c','sandbox_workspace_write.exclude_tmpdir_env_var=true','-c','sandbox_workspace_write.exclude_slash_tmp=true',
               '-c','sandbox_workspace_write.network_access=true','--output-schema',str(schema),'-o',str(answer),'-']
         if os.name=='nt':args[2:2]=['-c','windows.sandbox="unelevated"']
