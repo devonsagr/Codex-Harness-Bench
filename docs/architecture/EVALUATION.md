@@ -39,13 +39,15 @@
 
 ## 4. 裁判输入、执行和引用
 
-本机模式不依赖Docker，固定执行Codex CLI，开启workspace-write原生沙箱，使用临时CODEX_HOME及凭据副本，不加载用户配置/规则，凭据目录与产物目录分离。Windows使用受限令牌并绑定本次进程树，停止/超时只结束自己启动的程序。裁判在临时项目副本工作，原始快照不开放写入；网络允许下载依赖。既有容器检查在本机模式跳过，其必要证据仍保持未知，不能伪造通过。本机CLI合成题已实跑；环境指纹尚不完整，本机结果暂不进入严格同条件比较。
+本机模式不依赖Docker，固定执行Codex CLI。CLI不是仓库内置文件：按系统 `PATH` 查找 `codex`，也可用 `CHB_CODEX_BIN` 指定非标准安装路径；使用前必须由运行者自行安装并登录。工作台不会复制作者机器的绝对路径、自动安装 CLI 或自动登录。开启workspace-write原生沙箱，使用临时CODEX_HOME及凭据副本，不加载用户配置/规则，凭据目录与产物目录分离。Windows使用受限令牌并绑定本次进程树，停止/超时只结束自己启动的程序。裁判在临时项目副本工作，原始快照不开放写入；网络允许下载依赖。既有容器检查在本机模式跳过，其必要证据仍保持未知，不能伪造通过。本机CLI合成题已实跑；环境指纹尚不完整，本机结果暂不进入严格同条件比较。
+
+机器评分默认使用 `gpt-5.6-luna`、推理档位 `max`；页面允许选择其他账户可用模型，账户没有默认模型时回退到可见列表并保留实际模型标识。裁判额度属于执行本机 CLI 的登录账户；ChatGPT 登录和 API Key 登录的额度/计费由各自账户渠道决定，不能把仓库或桌面评测记录当作独立额度来源。每次点击评分都会创建新的 `codex exec` 进程，不调用 `resume`，使用 `--ephemeral` 和新的临时 CODEX_HOME；不读取上一次裁判的会话、提示词、评分或内存。Docker/Harbor 同样为每次新 Job 创建新环境并在结束后删除。报告保存 `model`、`reasoningEffort`、`codexVersion`、`reviewEnvironment`、`judgeIsolation` 和 `jobPath`，可追溯到完整提示词和事件日志。
 
 Docker裁判镜像 `chb-reviewer:machine-v1` 包含 Codex CLI、Node、Python、pnpm、Playwright Chromium。用 `scripts/prepare_arena_review.py` 显式构建。已有Harbor负责环境、执行和清理，未另建通用Agent runner；本轮没有安装独立Rewardkit包。
 
 完整冻结快照经Harbor预构建镜像的environment上传能力复制到容器 `/app/candidate`。不挂载项目根、宿主home或Docker socket；宿主快照执行前后核对hash。裁判可在容器临时副本安装依赖和运行，指令禁止修改实现以帮助通过。提示词和产物中的AGENTS/技能/说明仅作不可信材料，不能改变评分目标。该约束和引用检查不构成已验证的抗提示注入保证。
 
-裁判上限480秒；Docker路径限制2 CPU/2GB，本机尚无等价资源配额。Harbor准备/清理另计，不自动重试、换模型或升级权限。Docker Agent阶段网络限定模型服务及npm/PyPI依赖源，本机网络尚无同等域名白名单；特殊外部服务和技术栈不保证可运行。脚本检查仍是独立无网络容器。专用脚本镜像缺失时可继续裁判取证，必要脚本的缺失仍记未知；未清理的容器或快照异常不忽略。
+裁判上限480秒；Docker路径限制2 CPU/2GB，本机尚无等价资源配额。Harbor准备/清理另计，不自动重试、换模型或升级权限。Docker Agent阶段网络限定模型服务及npm/PyPI依赖源，本机网络尚无同等域名白名单；特殊外部服务和技术栈不保证可运行。脚本检查仍是独立无网络容器。专用脚本镜像缺失时可继续裁判取证，必要脚本的缺失仍记未知；未清理的容器或快照异常不忽略。模型裁判不是确定性证明：相同快照、模型和提示词仍可能因模型采样、依赖安装、外部服务和工具时序产生不同结果；当前不自动平均、重试或以单次结果宣称可靠提升，比较时必须保留条件和重复结果。
 
 返回 `summary/findings/ratings/criteria`。每个计分维度必须有score、method、reason、evidence；score为0–100有限数或null。method为static/runtime/unverified。非空分必须有引用，UX/性能必须有runtime记录。逐条需求覆盖冻结ID，状态为met/partial/unmet/unverified；已判定项必须有引用。
 
