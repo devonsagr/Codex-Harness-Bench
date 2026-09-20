@@ -17,7 +17,7 @@
 - 包构建 `uv build`；独立 wheel 不是完整数据/React 分发，支持仓库 editable 安装。
 - 容器准备 `.venv\Scripts\python.exe -X utf8 -m chb.cli prepare --checks-only`；可加 `--task storage-migration-v1` / `--task csv-catalog-v1`。题库内可显式导入三道完整原创题；31 份 Gemini 题面不能冒充31套已验证测试。
 - 旧容器题自检 `.venv\Scripts\python.exe -X utf8 scripts/validate_task.py`，只运行 nop/oracle。新工作台验收见 `scripts/validate_arena.py`；仅 `--judge-model` 显式启用一次有时限的 AI 审查。
-- Docker 检查只挂载本次冻结快照且只读，在容器副本执行；不挂项目根、个人 home、Docker socket。独立 AI 审查由 Harbor 管 CLI 执行，标注 `cli-review-only`。不得再造通用 Agent runner。
+- Docker 检查只挂载本次冻结快照且只读，在容器副本执行；不挂项目根、个人 home、Docker socket。独立 AI 审查标注 `cli-review-only`：Docker 路径由 Harbor 管理；U22新增固定的本机 Codex 原生沙箱裁判，使用临时凭据目录与快照副本，不修改宿主配置。不得提供任意宿主命令入口或再造通用 Agent runner。
 - 旧 CLI 实验仍在 `runs/`，与桌面新工作流分开；schema 1/2 只读兼容，schema 3 冻结多题路由/预算。更改 runner/profile/task 创建新实验；历史重分析只写 `.local/analyses/`。
 - `runs/`、`.local/`、node_modules、构建文件保持忽略。ZIP 可包含用户私有规则和产物，只由用户本地下载，不自动上传。恢复创建新副本；归档可逆，禁止自动合并/改写历史。
 - 长期项目按主架构持续推进完整闭环；交接写真实完成/未验证/阻塞，不再以小步结束要求用户不断回复继续。

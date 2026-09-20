@@ -17,6 +17,10 @@ def validate_machine(value, packet, commands):
     rows=value.get('ratings')
     expected=dimensions(packet['policy'],packet['task'])
     if not isinstance(rows,dict) or set(rows)!=set(expected):raise ValueError('机器评分必须逐项覆盖冻结的评分维度。')
+    def contains(output,quote):
+        # Windows tool output uses CRLF; JSON judges commonly quote LF. Only
+        # normalize line terminators, never punctuation, whitespace or meaning.
+        return quote.replace('\r\n','\n').replace('\r','\n') in output.replace('\r\n','\n').replace('\r','\n')
     def evidence(items):
         if not isinstance(items,list) or len(items)>20:raise ValueError('评分引用格式无效。')
         verified=[]
@@ -32,11 +36,11 @@ def validate_machine(value, packet, commands):
             elif 'command' in item:
                 command=item['command']
                 if not isinstance(command,str) or not command.strip():raise ValueError('命令引用无效。')
-                match=next((c for c in commands if command in c['command'] and quote in c['output']),None)
+                match=next((c for c in commands if command in c['command'] and contains(c['output'],quote)),None)
                 if match is None:raise ValueError('机器评分引用的执行记录不存在。')
                 verified.append({'commandId':match['id'],'command':match['command'],'exitCode':match['exitCode'],'quote':quote})
             elif 'checkId' in item:
-                match=next((c for c in packet['checks'] if c['id']==item['checkId'] and quote in c.get('output','')),None)
+                match=next((c for c in packet['checks'] if c['id']==item['checkId'] and contains(c.get('output',''),quote)),None)
                 if match is None:raise ValueError('机器评分引用的检查记录不存在。')
                 verified.append({'checkId':match['id'],'status':match['status'],'quote':quote})
             else:raise ValueError('评分必须引用文件、执行记录或检查。')

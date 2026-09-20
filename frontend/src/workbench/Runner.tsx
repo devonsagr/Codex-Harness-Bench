@@ -1,3 +1,4 @@
+import {UsageChart} from './AssessmentCharts';
 import {MachineScore} from './MachineScore';
 import {CodexApply} from './Codex';
 import {EvaluationMetrics} from './Scoring';
@@ -5,7 +6,7 @@ import {ObjectivePlan,RatingGuide} from './ScorePlan';
 import {ObjectiveReview} from './ObjectiveReview';
 import {useState,useId} from 'react';
 import type {State,Act,Run,Trial,Task,Config,Capture,Review,CriterionReview} from './types';
-import {Field,Panel,Details,Empty,Json,labels,num,date,ScoreSlider,Dialog} from './ui';
+import {Field,Panel,Details,Empty,Json,labels,num,date,ScoreSlider,Dialog,ModelSelect} from './ui';
 import {request,downloadRun} from './api';
 import {ContractView,verdicts,ReviewItems} from './Contracts';
 export {Prepare} from './Prepare';
@@ -35,7 +36,10 @@ function TrialView({run,trial:t,task,config,state,act,onError,archived}:{run:Run
       <Panel title="在 Codex 执行"><div className="run-actions"><button className="btn-primary" disabled={archived||busy} onClick={()=>void action('open',{draft:t.stageIndex===0})}>{t.stageIndex===0?'新建 Codex 对话并预填':'打开 Codex 工作区'}</button><button className="btn-secondary" onClick={()=>void copy(prompt,'提示词')}>复制提示词</button><button className="btn-ghost" onClick={()=>setPreview('task')}>查看任务与提示词</button></div>
         {copied&&<p role="status" className="muted">{copied}</p>}
         <Details title="工作区与打开说明"><Field label="工作区路径"><input readOnly value={t.workspacePath}/></Field><button className="btn-secondary" onClick={()=>void copy(t.workspacePath,'路径')}>复制路径</button><p className="muted">目录已创建。首次打开需确认信任，核对模型与档位后手动发送；预填草稿不会自动执行。后续轮次沿用原对话，不保证已有侧栏分组归属。</p></Details>
-        <fieldset disabled={archived||busy} className="space-y-4">{['prepared','waiting_confirmation'].includes(t.state)?<><label className="check-row"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>已核对工作区、模型和推理档位</label><button className="btn-secondary" disabled={!confirmed} onClick={()=>void action('start',{settingsConfirmed:confirmed})}>记录本轮开始</button></>:<><Details title="附加本轮回复或说明（可选）"><Field label="本轮回复或说明"><textarea rows={3} value={response} onChange={e=>setResponse(e.target.value)} placeholder="交付说明、澄清或异常"/></Field></Details><div className="run-actions"><button className="btn-primary" onClick={()=>void action('capture',{response}).then(result=>{if(result){setResponse('');setTab('score');}})}>{latest?'再次回收产物':'回收产物'}</button>{next}</div><p className="muted">桌面停止写入后再回收；每次生成新快照，保留历史。</p></>}
+        <UsageChart usage={t.usage}/><fieldset disabled={archived||busy} className="space-y-4"><p role="status" className="muted">{t.telemetryStatus||'自动关联此工作区的 Codex 会话；无需回来点击开始。'}{t.usage?.activity==='running'?' · 桌面正在执行':t.usage?.activity==='completed'?' · 本轮回复已结束，可回收':''}</p>
+        <Details title="附加本轮回复或说明（可选）"><Field label="本轮回复或说明"><textarea rows={3} value={response} onChange={e=>setResponse(e.target.value)} placeholder="交付说明、澄清或异常"/></Field></Details><div className="run-actions"><button className="btn-primary" disabled={t.usage?.activity==='running'} onClick={()=>void action('capture',{response}).then(result=>{if(result){setResponse('');setTab('score');}})}>{latest?'再次回收产物':'回收产物'}</button>{next}</div>
+        {['prepared','waiting_confirmation'].includes(t.state)&&<Details title="无法关联会话时手动记录"><label className="check-row"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>已核对工作区、模型和推理档位</label><button className="btn-secondary" disabled={!confirmed} onClick={()=>void action('start',{settingsConfirmed:confirmed})}>手动标记开始（不影响用量统计）</button></Details>}
+
         <Details title="记录中断"><Field label="中断原因"><textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="额度不足、需要澄清或手工停止"/></Field><button disabled={!reason.trim()} className="btn-secondary" onClick={()=>void action('interrupt',{reason})}>保存中断记录</button><p className="muted">仅记录状态，不停止桌面 Codex。</p></Details></fieldset>
       </Panel>
     </section>
@@ -46,7 +50,7 @@ function TrialView({run,trial:t,task,config,state,act,onError,archived}:{run:Run
     <div className="flex gap-3 flex-wrap"><button className="btn-secondary" disabled={archived||busy||!latest.checksConfigured} onClick={()=>void action('check',{captureId:latest.id})}>检查此快照 ({latest.checksConfigured})</button>{busy&&<button className="btn-secondary" disabled={archived} onClick={()=>void action('stop')}>停止后台检查 / 审查</button>}</div>
     {!latest.checksConfigured&&<p className="muted">本阶段未配置脚本验收；可以人工复审，也可以由 AI 辅助定位问题。</p>}
     {latest.checks.map(c=><Details key={c.id} title={`${c.label} · ${labels[c.status]||c.status} · ${c.seconds}s`}><p className="muted">退出码 {c.exitCode??'未知'} · 镜像 {c.imageId}</p><pre className="source">{c.output||'没有输出'}</pre></Details>)}
-    <Details title="独立 AI 复审"><p className="muted">点击后使用所选模型额度，在 Harbor 容器运行 CLI 审查器。只审查封存的材料，结果归为辅助意见，不是桌面任务的分数或用量。意见必须引用实际文件与行。</p><Field label="审查模型"><input list="review-models" value={model} onChange={e=>setModel(e.target.value)}/><datalist id="review-models">{state.models.map(m=><option key={m.id} value={m.id}/>)}</datalist></Field><button disabled={archived||busy} className="btn-secondary" onClick={()=>void action('judge',{captureId:latest.id,model})}>使用模型额度启动复审</button></Details>
+    <Details title="独立 AI 复审"><p className="muted">点击后使用所选模型额度，在 Harbor 容器运行 CLI 审查器。只审查封存的材料，结果归为辅助意见，不是桌面任务的分数或用量。意见必须引用实际文件与行。</p><Field label="审查模型"><ModelSelect label="审查模型" value={model} onChange={setModel} models={state.models}/></Field><button disabled={archived||busy} className="btn-secondary" onClick={()=>void action('judge',{captureId:latest.id,model})}>使用模型额度启动复审</button></Details>
     <p className={['not_met','needs_review'].includes(t.score.acceptance.status)?'alert-error':'muted'}>必要条目验收：{verdicts[t.score.acceptance.status]} · {t.score.acceptance.met}/{t.score.acceptance.required} 项。此结论与数值分数分开。</p>
     <ObjectiveReview trial={t} act={data=>action('objective-review',data)} disabled={archived||busy}/>
     <ManualReview key={latest.id+'-'+t.reviews.filter(r=>r.captureId===latest.id&&r.kind==='human').slice(-1)[0]?.id} previous={t.reviews.filter(r=>r.captureId===latest.id&&r.kind==='human').slice(-1)[0]} capture={latest} config={config} task={task} requireEvidence={run.policy.requireDimensionEvidence} rubrics={run.policy.rubrics} dimensions={run.policy.rubrics?Object.fromEntries(Object.entries(run.policy.rubrics).filter(([k])=>run.policy.dimensions[k]>0).map(([k,v])=>[k,v.label])):state.dimensions} act={data=>action('review',data)} disabled={archived||busy}/>
@@ -55,11 +59,11 @@ function TrialView({run,trial:t,task,config,state,act,onError,archived}:{run:Run
     </section>
     <section role="tabpanel" id={tabId+'records-panel'} aria-labelledby={tabId+'records'} hidden={tab!=='records'} className="run-tab-panel space-y-5">
       {latest?<Evidence key={t.id} run={run} trial={t} onError={onError} disabled={archived||busy} check={captureId=>action('check',{captureId})}/>:<Empty>回收后可在这里查看文件和历史证据。</Empty>}
-      <Panel title="用量与过程" aside={<span className="muted">{t.usage?'已导入日志':'尚未导入日志'}</span>}>
-        {t.usage&&<dl className="run-stats"><div><dt>输入 Token</dt><dd>{num(t.usage.inputTokens)}</dd></div><div><dt>输出 Token</dt><dd>{num(t.usage.outputTokens)}</dd></div><div><dt>缓存输入</dt><dd>{num(t.usage.cacheReadTokens)}</dd></div><div><dt>缓存命中</dt><dd>{num(t.usage.cacheHitRate,'%')}</dd></div><div><dt>活动时长</dt><dd>{num(t.usage.activeSeconds,' 秒')}</dd></div></dl>}
+      <Panel title="用量与过程" aside={<span className="muted">{t.usage?'原生日志':'等待日志'}</span>}>
+        <UsageChart usage={t.usage}/>
         {t.observations.map(s=><p className="alert-error" key={s}>{s}</p>)}
         <Field label="导入本题 JSONL 日志"><input type="file" accept=".jsonl,.json" disabled={archived||busy} onChange={async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>15_000_000){onError('日志超过 15 MB。');return;}await action('trace',{raw:await f.text()});e.target.value='';}}/></Field>
-        <Details title="完整指标与日志说明"><EvaluationMetrics trial={t}/><p className="muted">核对日志的工作区与会话，读取最终累计用量，不扫描其他会话。未导入的用量和费用保持未知。</p>{t.usage&&<Json value={t.usage}/>}</Details>
+        <Details title="完整指标与日志说明"><EvaluationMetrics trial={t}/><p className="muted">核对日志的工作区与会话，读取最终累计用量，不扫描其他会话。未获取的用量和费用保持未知。</p>{t.usage&&<Json value={t.usage}/>}</Details>
       </Panel>
       <Details title="冻结条件与配置副本"><p className="muted break-all">{run.id} · {t.id}</p><Json value={{mode:run.executionMode,policy:run.policy,hostFingerprint:run.hostFingerprint}}/><p className="muted">宿主指纹只覆盖已记录文件，不代表全局技能和插件完全隔离。</p><pre className="source">{config.agentsPrompt}</pre><Json value={config}/><button className="btn-secondary" disabled={archived||busy} onClick={()=>void act(`/runs/${run.id}/restore-config`,{configId:config.id}).catch(()=>{})}>恢复为新的配置副本</button></Details>
       <Details title={`活动记录 · ${run.events.length} 条`}><ol className="space-y-3">{[...run.events].reverse().map((e,i)=><li className="text-sm" key={i}><time className="muted mr-3">{date(e.at)}</time>{e.message}</li>)}</ol></Details>

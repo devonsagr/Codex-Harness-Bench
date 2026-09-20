@@ -51,7 +51,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
     baseline/                        # 起点 + 本次实际规则/技能
     captures/<capture-id>/files/      # 回收证据
     traces/<trace-id>.jsonl           # 私有原始日志
-    reviews/job-.../                  # Harbor 审查材料与产物
+    reviews/job-.../                  # 本机/Harbor 审查材料与产物
 ```
 
 恢复归档只改可见性；恢复历史配置创建新配置；计划中的“按历史条件新建评测”创建新 Run/Trial。三者均不直接覆盖原工作区。当前没有 ZIP 导入恢复协议，导出 ZIP 也不是已经实现的可移植全量备份。
@@ -64,7 +64,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 - `/api/` 读取要求 X-CHB-Token；写入再要求匹配 Origin。首页 meta 注入随机令牌，不提供任意来源 CORS。
 - JSON 写入通常限制1 MB；trace 路由 HTTP 限制20 MB，原文限制15 MB。Content-Type 为 application/json。
 - 成功通常返回实体对象或操作结果，前端随后刷新 state；错误对象为 `{ "error": "说明" }`。现有错误主要是中文消息，没有稳定业务错误码，B05 要补可操作的分类。
-- 后台 check/judge 先返回含运行状态的 Run；App 在有后台操作时约1.8秒轮询 state。当前不是事件流，也没有独立分页任务列表。
+- 后台 check/judge 先返回含运行状态的 Run；App 在有后台操作或待启动/执行中的桌面试次时约1.8秒轮询 state；服务端原生日志发现节流5秒。当前不是事件流，也没有独立分页任务列表。
 
 ### 读取路由（前缀 /api/arena）
 
@@ -87,6 +87,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |/configs/import-preview|scope: global/project，project 带 path|规则/模型/档位及 importSource；不存数据库|
 |/configs/import-source|同预览，可带 expectedFiles|来源未变时创建 Config 副本|
 |/baselines/import|path、可选 name|冻结 Baseline|
+|/baselines/import-github|url、commit（完整40位SHA）、可选name|显式下载公开源码，返回含sourceUrl/sourceCommit/dependenciesReady=false的Baseline；不安装依赖|
 |/tasks/save|题目字段；编辑带 id/revision|新 revision 的 Task|
 |/tasks/import-originals|空对象|imported 数组；重复导入跳过已存在 ID|
 |/tasks/import-preview|document：题目对象/数组/版本题包|valid/tasks/errors/warnings/fingerprint；不写入数据库|
@@ -111,7 +112,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |review|captureId、scores、notes、readiness、constraints；v2加criteria、constraintNotes、revisionReason|只接受最新回收；条目集合必须完整，修订已有复审须原因；始终新建版本|
 |objective-review|captureId、evidenceKey、score(0–100或null撤回)、reason、evidence|最新回收且完整客观原分；拒绝后台运行和过期证据；追加人工裁定，不覆盖原分|
 |check|captureId|异步运行该快照适用检查；可选历史阶段快照|
-|judge|captureId、model|显式启动使用额度的 AI 复审|
+|judge|captureId、model、可选environment: local/docker|显式使用额度；旧API省略环境仍为docker，新机器评分UI默认local|
 |stop|{}|返回 stopping:true / desktopStopped:false|
 
 动作状态前提见 [执行合同](EXECUTION_AND_EVIDENCE.md)。接口列表不是统一保证所有动作在所有状态可调用。
@@ -196,4 +197,4 @@ Trial.objectiveReviews保存id/at/captureId/evidenceKey/score/reason/evidence/or
 
 U19：/codex/status活动回执在有变化时增加canPreserveChanges（只读预检）；/codex/restore增加可选preserveUnrelated:true，后端再次三方核对，不信任前端旧状态。/runs/:rid/trials/:tid/open接受draft:true，仅首轮使用服务端冻结的executionPrompts文本和本试次workspace生成codex://threads/new?path=...&prompt=...；不得由客户端传入任意目录/协议/命令。Windows调用注册协议，失败不回滚已准备工作区，不自动开始计时或发送任务。默认open旧目录方式继续兼容。
 
-机器方案 POST `/runs/{rid}/trials/{tid}/judge` 请求captureId/model，串联可用脚本与机器裁判；无脚本允许启动。POST同试次`/machine-correction`请求reviewId/evidenceKey/changes，changes为维度到{score,reason}的映射；拒绝后台运行、过期证据或无理由。返回Run，分数由score.machine/machineCoverage/machineRatings/machineOverrides/effectiveScores/overall派生。machine是原分（缺项时暂定）；overall含当前人工修正，缺项或未completed为null。程序结果和criteria不被修正覆盖。
+机器方案 POST `/runs/{rid}/trials/{tid}/judge` 请求captureId/model/environment，Docker串联可用脚本与机器裁判，本机跳过容器脚本；无脚本允许启动。POST同试次`/machine-correction`请求reviewId/evidenceKey/changes，changes为维度到{score,reason}的映射；拒绝后台运行、过期证据或无理由。返回Run，分数由score.machine/machineCoverage/machineRatings/machineOverrides/effectiveScores/overall派生。machine是原分（缺项时暂定）；overall含当前人工修正，缺项或未completed为null。程序结果和criteria不被修正覆盖。

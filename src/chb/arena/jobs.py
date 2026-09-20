@@ -23,9 +23,10 @@ def start_job(app,rid,tid,kind,data):
         if kind=='judge' and (not isinstance(data.get('model'),str) or not data['model'].strip() or len(data['model'])>100):
             raise ValueError('请选择裁判模型。')
         if kind=='check' and not applicable_checks(task,capture['stageIndex']):raise ValueError('当前阶段没有可执行检查；可人工复审或在题目新版本声明检查。')
+        if kind=='judge' and data.get('environment','docker') not in {'local','docker'}:raise ValueError('未知裁判环境。')
         state=trial['state'];trial['state']='checking' if kind=='check' else 'judging'
         trial.pop('lastJobError',None)
-        if kind=='check' or (run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex'])):
+        if kind=='check' or (data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex'])):
             capture.setdefault('checkAttempts',[]).append({'at':now(),'results':capture['checks']})
             capture['checks']=[]
         app.event(run,'开始执行隔离检查。' if kind=='check' else '开始独立 AI 审查（会使用模型额度）。',tid)
@@ -37,7 +38,7 @@ def start_job(app,rid,tid,kind,data):
             try:
                 if kind=='check':checks=run_checks(app,rid,tid,capture,task,control)
                 else:
-                    if run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex']):
+                    if data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex']):
                         try:capture['checks']=run_checks(app,rid,tid,capture,task,control)
                         except ValueError:
                             # A missing optional verifier image must not prevent an agent
@@ -167,7 +168,10 @@ def review_packet(app,rid,tid,capture,task):
         except UnicodeError:omitted.append(name);continue
         if len(value)>30000 or total+len(value)>100000:omitted.append(name);continue
         texts[name]=value;total+=len(value)
-    return {'task':task,'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
+    # Review the captured stage, even when the live trial has moved on.
+    task={**task,'stages':task.get('stages',[])[:capture['stageIndex']+1],
+          'promptSnapshots':task.get('promptSnapshots',[])[:capture['stageIndex']+1]}
+    return {'task':task,'stageIndex':capture['stageIndex'],'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
             'files':texts,'omittedFiles':omitted,'checks':capture['checks'],'facts':capture['facts']}
 
 
@@ -187,7 +191,7 @@ def validate_judge(value,packet):
 
 
 def run_judge(app,rid,tid,capture,task,data,control):
-    """Harbor owns the review Codex process and its isolated environment."""
+    """Review one frozen capture in a fixed native or Harbor environment."""
     import toml
     from harbor.job import Job
     from harbor.models.job.config import JobConfig
@@ -206,7 +210,8 @@ def run_judge(app,rid,tid,capture,task,data,control):
             except UnicodeError:pass
     model=data.get('model')
     if not isinstance(model,str) or not model or len(model)>100:raise ValueError('请选择审查模型。')
-    try:image=pin_image('chb-reviewer:machine-v1' if machine else 'chb-reviewer:codex-0.154.0')
+    local=data.get('environment','docker')=='local'
+    try:image='native-sandbox' if local else pin_image('chb-reviewer:machine-v1' if machine else 'chb-reviewer:codex-0.154.0')
     except (ValueError,OSError,subprocess.SubprocessError) as exc:
         raise ValueError('AI 审查环境未就绪。请确认 Docker 运行，并执行 scripts/prepare_arena_review.py 准备专用镜像。') from exc
     folder=app.local/'runs'/rid/tid/'reviews'/('job-'+uuid.uuid4().hex[:12])
@@ -231,7 +236,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
             '用浏览器的 DOM、交互前后状态、控制台和实测记录作为证据；需要视觉判断时查看截图，不凭代码猜视觉分。'
             '截图等材料保存到 /logs/artifacts/。检查项目需要的外部服务不可用、无法安装依赖或无法实际验证时，明确标未验证。'
             '没有任务专用脚本也要按需求主动检查。需求完成度优先；构建成功不代表业务成功。'
-            '逐条对照 task.criteria；没有细分条目时对照完整 inputPrompt 和 projectSpec，不编造新要求。'
+            '首先对照完整 inputPrompt 和截至当前轮已发送的 promptSnapshots。criteria 和 projectSpec 只能辅助解释，不能添加开发者未见过的强制要求；没有公开依据的条目标 unverified 并说明原因，不据此扣分。'
             '每个维度给0–100或null。0–39核心失败；40–59重大缺口；60–79主流程成立但有问题；80–94主要要求有验证；95–100全面且有复现证据。'
             '静态阅读标static，真实运行标runtime，缺证据标unverified并score:null。UX/性能必须runtime。'
             '每个非空分数、每个已判定需求必须引用文件的原文行，或实际执行命令及其输出原文，或已有checkId及其输出原文。'
@@ -241,35 +246,47 @@ def run_judge(app,rid,tid,capture,task,data,control):
             '"criteria":{"需求ID":{"status":"met|partial|unmet|unverified","notes":"依据","evidence":[{"path":"相对candidate的路径","line":1,"quote":"该行原文"}]}}}。'
             'ratings键必须恰好等于dimensions，criteria键必须恰好等于task.criteria的ID；无法验证也要列出。'
             '\n冻结材料：\n'+json.dumps(prompt_packet,ensure_ascii=False))
+    if local:
+        instruction=instruction.replace('/app/candidate','environment/candidate').replace('/tmp/chb-eval','scratch').replace('/logs/artifacts/','artifacts/')
+        instruction=instruction.replace('可用 Node require("playwright") 的 Chromium（launch 时 args:["--no-sandbox"]），Python3、npm、pnpm。',
+            '这是本机原生沙箱；先探测实际可用的 Python、Node 和浏览器工具，不假定已安装。可在 scratch 用 npm install --cache ./npm-cache playwright 安装浏览器工具；Windows 可探测系统 Edge（Playwright channel: msedge），无现成浏览器才在本目录安装 Chromium。使用浏览器默认沙箱，禁止 --no-sandbox。服务器仅绑定 127.0.0.1 并由系统分配空闲端口，不使用工作台的 8765/8877。临时文件、浏览器配置及依赖仅放在本次审查目录；截图取证后必须结束服务器和浏览器。不可请求提权或关闭沙箱；被拒绝的操作标为未验证，不绕过限制。')
+        instruction+='\n仅在当前审查目录内取证。不要进入父目录、个人目录或其他任务。原始快照不在可写目录内。'
     (source/'instruction.md').write_text(instruction,encoding='utf-8')
     timeout=480 if machine else 180
-    definition={'schema_version':'1.4','metadata':{'name':'arena-review'},'agent':{'timeout_sec':timeout,'network_mode':'allowlist','allowed_hosts':['chatgpt.com','*.openai.com']+(['registry.npmjs.org','pypi.org','files.pythonhosted.org'] if machine else [])},
-                'environment':{'docker_image':image,'network_mode':'public','workdir':'/app','cpus':2,'memory_mb':2048},'verifier':{'timeout_sec':10}}
-    (source/'task.toml').write_text(toml.dumps(definition),encoding='utf-8')
-    (source/'tests').mkdir();(source/'tests/test.sh').write_text('#!/bin/sh\nmkdir -p /logs/verifier\nprintf "0\\n" > /logs/verifier/reward.txt\n',encoding='utf-8')
-    # Reward is irrelevant to this reviewer. Never publish it as task acceptance.
-    auth=Path.home()/'.codex/auth.json'
-    # This reviewer uses the signed-in account directly. Never inherit the desktop
-    # tool process's loopback gateway: inside Docker it addresses the container.
-    review_env={'OPENAI_BASE_URL':''}
-    if auth.is_file():review_env['CODEX_AUTH_JSON_PATH']=str(auth)
-    cfg=JobConfig.model_validate({'job_name':'review','jobs_dir':str(folder/'harbor'),'quiet':True,'n_concurrent_trials':1,'n_attempts':1,
-          'retry':{'max_retries':0},'agents':[{'name':'codex','model_name':model if '/' in model else 'openai/'+model,
-          'kwargs':{'version':CODEX_VERSION,'reasoning_effort':'low','web_search':'disabled'},'env':review_env,'override_timeout_sec':timeout}],
-          'tasks':[{'path':str(source)}],'environment':{'type':'docker','delete':True}})
-    async def execute():
-        job=await Job.create(cfg)
-        future=asyncio.create_task(job.run())
-        try:
-            while not future.done():
-                if control['stop'].is_set():future.cancel();break
-                await asyncio.sleep(.25)
-            await future
-        except asyncio.CancelledError:
-            raise ValueError('已取消 AI 审查；Harbor 正在释放本次环境。')
-    asyncio.run(execute())
+    if local:
+        from .local_review import execute_local
+        event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout)
+        image='native-sandbox:'+CODEX_VERSION
+        logs=[event_file]
+    else:
+        definition={'schema_version':'1.4','metadata':{'name':'arena-review'},'agent':{'timeout_sec':timeout,'network_mode':'allowlist','allowed_hosts':['chatgpt.com','*.openai.com']+(['registry.npmjs.org','pypi.org','files.pythonhosted.org'] if machine else [])},
+                    'environment':{'docker_image':image,'network_mode':'public','workdir':'/app','cpus':2,'memory_mb':2048},'verifier':{'timeout_sec':10}}
+        (source/'task.toml').write_text(toml.dumps(definition),encoding='utf-8')
+        (source/'tests').mkdir();(source/'tests/test.sh').write_text('#!/bin/sh\nmkdir -p /logs/verifier\nprintf "0\\n" > /logs/verifier/reward.txt\n',encoding='utf-8')
+        # Reward is irrelevant to this reviewer. Never publish it as task acceptance.
+        auth=Path.home()/'.codex/auth.json'
+        # This reviewer uses the signed-in account directly. Never inherit the desktop
+        # tool process's loopback gateway: inside Docker it addresses the container.
+        review_env={'OPENAI_BASE_URL':''}
+        if auth.is_file():review_env['CODEX_AUTH_JSON_PATH']=str(auth)
+        cfg=JobConfig.model_validate({'job_name':'review','jobs_dir':str(folder/'harbor'),'quiet':True,'n_concurrent_trials':1,'n_attempts':1,
+              'retry':{'max_retries':0},'agents':[{'name':'codex','model_name':model if '/' in model else 'openai/'+model,
+              'kwargs':{'version':CODEX_VERSION,'reasoning_effort':'low','web_search':'disabled'},'env':review_env,'override_timeout_sec':timeout}],
+              'tasks':[{'path':str(source)}],'environment':{'type':'docker','delete':True}})
+        async def execute():
+            job=await Job.create(cfg)
+            future=asyncio.create_task(job.run())
+            try:
+                while not future.done():
+                    if control['stop'].is_set():future.cancel();break
+                    await asyncio.sleep(.25)
+                await future
+            except asyncio.CancelledError:
+                raise ValueError('已取消 AI 审查；Harbor 正在释放本次环境。')
+        asyncio.run(execute())
+        logs=list((folder/'harbor').glob('**/agent/codex.txt'))
     outputs=[];diagnostics=[];commands=[]
-    for file in (folder/'harbor').glob('**/agent/codex.txt'):
+    for file in logs:
         for line in file.read_text(encoding='utf-8',errors='replace').splitlines():
             try:event=json.loads(line)
             except ValueError:continue
@@ -281,6 +298,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
                 commands.append({'id':str(item.get('id',len(commands))),'command':str(item.get('command',''))[:16000],
                                  'output':str(item.get('aggregated_output',''))[:60000],'exitCode':item.get('exit_code')})
             if event.get('type')=='error' or item.get('type')=='error':diagnostics.append(str(event))
+    if local:outputs=[local_answer]
     if not outputs:
         detail=' '.join(diagnostics).lower()
         if any(word in detail for word in ('usage_limit','quota','insufficient_quota')):reason='模型额度不足'
@@ -298,4 +316,4 @@ def run_judge(app,rid,tid,capture,task,data,control):
             result.update(validate_machine(value,packet,commands))
             verify_snapshot(frozen,capture['manifest'])
     except (ValueError,TypeError,KeyError) as exc:raise ValueError('AI 审查结果格式或引用无效，已保留原始记录，未产生评分。') from exc
-    return {**result,'model':model,'reasoningEffort':'low','executionMode':'cli-review-only','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}
+    return {**result,'model':model,'reasoningEffort':'low','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}

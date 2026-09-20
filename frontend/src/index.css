@@ -272,3 +272,24 @@ input[type=range]:focus-visible { outline:2px solid #71717a;outline-offset:2px;b
 .dark .run-warning,.dark .run-status-warning { color:#fcd34d; }
 .work-dialog .codex-apply { border:0;margin:0;padding:0; }
 @media(max-width:600px){.trial-heading{flex-direction:column;gap:.75rem;}.config-apply-entry{justify-content:flex-start;max-width:none;}.run-toolbar>.muted{order:3;width:100%;}.run-tabs{gap:1rem;}.run-warning{align-items:start;}.run-stats{gap:1rem 2rem;}.machine-rating{gap:.5rem;}.rating-actions{gap:.5rem;}.score-rules dt{flex-wrap:wrap;gap:.25rem;}}
+
+.score-overview { display:flex;align-items:center;gap:2.5rem;padding:1rem 0;flex-wrap:wrap; }
+.score-ring { display:flex;align-items:center;gap:1.25rem; }
+.score-ring svg { width:8rem;height:8rem;flex-shrink:0; }
+.score-ring circle { fill:none;stroke-width:7; }
+.ring-track { stroke:#e2e8f0; }
+.ring-value { stroke:#2563eb;stroke-linecap:round; }
+.score-ring text { fill:currentColor;font-size:26px;font-weight:650;font-variant-numeric:tabular-nums; }
+.score-bar { display:block;height:6px;max-width:25rem;background:#e2e8f0;border-radius:6px;margin:.625rem 0;overflow:hidden; }
+.score-bar>span { display:block;height:100%;background:#2563eb; }
+.usage-chart { padding:1rem 0; }
+.usage-headline { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem; }
+.usage-headline strong { display:block;font-size:1.15rem;margin-top:.375rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere; }
+.token-composition { height:12px;overflow:hidden;border-radius:4px;background:#cbd5e1;margin:1rem 0 .75rem; }
+.token-composition>span { display:block;height:100%;background:#2563eb; }
+.token-legend { display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;font-size:.8125rem;margin-bottom:.625rem; }
+.token-legend i { display:inline-block;width:8px;height:8px;background:#2563eb;margin-right:.5rem;border-radius:2px; }
+.token-legend span+span i { background:#cbd5e1; }
+.dark .ring-track { stroke:#3f3f46; }
+.dark .score-bar { background:#3f3f46; }
+@media(max-width:600px){.usage-headline{grid-template-columns:repeat(2,minmax(0,1fr));}.score-overview{gap:1rem;}.score-ring svg{width:6rem;height:6rem;}.score-ring{gap:.75rem;}}

@@ -60,7 +60,8 @@ class ContractTests(unittest.TestCase):
         run=self.prepare(definition)
         for snapshot in run['tasks'][0]['promptSnapshots']:
             for value in ['新增任务','POST /tasks','Task: id, title','刷新恢复','SQLite persistence','错误反馈']:
-                self.assertIn(value,snapshot['text'])
+                self.assertNotIn(value,snapshot['text'])
+            self.assertIn('Build a task board',snapshot['text'])
             self.assertEqual(hashlib.sha256(snapshot['text'].encode()).hexdigest(),snapshot['sha256'])
         old=copy.deepcopy(run['tasks'])
         task=self.app.db.get('task',old[0]['id']);task['projectSpec']['userStories']=['Changed requirement'];self.app.save_task(task)

@@ -16,6 +16,9 @@ from .contracts import task_view
 
 def post(app,route,data):
     parts=route.removeprefix('/api/arena/').split('/')
+    if parts==['baselines','import-github']:
+        from .repository_source import import_repository
+        return import_repository(app,data)
     with app.lock:
         if parts==['configs','save']:return app.save_config(data)
         if parts==['codex','status']:return codex_apply.status(app)
