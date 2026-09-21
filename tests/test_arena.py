@@ -167,6 +167,61 @@ class ArenaTests(unittest.TestCase):
         self.assertFalse((workspace/'solution').exists());self.assertFalse((workspace/'tests/verify.py').exists())
         self.assertTrue(t['checks']);self.assertEqual(t['license'],'MIT')
 
+    def test_bundled_tasks_install_on_startup_preserving_archives_and_edits(self):
+        shutil.copytree(ROOT/'tasks',self.root/'tasks')
+        restarted=Arena(self.root)
+        original=restarted.db.get('task','original-search-notes-v1')
+        self.assertTrue(original['baselineId'])
+        original=restarted.save_task({**original,'title':'User edited title'})
+        restarted.db.archive('task',original['id'],True,original['revision'])
+        again=Arena(self.root)
+        saved=again.db.get('task',original['id'])
+        self.assertTrue(saved['archived']);self.assertEqual(saved['title'],'User edited title')
+        self.assertEqual(len(again.db.list('baseline')),3)
+
+    def test_bundled_repair_workspace_contains_executable_project_and_constraints(self):
+        import subprocess,sys
+        shutil.copytree(ROOT/'tasks',self.root/'tasks')
+        self.app=Arena(self.root)
+        for name in ['search-notes-v1','csv-catalog-v1']:
+            task=self.app.db.get('task','original-'+name)
+            run=self.prepare(requestId=name,taskIds=[task['id']])
+            workspace=Path(run['trials'][0]['workspacePath'])
+            source=ROOT/'tasks'/name/'environment/fixture'
+            for path in source.rglob('*'):
+                if path.is_file() and '__pycache__' not in path.parts:
+                    self.assertEqual((workspace/path.relative_to(source)).read_bytes(),path.read_bytes())
+            self.assertFalse((workspace/'solution').exists());self.assertFalse((workspace/'tests/verify.py').exists())
+            self.assertIn('AGENTS.override.md',run['trials'][0]['baseline']['files'])
+            result=subprocess.run([sys.executable,'-m','unittest','discover','-s','tests','-v'],cwd=workspace,capture_output=True,text=True,timeout=15)
+            self.assertEqual(result.returncode,0,result.stderr)
+            # Existing regressions run; this does not mean the intentionally buggy starting project is fixed.
+            if name=='search-notes-v1':
+                proof=subprocess.run([sys.executable,'-c',"from notes import search_notes; assert search_notes([{'title':'APPLE'}], 'apple') == []"],cwd=workspace,capture_output=True,timeout=10)
+                self.assertEqual(proof.returncode,0)
+
+    def test_delete_config_keeps_run_snapshot_and_can_restore(self):
+        run=self.prepare()
+        original=self.app.db.get('config','minimal')
+        archived=post(self.app,'/api/arena/configs/minimal/archive',{'revision':original['revision'],'archived':True})
+        self.assertFalse(any(c['id']=='minimal' for c in self.app.state()['configs']))
+        self.assertEqual(self.app.db.get('run',run['id'])['configs'][0]['agentsPrompt'],original['agentsPrompt'])
+        with self.assertRaisesRegex(ValueError,'归档'):self.prepare(requestId='deleted')
+        restored=post(self.app,'/api/arena/configs/minimal/archive',{'revision':archived['revision'],'archived':False})
+        self.assertFalse(restored['archived'])
+        self.assertTrue(any(c['id']=='minimal' for c in self.app.state()['configs']))
+
+    def test_refactoring_task_requires_source_even_when_classified_as_project(self):
+        from chb.arena.contracts import task_view
+        for patch in [{'id':'perf-01-props-to-signals'}, {'id':'custom-refactor','requiresBaseline':True}]:
+            task={**self.task,**patch,'taskParadigm':'open-ended-project'}
+            task.pop('baselineId',None);task.pop('revision',None)
+            if 'requiresBaseline' not in patch:task.pop('requiresBaseline',None)
+            saved=self.app.db.save('task',task)
+            self.assertTrue(task_view(saved)['requiresBaseline'])
+            with self.assertRaisesRegex(ValueError,'项目源码'):
+                self.prepare(requestId=patch['id'],taskIds=[saved['id']])
+
     def test_prior_stage_can_be_checked_without_changing_active_stage(self):
         task=self.app.db.get('task',self.task['id'])
         task['checks']=[{'label':'first','image':'qa:first','argv':['true'],'stageIndex':0}];self.app.save_task(task)

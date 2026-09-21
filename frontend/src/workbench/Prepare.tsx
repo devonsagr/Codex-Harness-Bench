@@ -3,6 +3,7 @@ import {useRef,useState} from 'react';
 import type {State,Act,Run,Config} from './types';
 import {Field,Panel,Details,Empty,Dialog} from './ui';
 import {ContractView,TaskFilters,matchTask} from './Contracts';
+import {TaskEnvironment,canStartTask,needsBaseline} from './TaskEnvironment';
 import {SkillPicker} from './Skills';
 
 type Selection={revision:number;skills:string[];skillMode:'auto'|'explicit'};
@@ -13,6 +14,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const initial=state.tasks.find(t=>t.id===selectedTaskId);
   const [taskIds,setTasks]=useState<string[]>(initial?[initial.id]:[]);
   const [paradigm,setParadigm]=useState(initial?.taskParadigm||'open-ended-project');const [query,setQuery]=useState('');
+  const [showPending,setShowPending]=useState(false);
   const [deliveryMode,setDeliveryMode]=useState('single-delivery');
   const [openDraft,setOpenDraft]=useState(true);const [compare,setCompare]=useState(false);const [batch,setBatch]=useState(false);
   const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
@@ -26,7 +28,9 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const [preview,setPreview]=useState<Config|null>(null);
   const stale=configs.some(c=>effective(c).revision!==c.revision);
   const invalid=configs.some(c=>{const ids=effective(c).skills;return ids.length>30||new Set(state.skills.filter(s=>ids.includes(s.id)).map(s=>s.name.toLowerCase())).size!==ids.length;});
-  const tasks=state.tasks.filter(t=>matchTask(t,paradigm,query,channel,difficulty));
+  const matches=state.tasks.filter(t=>matchTask(t,paradigm,query,channel,difficulty));
+  const pendingTasks=matches.filter(t=>!canStartTask(t,state.baselines));
+  const tasks=matches.filter(t=>showPending?!canStartTask(t,state.baselines):canStartTask(t,state.baselines));
   const selected=state.tasks.filter(t=>taskIds.includes(t.id));
   const pending=useRef<{payload:string;requestId:string}|null>(null);
   const create=async()=>{
@@ -38,19 +42,21 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
     <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选择题目'],['config','配置与 Skills'],['scoring','评分方案']] as const).map(([id,label])=><span aria-current={pane===id?'step':undefined} className={pane===id?'selected':''} key={id}>{['tasks','config','scoring'].indexOf(id)+1}. {label}</span>)}<span className="muted">已选 {taskIds.length} 道题 · {configs.length} 套配置</span></nav>
     <div className="prepare-grid">
       <div className="prepare-tasks" hidden={pane!=='tasks'}><Panel title="选择题目" aside={<label className="check-row"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>批量选择</label>}>
-        <div className="grid sm:grid-cols-2 gap-3"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);}}><option value="open-ended-project">项目构建</option><option value="deterministic-bugfix">Bug 修复</option></select><input aria-label="搜索评测题目" placeholder="搜索需求或题目" value={query} onChange={e=>setQuery(e.target.value)}/></div>
+        <div className="grid sm:grid-cols-2 gap-3"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);setShowPending(false);}}><option value="open-ended-project">项目构建</option><option value="deterministic-bugfix">Bug 修复</option></select><input aria-label="搜索评测题目" placeholder="搜索需求或题目" value={query} onChange={e=>setQuery(e.target.value)}/></div>
         <TaskFilters channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/>
-        <div className="prepare-task-list">{tasks.map(t=><label key={t.id} className={'list-card '+(taskIds.includes(t.id)?'selected':'')}><div className="flex items-start gap-3"><input className="mt-1" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id])}/><strong>{t.title}</strong></div><span>{t.difficulty} · {t.checks.length} 项检查</span><small>{t.baselineId?'已导入源码起点':t.taskParadigm==='deterministic-bugfix'?'缺少源码 · 暂不可开始':'空目录构建 · 无预装依赖'} · {t.hasFrontendUI?'含界面':'工程或文档'}</small></label>)}</div>
+        <div className="catalog-switch"><button type="button" className={!showPending?'active':''} onClick={()=>setShowPending(false)}>可开始 · {matches.length-pendingTasks.length}</button><button type="button" className={showPending?'active':''} onClick={()=>setShowPending(true)}>待补全题面 · {pendingTasks.length}</button></div>
+        <div className="task-browser"><div><div className="prepare-task-list">{tasks.map(t=><label key={t.id} className={'list-card '+(taskIds.includes(t.id)?'selected':'')}><div className="flex items-start gap-3"><input className="mt-1" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id])}/><strong>{t.title}</strong></div><span>{t.difficulty} · {t.sourceKind==='repository-original'?'内置题包':t.hasFrontendUI?'含界面':'工程或文档'}</span><small>{t.baselineId?'源码自动复制':needsBaseline(t)?'缺少源码 · 暂不可开始':'从零构建'}</small></label>)}</div>
         {!tasks.length&&<Empty>没有符合筛选的题目。</Empty>}
-        <Field label="交付方式"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="single-delivery">完整需求 · 不限定对话轮数</option><option value="staged">按题目预设步骤分阶段（可选）</option></select></Field>
+        </div><aside className="task-preview">{selected.length?selected.map(t=><section key={t.id}><h3>{t.title}</h3><TaskEnvironment task={t} baselines={state.baselines}/><Details title="完整需求"><p className="reading-copy task-prompt">{t.inputPrompt}</p><ContractView task={t}/></Details></section>):<div className="preview-empty"><h3>选择一道题</h3><p>在这里查看需求、源码和运行条件。</p></div>}</aside></div>
+        <div className="delivery-row"><Field label="交付方式"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="single-delivery">完整需求 · 不限定对话轮数</option><option value="staged">按题目预设步骤分阶段（可选）</option></select></Field>
         <p className="muted">{deliveryMode==='single-delivery'?'一次提供全部需求。由模型和你的配置决定实施过程，完成后回收评分。':'只有需要分步实验时选用。每步提示词需在原对话发送，也可以提前结束并评估整题。'}</p>
-        {selected.map(t=><Details key={t.id} title={'题目详情：'+t.title}><pre className="source">{t.inputPrompt}</pre><ContractView task={t}/></Details>)}
+        </div>
 
       </Panel></div>
       <section className="prepare-session panel" aria-label="本次评测设置" hidden={pane==='tasks'}>
         <div className="prepare-session-heading"><h2 className="font-semibold">本次评测</h2><p className="muted prepare-selection" title={selected.map(t=>t.title).join('、')}>{selected.length?selected.map(t=>t.title).join('、'):'先选择一道题目'}</p></div>
         <div className="prepare-controls space-y-4">
-          <div hidden={pane!=='config'} className="space-y-4">
+          <div hidden={pane!=='config'} className="preparation-config-grid">
           <div className="config-select-row"><Field label="使用配置"><select value={configIds[0]||''} onChange={e=>{setConfigs([e.target.value,...configIds.slice(1).filter(id=>id!==e.target.value)]);setEditId(e.target.value);}}><option value="" disabled>选择已有配置</option>{state.configs.map(c=><option value={c.id} key={c.id}>{c.name} · v{c.revision}</option>)}</select></Field><button type="button" className="btn-secondary" disabled={!configs[0]} onClick={()=>setPreview(configs[0])}>预览配置</button></div>
           <label className="check-row"><input type="checkbox" checked={compare} onChange={e=>{setCompare(e.target.checked);setConfigs(configIds.slice(0,1));}}/>与另一套配置对比</label>
           {compare&&<div className="config-select-row"><Field label="对比配置"><select value={configIds[1]||''} onChange={e=>setConfigs([configIds[0],e.target.value])}><option value="" disabled>选择另一套配置</option>{state.configs.filter(c=>c.id!==configIds[0]).map(c=><option value={c.id} key={c.id}>{c.name} · v{c.revision}</option>)}</select></Field><button type="button" className="btn-secondary" disabled={!configs[1]} onClick={()=>setPreview(configs[1])}>预览对比配置</button></div>}
@@ -72,7 +78,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
         {stale&&<p role="alert" className="alert-error">原配置已更新，请恢复配置默认后重新核对。</p>}
         <div className="prepare-footer-row"><span className="muted">{configs.length} 套配置 · {taskIds.length} 道题</span><div className="prepare-footer-buttons">
           {pane!=='tasks'&&<button type="button" className="btn-secondary" onClick={()=>setPane(pane==='scoring'?'config':'tasks')}>上一步</button>}
-          {pane==='tasks'?<button type="button" className="btn-primary" disabled={!taskIds.length||selected.some(t=>t.taskParadigm==='deterministic-bugfix'&&!t.baselineId)} onClick={()=>setPane('config')}>下一步：配置与 Skills</button>:pane==='config'?<button type="button" className="btn-primary" disabled={!configs.length||invalid||stale||(compare&&configs.length!==2)} onClick={()=>setPane('scoring')}>下一步：评分方案</button>:<button type="button" className="btn-primary" disabled={!taskIds.length||!configs.length||invalid||stale||(policy.objectiveWeight>0&&selected.some(t=>!t.checks.length))||!validPercentPolicy(policy)||(compare&&configs.length!==2)} onClick={()=>void create()}>创建评测工作区</button>}
+          {pane==='tasks'?<button type="button" className="btn-primary" disabled={!taskIds.length||selected.some(t=>!canStartTask(t,state.baselines))} onClick={()=>setPane('config')}>下一步：配置与 Skills</button>:pane==='config'?<button type="button" className="btn-primary" disabled={!configs.length||invalid||stale||(compare&&configs.length!==2)} onClick={()=>setPane('scoring')}>下一步：评分方案</button>:<button type="button" className="btn-primary" disabled={!taskIds.length||!configs.length||invalid||stale||(policy.objectiveWeight>0&&selected.some(t=>!t.checks.length))||!validPercentPolicy(policy)||(compare&&configs.length!==2)} onClick={()=>void create()}>创建评测工作区</button>}
         </div></div>
       </footer>
       <Dialog title={preview?preview.name+' · v'+preview.revision:'配置预览'} open={!!preview} onClose={()=>setPreview(null)}>{preview&&<div className="space-y-4"><dl className="config-facts"><dt>模型</dt><dd>{preview.baseModel}</dd><dt>推理档位</dt><dd>{preview.reasoning}</dd><dt>交互</dt><dd>{preview.interactiveMode}</dd><dt>Skills</dt><dd>{preview.skills.map(id=>state.skills.find(s=>s.id===id)?.name||'不可用').join('、')||'未选择'}</dd></dl><h3>规则正文</h3><pre className="source">{preview.agentsPrompt||'未附加规则'}</pre><h3>原生设置与工具开关</h3><pre className="source">{JSON.stringify({settings:preview.nativeSettings||{},tools:preview.integrations||{}},null,2)}</pre>{preview.customConstraints.filter(c=>c.isActive).map(c=><p key={c.id}>{c.title}：{c.ruleDesc}</p>)}</div>}</Dialog>

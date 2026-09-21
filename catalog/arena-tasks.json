@@ -1634,6 +1634,7 @@
   },
   {
     "id": "perf-01-props-to-signals",
+    "requiresBaseline": true,
     "channel": "architecture-constraint",
     "title": "大型表单深层 Props 钻取重构为细粒度 Signals 状态总线",
     "difficulty": "Medium",
