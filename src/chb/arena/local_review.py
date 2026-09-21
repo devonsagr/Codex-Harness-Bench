@@ -26,11 +26,12 @@ def codex_executable():
 
 
 @contextmanager
-def review_workspace():
+def review_workspace(parent=None):
     # Python's private 0700 temp directories deny Windows restricted tokens even
     # after Codex grants its capability. A normal new project directory inherits
     # its parent's ACL; credentials remain in a separate private temp directory.
-    parent=Path(tempfile.gettempdir()).resolve()
+    parent=Path(parent or tempfile.gettempdir()).resolve()
+    parent.mkdir(parents=True,exist_ok=True)
     root=parent/('chb-review-work-'+uuid.uuid4().hex)
     root.mkdir()
     try:yield root
@@ -99,7 +100,7 @@ class ProcessTree:
         self.process.wait(timeout=10)
 
 
-def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='max'):
+def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='max',runtime_root=None):
     executable=codex_executable()
     if not executable:raise ValueError('本机未安装 Codex CLI。请安装并登录后使用本机裁判，或选择 Docker 裁判。')
     auth=codex_home()/'auth.json'
@@ -107,7 +108,8 @@ def execute_local(folder,source,instruction,model,packet,control,timeout,reasoni
     version=subprocess.run([executable,'--version'],capture_output=True,text=True,timeout=10,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)).stdout.strip()
     log=folder/'events.jsonl'
     # A short scratch path also avoids native Windows shell path-length/cwd issues.
-    with review_workspace() as work, tempfile.TemporaryDirectory(prefix='chb-review-home-') as temp_home:
+    if runtime_root is not None:Path(runtime_root).mkdir(parents=True,exist_ok=True)
+    with review_workspace(runtime_root) as work, tempfile.TemporaryDirectory(prefix='chb-review-home-',dir=runtime_root) as temp_home:
         work=str(Path(work).resolve());temp_home=str(Path(temp_home).resolve())
         source=Path(work)/'task'
         shutil.copytree(folder/'task',source)

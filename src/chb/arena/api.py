@@ -16,6 +16,15 @@ from .contracts import task_view
 
 def post(app,route,data):
     parts=route.removeprefix('/api/arena/').split('/')
+    if parts==['sources','prepare']:
+        from .public_sources import start
+        return start(app,data)
+    if parts==['storage','status']:
+        from .storage import status
+        return status(app)
+    if parts==['storage','workspace']:
+        from .storage import workspace
+        return workspace(app,data)
     if parts==['baselines','import-github']:
         from .repository_source import import_repository
         return import_repository(app,data)

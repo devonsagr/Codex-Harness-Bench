@@ -291,7 +291,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
     timeout=480 if machine else 180
     if local:
         from .local_review import execute_local
-        event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout,reasoning)
+        event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout,reasoning,runtime_root=app.local/'reviewer-runtime')
         image='native-sandbox:'+CODEX_VERSION
         logs=[event_file]
     else:

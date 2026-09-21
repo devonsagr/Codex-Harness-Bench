@@ -2,8 +2,9 @@ import {useEffect,useRef,useState} from 'react';
 import {ReadingSettings} from '../workbench/ReadingSettings';
 import {Activity, ArrowUpRight, BookOpen, Clock3, Database, FlaskConical, Menu, Moon, SlidersHorizontal, Sun, X} from 'lucide-react';
 
-export type ArenaTab = 'workbench' | 'history' | 'tasks' | 'configs' | 'leaderboard' | 'spec';
+export type ArenaTab = 'workbench' | 'history' | 'tasks' | 'configs' | 'leaderboard' | 'spec' | 'storage';
 export const arenaPages:Record<ArenaTab,{label:string;description:string}>={
+  storage:{label:'数据与存储',description:'查看源码、产物与复查，按范围清理。'},
   workbench:{label:'评测工作台',description:'让每一次配置改动，都有交付作为依据。'},
   history:{label:'评测历史',description:'回到当时的配置、产物与评分。'},
   tasks:{label:'题库中心',description:'选择真实任务，确认源码起点和运行条件。'},
@@ -11,7 +12,7 @@ export const arenaPages:Record<ArenaTab,{label:string;description:string}>={
   leaderboard:{label:'同条件结果',description:'在相同条件下，看清配置之间的差异。'},
   spec:{label:'原理与规范',description:'了解评测对象、证据和评分方法。'},
 };
-const tabs=[{id:'workbench',icon:FlaskConical},{id:'history',icon:Clock3},{id:'tasks',icon:Database},{id:'configs',icon:SlidersHorizontal},{id:'leaderboard',icon:Activity},{id:'spec',icon:BookOpen}] as const;
+const tabs=[{id:'workbench',icon:FlaskConical},{id:'history',icon:Clock3},{id:'tasks',icon:Database},{id:'configs',icon:SlidersHorizontal},{id:'leaderboard',icon:Activity},{id:'spec',icon:BookOpen},{id:'storage',icon:Database}] as const;
 export function ArenaHeader({activeTab,onTabChange,theme,onToggleTheme}:{activeTab:ArenaTab;onTabChange:(tab:ArenaTab)=>void;theme:'light'|'dark';onToggleTheme:()=>void}){
   const [open,setOpen]=useState(false);
   const menuButton=useRef<HTMLButtonElement>(null);

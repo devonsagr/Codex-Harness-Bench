@@ -134,10 +134,17 @@ requiresBaseline明确声明修复、重构和已有工程扩展需源码；Bug�
 
 ## U27 公开题源与桌面适配
 
-`catalog/public-task-sources.json` 是固定上游版本的来源索引，113项包含id/title/language/category/repositoryUrl/baseCommit及题面、环境、验收器链接。界面可搜索和查看来源，状态 `indexed-not-adapted` 不进入可开始题目，不创建Run，不触发下载。元数据许可与变更见 `catalog/SOURCES.md`；不包含目标源码、参考解或隐藏测试。
+`catalog/public-task-sources.json` 是固定上游版本的来源索引，113项包含id/title/language/category/repositoryUrl/baseCommit及题面、环境、验收器链接。界面可搜索和查看来源，索引自身不进入可开始题目；U29显式下载功能见下文。元数据许可与变更见 `catalog/SOURCES.md`；不包含目标源码、参考解或隐藏测试。
 
 正式接入仍属B07：按来源版本获取题包，冻结题目与目标工程base SHA，准备源码/依赖，验证原验收器，再发布可执行题目。已有公开GitHub起点导入仅能准备源码，不代表这一整条适配链已经完成。
 
 开发工作区包含目标起点、允许的已有测试和原始任务说明；隐藏tests、参考解、裁判细则放独立验收材料。准备清单必须记录OS/运行时/依赖、原生或适配环境、校验结果；失败时留在待准备，不让修复题落入空目录。Windows本机无法等价复现的题不能静默变更条件。自动准备是产品能力，不能要求用户逐题手工拼装题包。
 
 评分接入须保留原题reward和测试结果，与本项目质量维度分开。先验证一个代表题包的完整链路，再扩展语言和工程类型；113项不等于已验证113套运行环境。具体顺序只在PROJECT_SPEC第8节维护。
+
+
+### U29 固定题包与源码下载
+
+`public_sources`通过固定上游revision下载113份instruction/task.toml/environment/tests，校验仓库和base SHA与索引相符；不解包solution。题包存public-sources，目标源码以固定SHA导入baselines；重用校验过的同仓库/提交，已有或已归档题不覆盖。失败逐题保留，重启标记下载中断。源码已下载、环境unverified、verifier downloaded-not-integrated分开记录；不得给出官方reward。隐藏tests不进入开发目录，目标仓库自带的公开测试保留。
+
+生成DeepSWE工作区时复制全部已冻结源码与选定Harness，建立main分支和一个本地初始提交，无remote/未来历史。该提交用于本地diff，不冒充上游SHA；上游SHA仍在来源元数据中。原题说明原样保留，不加入隐藏测试和参考解。现有50MB/5000文件/8MB单文件及链接限制继续适用，超限显示未准备；源码就绪计数不等于环境可运行数量。

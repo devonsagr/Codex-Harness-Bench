@@ -1,3 +1,4 @@
+import {Storage} from './workbench/Storage';
 import {useCallback,useEffect,useState} from 'react';
 import {RefreshCw, Radio, ChevronRight} from 'lucide-react';
 import {ArenaHeader, arenaPages, type ArenaTab} from './components/ArenaHeader';
@@ -19,7 +20,7 @@ export function App(){
   const refresh=useCallback(async()=>{try{const s=await request<State>('/state');setState(s);setConnectionError('');}catch(e){setConnectionError((e as Error).message);throw e;}},[]);
   useEffect(()=>{document.documentElement.classList.toggle('dark',theme==='dark');localStorage.setItem('chb_theme',theme);},[theme]);
   useEffect(()=>{refresh().catch(()=>{});},[refresh]);
-  const activeJob=state?.runs.some(r=>r.trials.some(t=>['prepared','working','waiting_confirmation','checking','judging'].includes(t.state)));
+  const activeJob=state?.sourceJobs?.some(j=>j.status==='running')||state?.runs.some(r=>r.trials.some(t=>['prepared','working','waiting_confirmation','checking','judging'].includes(t.state)));
   useEffect(()=>{if(!activeJob)return;let live=true;let timer:ReturnType<typeof setTimeout>;
     const poll=async()=>{try{const s=await request<State>('/state');if(live){setState(s);setConnectionError('');}}catch(e){if(live)setConnectionError((e as Error).message);}finally{if(live)timer=setTimeout(poll,1800);}};
     timer=setTimeout(poll,1800);return()=>{live=false;clearTimeout(timer);};},[activeJob]);
@@ -40,6 +41,8 @@ export function App(){
         {tab==='history'&&<History state={state} act={act} onOpen={go} onError={setError}/>}
         {tab==='leaderboard'&&<Comparison state={state} onOpen={go}/>}
         {tab==='spec'&&<Guide state={state}/>}
+        {tab==='storage'&&<Storage act={act} onOpen={go}/>}
+
       </fieldset>}
       <footer className="app-footer"><span>Codex 桌面 · 个人 Harness 评测</span><span>以证据判断每一次改动</span></footer></div>
     </main></div>;

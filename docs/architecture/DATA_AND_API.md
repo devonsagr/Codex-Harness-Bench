@@ -216,3 +216,12 @@ POST /runs/{rid}/trials/{tid}/judge-progress 是经过现有同源/令牌保护�
 删除配置仍使用POST /configs/{id}/archive，带当前revision与archived:true；恢复传false。接口不做永久删除、宿主撤销或历史Run更新。前端名称改为删除/回收站，存储语义不变。
 
 Task.requiresBaseline为布尔值，项目类重构也可要求源码；旧perf-01-props-to-signals未声明时兼容为true。新Run在创建目录前拦截缺源码的必需起点题；旧Run不重写。
+
+
+### U29 下载与数据管理接口
+
+- POST `/sources/prepare`：taskIds为固定索引中的id，最多10个，空数组只下载全部定义；立即返回持久化source_job。state.sourceJobs提供进度/成功/逐项错误。单进程同时一个下载工作，不调用模型、安装脚本或官方验收器。
+- POST `/storage/status`：返回本项目数据根、分类字节数、活动/归档评测工作区、快照与reviews占用、cleanup状态及canClean；工具发现只表示可执行文件可见，不代表环境已验证。
+- POST `/storage/workspace`：runId/trialId/revision/action；trash还需desktopStopped=true，并核对最新快照与未回收改动；restore只恢复原位置；purge要求confirmation为“永久删除工作区”。仅completed且已有capture、无后台任务/容器时允许。所有路径由id推导，拒绝链接/联接。移动后DB失败回滚目录；purge先持久化deleting再删，故障后可重试。返回更新的storage状态。
+
+三接口保持本机Host/Origin/令牌校验，不接受任意路径或命令。清理后open/start/capture/next受限；恢复后重新允许，历史查看与评分证据保留。清理试次不继续自动同步桌面日志。下载和裁判临时文件位于.local/arena；不改变用户全局认证目录。数据页不是通用文件管理器，当前不支持任意删除被引用的证据或源码。
