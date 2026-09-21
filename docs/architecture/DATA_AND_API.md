@@ -202,3 +202,9 @@ U19：/codex/status活动回执在有变化时增加canPreserveChanges（只读�
 ### U24交付方式与引用状态
 
 /runs/prepare新增deliveryMode：single-delivery（默认）/staged。仅转换新Run的执行副本，保留authoredStages/authoredChecks；expectedTurns为null，不由步骤推断回复次数。机器策略complete允许任意已回收版本，记录finalCaptureId；新回收清除它。早期结束后的整题报告须evaluationScope.kind=final，原阶段分不参与最终分。ratings/criteria引用失败仅降级对应项并返回validationWarnings；文件唯一原文定位保留reportedLine/anchor。旧记录只读兼容，不迁移或回填分数。
+
+### U25 能力与裁判过程接口
+
+state.models 增加 reasoningLevels、defaultReasoning、capabilitiesKnown，来自当前 CODEX_HOME 缓存；无记录时为空，不推测。/codex/status 新增当前全局文件 model/reasoning，不代表任务运行值。
+
+POST /runs/{rid}/trials/{tid}/judge-progress 是经过现有同源/令牌保护的只读接口，返回 execution、commands、truncated、error。execution 为当前任务的 jobId/model/reasoning/environment/captureId/status/起止时间和本机 logDirectory；commands 仅真实命令事件，最多最近30条，单条命令6000字符、输出10000字符，最多读取日志末尾1MB。路径由所属试次生成并检查符号链接，不能指定任意文件。后台生命周期保存在 Trial.judgeExecution；重启中断明确标记，不改历史评分。

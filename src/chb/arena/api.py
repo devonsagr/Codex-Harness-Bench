@@ -47,6 +47,9 @@ def post(app,route,data):
         if len(parts)==3 and parts[0]=='runs' and parts[2]=='restore-config':return app.restore_config(identifier(parts[1]),identifier(data.get('configId')))
         if len(parts)==5 and parts[0]=='runs' and parts[2]=='trials':
             rid,tid,action=identifier(parts[1]),identifier(parts[3]),parts[4]
+            if action=='judge-progress':
+                from .judge_progress import read_progress
+                return read_progress(app,rid,tid)
             if action=='apply-config':
                 run,trial=app.trial(rid,tid)
                 if run.get('archived') or trial['state']!='prepared':raise ValueError('仅在本题开始前应用冻结配置。')

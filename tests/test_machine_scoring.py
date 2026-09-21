@@ -39,6 +39,46 @@ class MachineScoringTests(unittest.TestCase):
             'criteria':{'hello':{'status':'met','notes':'Executed','evidence':[{'command':'python3 main.py','quote':'hello'}]}}}
 
     def tearDown(self):self.env.stop();self.tmp.cleanup()
+
+    def test_judge_unsupported_tier_does_not_start_job(self):
+        (self.root/'home/models_cache.json').write_text(json.dumps({'models':[
+            {'slug':'fixture','supported_reasoning_levels':[{'effort':'max'}]}]}))
+        before=self.current()['state']
+        with self.assertRaisesRegex(ValueError,'不支持 ultra'):
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','reasoningEffort':'ultra'})
+        self.assertEqual(self.current()['state'],before)
+        self.assertFalse(self.app.jobs)
+
+    def test_progress_tracks_commands_not_reasoning_and_redacts_credentials(self):
+        from chb.arena.api import post
+        folder=self.app.local/'runs'/self.rid/self.tid/'reviews/job-fixture'
+        folder.mkdir(parents=True)
+        events=[{'type':'item.started','item':{'id':'cmd1','type':'command_execution','command':'run tests'}},
+                {'type':'item.completed','item':{'id':'cmd1','type':'command_execution','command':'run tests',
+                    'aggregated_output':'passed api_key=secret Bearer abc123','exit_code':0}},
+                {'type':'item.completed','item':{'id':'thought','type':'reasoning','text':'private reasoning'}}]
+        (folder/'events.jsonl').write_text('\n'.join(json.dumps(e) for e in events)+'\n{"unfinished":')
+        route=f'/api/arena/runs/{self.rid}/trials/{self.tid}/judge-progress'
+        result=post(self.app,route,{})
+        self.assertEqual(len(result['commands']),1)
+        self.assertEqual(result['commands'][0]['status'],'completed')
+        serialized=json.dumps(result)
+        for value in ['secret','abc123','private reasoning']:self.assertNotIn(value,serialized)
+        self.assertIn('[redacted]',serialized)
+        run=self.app.db.get('run',self.rid)
+        run['trials'][0]['judgeExecution']={'status':'preparing'}
+        self.app.db.save('run',run,run['revision'])
+        self.assertEqual(post(self.app,route,{})['commands'],[])
+        with self.assertRaises(ValueError):post(self.app,f'/api/arena/runs/{self.rid}/trials/not-owned/judge-progress',{})
+
+    def test_interrupted_judge_never_remains_running_after_restart(self):
+        run=self.app.db.get('run',self.rid)
+        run['trials'][0].update(state='judging',judgeExecution={'status':'running','jobId':'job-fixture'})
+        self.app.db.save('run',run,run['revision'])
+        restarted=Arena(self.root)
+        trial=restarted.db.get('run',self.rid)['trials'][0]
+        self.assertEqual(trial['judgeExecution']['status'],'interrupted')
+        self.assertEqual(trial['state'],'captured')
     def current(self):return self.app.present_run(self.app.db.get('run',self.rid))['trials'][0]
     def report(self,identifier='ai-1',value=None):
         report=validate_machine(value or self.value,self.packet,self.commands)

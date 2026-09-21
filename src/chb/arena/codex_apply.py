@@ -7,6 +7,7 @@ import uuid
 import tomlkit
 from .files import hash_bytes, inventory, now, safe_path, verify_snapshot
 from .skills import codex_home, checked_directory, invocation
+from .models import validate_effort
 
 OPTIONS = {'web_search':['disabled','cached','live'],
            'model_verbosity':['low','medium','high'],
@@ -61,7 +62,7 @@ def status(app):
     override=safe_path(home,'AGENTS.override.md')
     has_override=override.is_file() and bool(override.read_text(encoding='utf-8-sig').strip())
     return {'home':str(home),'instructionsFile':'AGENTS.override.md' if has_override else 'AGENTS.md',
-            'settings':{k:doc[k] for k in OPTIONS if k in doc},'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
+            'settings':{k:doc[k] for k in OPTIONS if k in doc},'model':doc.get('model'),'reasoning':doc.get('model_reasoning_effort'),'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
 
 def public(r):
     return {k:r[k] for k in ['id','configId','configName','configRevision','at','status','home','message']}
@@ -92,6 +93,7 @@ def store(folder,r):write_file(folder/'receipt.json',json.dumps(r,ensure_ascii=F
 def switch(app,data,frozen=None):
     from .service import identifier
     config=frozen or app.db.get('config',identifier(data.get('configId')))
+    validate_effort(config['baseModel'],config['reasoning'],require_known=True)
     if config['revision']!=data.get('revision') or config.get('archived'):raise ValueError('配置版本已变化或已归档。')
     if app.jobs or any(t['state']=='working' for run in app.db.list('run') for t in run['trials']):raise ValueError('请先结束当前执行，再切换配置。')
     active=next((r for r in status(app)['applications'] if r['status'] in {'applying','applied','restore_failed'}),None)
@@ -104,6 +106,7 @@ def switch(app,data,frozen=None):
 def apply(app,data,frozen=None):
     from .service import identifier
     config=frozen or app.db.get('config',identifier(data.get('configId')))
+    validate_effort(config['baseModel'],config['reasoning'],require_known=True)
     if config['revision']!=data.get('revision'):raise ValueError('配置版本已变化，请重新选用后应用。')
     if config.get('archived'):raise ValueError('归档配置不能应用。')
     if app.jobs or any(t['state']=='working' for run in app.db.list('run') for t in run['trials']):

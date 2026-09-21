@@ -15,6 +15,7 @@ from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
 from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, MACHINE_POLICY, RUBRICS
 from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks, delivery_task
+from .models import capabilities, validate_effort
 from .skills import invocation, codex_home
 from .codex_apply import settings, connections, project_settings
 
@@ -66,6 +67,8 @@ class Arena:
                                 except (OSError,subprocess.SubprocessError):remaining.append(cid)
                             trial['ownedContainers']=remaining
                         if trial['state'] in {'checking','judging'}:trial['state']='captured'
+                        if trial.get('judgeExecution',{}).get('status') in {'preparing','running'}:
+                            trial['judgeExecution'].update(status='interrupted',endedAt=now())
                         self.event(run,'后台服务中断；已保留快照和检查记录，可重新验收。',trial['id'])
                         if trial.get('ownedContainers'):trial['observations'].append('服务重启后仍有本工具检查容器未确认清理，需先恢复 Docker 后处理。')
                 self.db.save('run',run,run['revision'])
@@ -88,6 +91,7 @@ class Arena:
             text(value.get(key),limit,required=key!='agentsPrompt')
         if not re.fullmatch(r'[a-zA-Z0-9._/-]+',value['baseModel']): raise ValueError('模型标识格式无效。')
         if value.get('reasoning') not in {'none','minimal','low','medium','high','xhigh','max','ultra'}: raise ValueError('推理档位无效。')
+        validate_effort(value['baseModel'],value['reasoning'])
         if value.get('interactiveMode') not in {'one-shot-direct','step-by-step-confirm','adaptive'}: raise ValueError('交互模式无效。')
         skills=value.get('skills',[])
         if not isinstance(skills,list) or len(skills)>30 or len(set(skills))!=len(skills): raise ValueError('技能列表无效或重复。')
@@ -166,16 +170,9 @@ class Arena:
         return normalize_contract(value)
 
     def models(self):
-        cache=Path.home()/'.codex/models_cache.json'
-        models=[]
-        if cache.is_file() and cache.stat().st_size<5_000_000:
-            try:
-                for m in json.loads(cache.read_text(encoding='utf-8')).get('models',[]):
-                    name=m.get('slug') or m.get('id')
-                    if name: models.append({'id':name,'name':m.get('display_name',name),'source':'本机 Codex 模型缓存'})
-            except (ValueError,OSError): pass
+        models=capabilities()
         if not models:
-            models=[{'id':c['baseModel'],'name':c['baseModel'],'source':'已有配置，需在桌面核对可用性'} for c in self.db.list('config')]
+            models=[{'id':c['baseModel'],'name':c['baseModel'],'source':'已有配置，能力未知','reasoningLevels':[],'capabilitiesKnown':False} for c in self.db.list('config')]
         return list({m['id']:m for m in models}.values())
 
     def state(self):
@@ -234,6 +231,7 @@ class Arena:
         if not isinstance(ids,list) or not 1<=len(ids)<=2 or len(set(ids))!=len(ids): raise ValueError('选择一套配置；需要对比时可选两套不同配置。')
         if not isinstance(tasks,list) or not 1<=len(tasks)<=10 or len(set(tasks))!=len(tasks): raise ValueError('选择 1–10 道题，批量选择不代表自动启动。')
         configs=[self.db.get('config',identifier(x)) for x in ids]
+        for config in configs:validate_effort(config['baseModel'],config['reasoning'])
         selected=[self.db.get('task',identifier(x)) for x in tasks]
         if any(t['taskParadigm']=='deterministic-bugfix' and not t.get('baselineId') for t in selected):
             raise ValueError('Bug 修复题尚未准备项目源码。请在题库导入起始项目后再开始；参考链接不等于已下载环境。')

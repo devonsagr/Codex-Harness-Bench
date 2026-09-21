@@ -17,6 +17,9 @@ class CodexApplyTests(unittest.TestCase):
         (self.root/'catalog').mkdir();(self.root/'catalog/arena-tasks.json').write_text('[]')
         self.home=self.root/'codex';self.home.mkdir()
         self.env=patch.dict(os.environ,{'CODEX_HOME':str(self.home)});self.env.start()
+        (self.home/'models_cache.json').write_text(json.dumps({'models':[
+            {'slug':name,'supported_reasoning_levels':[{'effort':'high'},{'effort':'max'}]}
+            for name in ('test-model','second-model')]}))
         self.original=b'# preserve comments\nmodel = "old"\napproval_policy = "on-request"\n[private]\nkey="secret-token"\n[mcp_servers.local]\ncommand="noop"\nenabled=false\n[plugins."superpowers@example"]\nenabled=false\n'
         (self.home/'config.toml').write_bytes(self.original);(self.home/'AGENTS.md').write_text('keep global')
         self.app=Arena(self.root)
@@ -67,6 +70,28 @@ class CodexApplyTests(unittest.TestCase):
         status=codex_apply.status(self.app)
         self.assertEqual(status['instructionsFile'],'AGENTS.md')
         self.assertNotIn('filesMatch',status['applications'][0])
+
+    def test_unsupported_effort_is_rejected_before_save_or_switch(self):
+        self.apply()
+        before=(self.home/'config.toml').read_bytes()
+        with self.assertRaisesRegex(ValueError,'不支持 ultra'):
+            self.app.save_config({**self.config,'reasoning':'ultra'})
+        # Simulate a capability change after an immutable preset was saved.
+        (self.home/'models_cache.json').write_text(json.dumps({'models':[
+            {'slug':'test-model','supported_reasoning_levels':[{'effort':'low'}]}]}))
+        with self.assertRaisesRegex(ValueError,'不支持 high'):
+            post(self.app,'/api/arena/codex/switch',{'configId':self.config['id'],'revision':self.config['revision']})
+        self.assertEqual((self.home/'config.toml').read_bytes(),before)
+        self.assertEqual(codex_apply.status(self.app)['applications'][0]['status'],'applied')
+
+    def test_unknown_capabilities_never_write_and_supported_max_reads_back(self):
+        self.config=self.app.save_config({**self.config,'reasoning':'max'})
+        receipt=self.apply();status=codex_apply.status(self.app)
+        self.assertEqual((status['model'],status['reasoning']),('test-model','max'))
+        self.undo(receipt)
+        (self.home/'models_cache.json').unlink()
+        with self.assertRaisesRegex(ValueError,'能力记录'):self.apply()
+        self.assertEqual((self.home/'config.toml').read_bytes(),self.original)
 
     def test_selective_restore_preserves_external_projects_and_comments(self):
         r=self.apply()

@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {JudgeProgress} from './JudgeProgress';
 import type {Trial,Run,State} from './types';
 import {Panel,Details,Dialog,Field,ScoreSlider,num,date,ModelSelect} from './ui';
 import {ScoreRing,ScoreBar} from './AssessmentCharts';
@@ -6,9 +7,10 @@ import {verdicts} from './Contracts';
 
 export function MachineScore({run,trial:t,state,act,disabled}:{run:Run;trial:Trial;state:State;act:(name:string,data?:unknown)=>Promise<unknown>;disabled:boolean}){
   const latest=t.captures[t.captures.length-1];
-  const preferredModel=state.models.find(item=>item.id==='gpt-5.6-luna')?.id;
-  const defaultJudgeModel=preferredModel||state.models[0]?.id||'未发现可用模型';
-  const [model,setModel]=useState(preferredModel||state.models[0]?.id||'');
+  const defaultJudgeModel='gpt-5.6-luna';
+  const [model,setModel]=useState('gpt-5.6-luna');
+  const modelInfo=state.models.find(m=>m.id===model);
+  const judgeSupported=!!modelInfo?.reasoningLevels?.includes('max');
   const [environment,setEnvironment]=useState('local');
   const [editing,setEditing]=useState<string|null>(null);const [value,setValue]=useState('');const [reason,setReason]=useState('');
   const [editingEvidence,setEditingEvidence]=useState<{reviewId?:string|null;evidenceKey?:string|null}>({});
@@ -20,8 +22,10 @@ export function MachineScore({run,trial:t,state,act,disabled}:{run:Run;trial:Tri
   const correct=async(withdraw=false)=>{if(!editing)return;await act('machine-correction',{...editingEvidence,changes:{[editing]:{score:withdraw?null:Number(value),reason}}});setEditing(null);};
   const dimensions=Object.entries(run.policy.rubrics||{}).filter(([key])=>run.policy.dimensions[key]>0&&(key!=='ux'||task.hasFrontendUI));
   return <Panel title={intermediate?'阶段检查（可选）':'最终产物评分'} aside={<span className="muted">回收版本 {t.captures.length} · {busy?'正在评分':report?'已生成评分':t.lastJobError?'评分未完成':'尚未评分'}</span>}>
-    <p className="muted mb-3">{intermediate?`只检查第 ${latest.stageIndex+1} 阶段的已回收版本，不计整题最终成绩。整题已完成时，可直接在下方结束交付，再按完整需求评分。`:'按完整需求检查当前回收版本。对话次数不限；完整总分需各项有分并结束交付。'}</p><div className="judge-toolbar"><Field label="裁判模型"><ModelSelect label="裁判模型" disabled={busy||disabled} value={model} onChange={setModel} models={state.models}/></Field><Field label="裁判环境"><select aria-label="裁判环境" value={environment} disabled={busy||disabled} onChange={e=>setEnvironment(e.target.value)}><option value="local">本机 · 无需 Docker</option><option value="docker">Docker · Harbor 隔离</option></select></Field><button className="btn-primary" disabled={disabled||busy||!model.trim()} onClick={()=>void act('judge',{captureId:latest.id,model,reasoningEffort:'max',environment}).catch(()=>{})}>{busy?'检查中…':intermediate?`检查第 ${latest.stageIndex+1} 阶段`:report?'重新评分':t.lastJobError?'重试评分':'评估最终产物'}</button>{busy&&<button disabled={disabled} className="btn-secondary" onClick={()=>void act('stop').catch(()=>{})}>停止</button>}</div>
+    <p className="muted mb-3">{intermediate?`只检查第 ${latest.stageIndex+1} 阶段的已回收版本，不计整题最终成绩。整题已完成时，可直接在下方结束交付，再按完整需求评分。`:'按完整需求检查当前回收版本。对话次数不限；完整总分需各项有分并结束交付。'}</p><div className="judge-toolbar"><Field label="裁判模型"><ModelSelect label="裁判模型" disabled={busy||disabled} value={model} onChange={setModel} models={state.models}/></Field><Field label="裁判环境"><select aria-label="裁判环境" value={environment} disabled={busy||disabled} onChange={e=>setEnvironment(e.target.value)}><option value="local">本机 · 无需 Docker</option><option value="docker">Docker · Harbor 隔离</option></select></Field><button className="btn-primary" disabled={disabled||busy||!judgeSupported} onClick={()=>void act('judge',{captureId:latest.id,model,reasoningEffort:'max',environment}).catch(()=>{})}>{busy?'检查中…':intermediate?`检查第 ${latest.stageIndex+1} 阶段`:report?'重新评分':t.lastJobError?'重试评分':'评估最终产物'}</button>{busy&&<button disabled={disabled} className="btn-secondary" onClick={()=>void act('stop').catch(()=>{})}>停止</button>}</div>
     <p className="muted">每次评分都是新的 Codex CLI 审查进程，默认裁判为 {defaultJudgeModel} · max；使用当前 Codex 登录账户额度，不继承上次会话。检查当前回收副本。{environment==='local'?'本机使用 Codex 原生沙箱；开源用户需先安装并运行 codex login status。Windows 浏览器取证暂不可用，交互与视觉项会保留未验证；无需 Docker 的完整浏览器评分仍待接通。':'容器使用固定镜像，首次需准备 Docker。'}</p>
+    {!judgeSupported&&<p className="alert-error">当前模型未确认支持 max；请刷新模型列表或选择支持 max 的裁判，不会自动换模型。</p>}
+    <JudgeProgress runId={run.id} trialId={t.id} busy={busy}/>
     {t.lastJobError&&<div role="alert" className="alert-error"><strong>本次评分未完成{report?'，保留上次结果':''}</strong><details className="mt-2"><summary>查看失败原因</summary><p className="mt-2">{t.lastJobError.message}</p></details></div>}
     {!!report?.validationWarnings?.length&&<Details title={`引用校验 · ${report.validationWarnings.length} 项未计分`}><p className="muted">有效项正常计分；以下引用无法核实，保留为未验证。原报告保留在本地。</p>{report.validationWarnings.map((w,i)=><p key={i} className="text-sm">{run.policy.rubrics?.[w.key]?.label||task.criteria?.find(c=>c.id===w.key)?.label||w.key}：{w.message}</p>)}</Details>}
     {report?<><div className="score-overview"><ScoreRing value={t.score.overall??t.score.partialScore} label={intermediate?'阶段参考分':t.score.overall==null?'暂定分':'最终分'} detail={t.score.overall==null?'未验证项不按零分计算':'含已保存的人工修正'}/><dl className="run-stats"><div><dt>机器原分</dt><dd>{num(t.score.machine??null)}</dd></div><div><dt>已评分权重</dt><dd>{t.score.machineCoverage||0}%</dd></div></dl></div><p className="muted">本次裁判：{report.model||'未知模型'} · 推理 {report.reasoningEffort||'未知'} · {report.reviewEnvironment==='local'?'本机 CLI':'Docker/Harbor'} · {report.judgeIsolation?'新进程/临时配置':'旧记录未记录隔离标记'}</p>
