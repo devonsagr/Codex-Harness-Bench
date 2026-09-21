@@ -1,101 +1,35 @@
-import React from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {ReadingSettings} from '../workbench/ReadingSettings';
-import { Play, Sliders, Trophy, BookOpen, Clock, HelpCircle, Sun, Moon, Database } from 'lucide-react';
+import {Activity, ArrowUpRight, BookOpen, Clock3, Database, FlaskConical, Menu, Moon, SlidersHorizontal, Sun, X} from 'lucide-react';
 
 export type ArenaTab = 'workbench' | 'history' | 'tasks' | 'configs' | 'leaderboard' | 'spec';
-
-interface ArenaHeaderProps {
-  activeTab: ArenaTab;
-  onTabChange: (tab: ArenaTab) => void;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
-}
-
-export const ArenaHeader: React.FC<ArenaHeaderProps> = ({
-  activeTab,
-  onTabChange,
-  theme,
-  onToggleTheme,
-}) => {
-  const tabs = [
-    { id: 'workbench' as ArenaTab, label: '评测工作台', icon: Play },
-    { id: 'history' as ArenaTab, label: '评测历史', icon: Clock },
-    { id: 'tasks' as ArenaTab, label: '题库中心', icon: Database },
-    { id: 'configs' as ArenaTab, label: '配置管理', icon: Sliders },
-    { id: 'leaderboard' as ArenaTab, label: '同条件结果', icon: Trophy },
-    { id: 'spec' as ArenaTab, label: '原理与规范', icon: HelpCircle },
-  ];
-
-  return (
-    <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-md border-b border-slate-200/90 dark:border-zinc-800 px-3 sm:px-6 py-2.5 select-none transition-colors duration-200">
-      <div className="max-w-7xl mx-auto flex flex-wrap xl:flex-nowrap items-center justify-between gap-3 min-w-0">
-        {/* Brand */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-xs flex items-center justify-center tracking-tight shadow-sm transition-transform duration-200 hover:scale-105 shrink-0">
-            CHB
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">
-                Codex Harness Benchmark
-              </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-100 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hidden sm:inline">
-                本地工作台
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-500 dark:text-zinc-400 hidden md:block">
-              保存配置，执行需求，检查实际交付
-            </p>
-          </div>
-        </div>
-
-        {/* Center Tabs */}
-        <nav className="order-3 xl:order-none w-full xl:w-auto min-w-0 flex items-center gap-0.5 sm:gap-1 bg-slate-100/90 dark:bg-zinc-900/90 p-1 rounded-xl border border-slate-200/80 dark:border-zinc-800 overflow-x-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-150 ${
-                  isActive
-                    ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm font-semibold'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-zinc-800/60'
-                }`}
-              >
-                <Icon
-                  className={`w-3.5 h-3.5 ${
-                    isActive ? 'text-zinc-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'
-                  }`}
-                />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-2 text-xs shrink-0"><ReadingSettings/>
-          <button
-            onClick={onToggleTheme}
-            title={theme === 'light' ? '切换到暗色模式' : '切换到白天模式'}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all duration-150 shadow-sm"
-          >
-            {theme === 'light' ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-[11px] font-medium hidden lg:inline">白天模式</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="text-[11px] font-medium hidden lg:inline">深色模式</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </header>
-  );
+export const arenaPages:Record<ArenaTab,{label:string;description:string}>={
+  workbench:{label:'评测工作台',description:'让每一次配置改动，都有交付作为依据。'},
+  history:{label:'评测历史',description:'回到当时的配置、产物与评分。'},
+  tasks:{label:'题库中心',description:'选择真实任务，确认源码起点和运行条件。'},
+  configs:{label:'配置管理',description:'把你的工作方式，保存成可比较的版本。'},
+  leaderboard:{label:'同条件结果',description:'在相同条件下，看清配置之间的差异。'},
+  spec:{label:'原理与规范',description:'了解评测对象、证据和评分方法。'},
 };
+const tabs=[{id:'workbench',icon:FlaskConical},{id:'history',icon:Clock3},{id:'tasks',icon:Database},{id:'configs',icon:SlidersHorizontal},{id:'leaderboard',icon:Activity},{id:'spec',icon:BookOpen}] as const;
+export function ArenaHeader({activeTab,onTabChange,theme,onToggleTheme}:{activeTab:ArenaTab;onTabChange:(tab:ArenaTab)=>void;theme:'light'|'dark';onToggleTheme:()=>void}){
+  const [open,setOpen]=useState(false);
+  const menuButton=useRef<HTMLButtonElement>(null);
+  useEffect(()=>{
+    if(!open)return;
+    const close=(event:KeyboardEvent)=>{if(event.key==='Escape'){setOpen(false);menuButton.current?.focus();}};
+    document.addEventListener('keydown',close);
+    return()=>document.removeEventListener('keydown',close);
+  },[open]);
+  const navigate=(tab:ArenaTab)=>{onTabChange(tab);setOpen(false);};
+  return <>
+    <header className="mobile-header"><span>Harness <strong>Bench</strong></span><button ref={menuButton} className="icon-button" aria-label={open?'关闭导航':'打开导航'} aria-expanded={open} aria-controls="app-navigation" onClick={()=>setOpen(!open)}>{open?<X size={20}/>:<Menu size={20}/>}</button></header>
+    {open&&<button className="nav-backdrop" aria-label="收起导航" onClick={()=>setOpen(false)}/>}
+    <aside id="app-navigation" className={'app-sidebar '+(open?'is-open':'')} aria-label="主导航">
+      <button className="brand" onClick={()=>navigate('workbench')} aria-label="Harness Bench 工作台"><FlaskConical size={26} strokeWidth={1.5}/><span>Harness<strong>Bench<span className="brand-period">.</span></strong></span></button>
+      <p className="sidebar-caption">你的配置，真实交付。</p>
+      <nav>{tabs.map(({id,icon:Icon},i)=><button key={id} aria-label={arenaPages[id].label} onClick={()=>navigate(id)} aria-current={activeTab===id?'page':undefined} className={'sidebar-link '+(activeTab===id?'active':'')}><Icon size={18} strokeWidth={1.7}/><span>{arenaPages[id].label}</span><small aria-hidden="true">{String(i+1).padStart(2,'0')}</small></button>)}</nav>
+      <div className="sidebar-bottom"><div className="sidebar-local"><span className="status-dot"/>本地工作空间<ArrowUpRight size={14}/></div><p>配置与记录保存在本机</p><div className="sidebar-controls"><ReadingSettings/><button className="icon-button" aria-label={theme==='light'?'切换到暗色模式':'切换到白天模式'} title={theme==='light'?'切换到暗色模式':'切换到白天模式'} onClick={onToggleTheme}>{theme==='light'?<Moon size={18}/>:<Sun size={18}/>}</button></div></div>
+    </aside>
+  </>;
+}
