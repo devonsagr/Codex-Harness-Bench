@@ -73,6 +73,8 @@ class Arena:
                         if trial['state'] in {'checking','judging'}:trial['state']='captured'
                         if trial.get('judgeExecution',{}).get('status') in {'preparing','running'}:
                             trial['judgeExecution'].update(status='interrupted',endedAt=now())
+                        if trial.get('nativeExecution',{}).get('status')=='running':
+                            trial['nativeExecution'].update(status='interrupted',phase='服务中断，可重新验收',endedAt=now())
                         self.event(run,'后台服务中断；已保留快照和检查记录，可重新验收。',trial['id'])
                         if trial.get('ownedContainers'):trial['observations'].append('服务重启后仍有本工具检查容器未确认清理，需先恢复 Docker 后处理。')
                 self.db.save('run',run,run['revision'])
@@ -323,15 +325,19 @@ class Arena:
                     verify_snapshot(src,skill['manifest'])
                     snapshot(src,workspace/'.agents/skills'/skill['name']);skills.append(skill)
                 skill_text=invocation(skills,config.get('skillMode','auto'))
+                from .native_verifier import workspace_launcher
+                environment_text=workspace_launcher(self,task,workspace)
                 prompts=[]
                 for index in range(len(task['stages'])):
                     base=stage_prompt(task,index)
-                    content=base['text']+('\n\n'+skill_text if skill_text else '')
+                    content=base['text']+environment_text+('\n\n'+skill_text if skill_text else '')
                     prompts.append({'text':content,'sha256':hash_bytes(content.encode()),
                                     'source':'frozen-trial-v3','stageId':task['stages'][index].get('id')})
                 # A separate repository marks the instruction-discovery boundary.
                 init=shell(['git','init','--quiet','--initial-branch=main',str(workspace)])
                 if init.returncode:raise ValueError('无法创建独立题目 Git 工作区。')
+                if environment_text:
+                    with (workspace/'.git/info/exclude').open('a',encoding='utf-8') as exclude:exclude.write('\n.chb-cache/\n')
                 if task.get('sourceKind')=='deepswe':
                     # A local baseline commit supports branching/diff without fetching
                     # future upstream history or shipping the hidden solution.

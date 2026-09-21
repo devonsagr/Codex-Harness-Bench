@@ -19,33 +19,48 @@ JUDGE_REASONING_LEVELS={'none','minimal','low','medium','high','xhigh','max','ul
 def start_job(app,rid,tid,kind,data):
     with app.lock:
         run,trial=app.trial(rid,tid)
+        if run.get('archived'):raise ValueError('请先恢复已归档评测。')
         if trial.get('ownedContainers'):raise ValueError('上次检查容器尚未确认清理，请恢复 Docker 并重启工作台后重试。')
         if trial['state'] in {'checking','judging'}:raise ValueError('该项已有后台操作，不能重复启动。')
         if not trial['captures']:raise ValueError('请先回收产物。')
         capture=next((c for c in trial['captures'] if c['id']==data.get('captureId')),None)
         if capture is None:raise ValueError('产物版本不存在，请刷新。')
         task=next(t for t in run['tasks'] if t['id']==trial['taskId'])
+        if kind=='native':
+            from .native_verifier import supported
+            if not supported(task):raise ValueError('此题尚未接入本机测试验收。')
         if kind=='judge' and (not isinstance(data.get('model'),str) or not data['model'].strip() or len(data['model'])>100):
             raise ValueError('请选择裁判模型。')
         if kind=='check' and not applicable_checks(task,capture['stageIndex']):raise ValueError('当前阶段没有可执行检查；可人工复审或在题目新版本声明检查。')
         if kind=='judge' and data.get('environment','docker') not in {'local','docker'}:raise ValueError('未知裁判环境。')
         if kind=='judge' and data.get('reasoningEffort',JUDGE_DEFAULT_REASONING) not in JUDGE_REASONING_LEVELS:raise ValueError('裁判推理档位无效。')
         if kind=='judge':validate_effort(data['model'],data.get('reasoningEffort',JUDGE_DEFAULT_REASONING))
-        state=trial['state'];trial['state']='checking' if kind=='check' else 'judging'
+        state=trial['state'];trial['state']='checking' if kind in {'check','native'} else 'judging'
+        if kind=='native':trial['nativeExecution']={'status':'running','phase':'准备本机测试验收','startedAt':now(),'captureId':capture['id'],'jobId':uuid.uuid4().hex[:12]}
         trial.pop('lastJobError',None)
         if kind=='judge':trial['judgeExecution']={'status':'preparing','startedAt':now(),'captureId':capture['id'],
             'model':data['model'],'reasoning':data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),'environment':data.get('environment','docker')}
-        if kind=='check' or (data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex'])):
+        if kind=='check' or (kind=='judge' and data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex'])):
             capture.setdefault('checkAttempts',[]).append({'at':now(),'results':capture['checks']})
             capture['checks']=[]
-        app.event(run,'开始执行隔离检查。' if kind=='check' else '开始独立 AI 审查（会使用模型额度）。',tid)
+        app.event(run,'开始执行隔离检查。' if kind=='check' else '开始本机测试验收（不调用模型）。' if kind=='native' else '开始独立 AI 审查（会使用模型额度）。',tid)
         app.db.save('run',run,run['revision'])
         stop=threading.Event()
         control={'stop':stop,'containers':set(),'kind':kind}
         app.jobs[(rid,tid)]=control
         def worker():
             try:
-                if kind=='check':checks=run_checks(app,rid,tid,capture,task,control)
+                if kind=='native':
+                    from .native_verifier import run as native_run
+                    folder=app.local/'runs'/rid/tid/'native-checks'/trial['nativeExecution']['jobId']
+                    source=app.local/'runs'/rid/tid/'captures'/capture['id']/'files'
+                    def progress(message):
+                        with app.lock:
+                            current,t=app.trial(rid,tid);t['nativeExecution']['phase']=message
+                            app.db.save('run',current,current['revision'])
+                    report=native_run(app,task,source,capture['manifest'],folder,control,progress)
+                    if stop.is_set():raise ValueError('已取消本机测试验收。')
+                elif kind=='check':checks=run_checks(app,rid,tid,capture,task,control)
                 else:
                     if data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex']):
                         try:capture['checks']=run_checks(app,rid,tid,capture,task,control)
@@ -67,7 +82,10 @@ def start_job(app,rid,tid,kind,data):
                 with app.lock:
                     fresh,t=app.trial(rid,tid)
                     current=next(c for c in t['captures'] if c['id']==capture['id'])
-                    if kind=='check':current['checks']=checks
+                    if kind=='native':
+                        current.setdefault('nativeVerifications',[]).append(report)
+                        t['nativeExecution'].update(status='completed',phase='测试验收完成',endedAt=now())
+                    elif kind=='check':current['checks']=checks
                     else:t['reviews'].append({'id':'ai-'+uuid.uuid4().hex[:12],'kind':'ai','captureId':capture['id'],'at':now(),**report})
                     t['state']=state
                     if kind=='judge':t['judgeExecution'].update(status='completed',endedAt=now())
@@ -78,10 +96,11 @@ def start_job(app,rid,tid,kind,data):
                     fresh,t=app.trial(rid,tid);t['state']=state
                     # Do not send exception strings containing commands/auth to the browser.
                     message=str(exc)
-                    cause='已取消' if stop.is_set() else message if isinstance(exc,ValueError) and len(message)<250 and any('\u4e00'<=c<='\u9fff' for c in message) else '执行环境异常；请核对 Docker、镜像和本机日志。'
+                    cause='已取消' if stop.is_set() else message if isinstance(exc,ValueError) and len(message)<250 and any('\u4e00'<=c<='\u9fff' for c in message) else '本机测试环境异常；请查看测试输出并重新准备环境。' if kind=='native' else '执行环境异常；请核对 Docker、镜像和本机日志。'
                     app.event(fresh,cause,tid)
                     t['lastJobError']={'kind':kind,'message':cause,'at':now()}
                     if kind=='judge':t['judgeExecution'].update(status='cancelled' if stop.is_set() else 'failed',endedAt=now())
+                    if kind=='native':t['nativeExecution'].update(status='cancelled' if stop.is_set() else 'failed',phase=cause,endedAt=now())
                     app.db.save('run',fresh,fresh['revision'])
             finally:
                 with app.lock:app.jobs.pop((rid,tid),None)

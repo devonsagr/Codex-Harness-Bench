@@ -148,3 +148,9 @@ requiresBaseline明确声明修复、重构和已有工程扩展需源码；Bug�
 `public_sources`通过固定上游revision下载113份instruction/task.toml/environment/tests，校验仓库和base SHA与索引相符；不解包solution。题包存public-sources，目标源码以固定SHA导入baselines；重用校验过的同仓库/提交，已有或已归档题不覆盖。失败逐题保留，重启标记下载中断。源码已下载、环境unverified、verifier downloaded-not-integrated分开记录；不得给出官方reward。隐藏tests不进入开发目录，目标仓库自带的公开测试保留。
 
 生成DeepSWE工作区时复制全部已冻结源码与选定Harness，建立main分支和一个本地初始提交，无remote/未来历史。该提交用于本地diff，不冒充上游SHA；上游SHA仍在来源元数据中。原题说明原样保留，不加入隐藏测试和参考解。现有50MB/5000文件/8MB单文件及链接限制继续适用，超限显示未准备；源码就绪计数不等于环境可运行数量。
+
+### U30 Tengo Windows适配
+
+仅固定revision的tengo-callable-instance-isolation受支持。官方Go 1.26.8 Windows x64 ZIP按SHA-256核对，解包至toolchains；不改系统PATH。故障起点须满足f2p=0、p2p=1才创建ready-windows题目新版本；已有Run冻结版本不重写。该题无第三方Go依赖，验收关闭GOPROXY/GOSUMDB和网络；候选go.mod变化不支持，保留未知而非猜分。
+
+创建工作区时增加.chb/go.ps1及运行入口说明，仅此环境说明进入提示词；使用UTF-8 BOM兼容Windows PowerShell的中文路径，缓存.chb-cache不入快照/Git。验收复制冻结产物，恢复上游test.patch涉及的测试文件后应用隐藏补丁；固定七组Go命令运行，解析JSON事件，跳过/缺失/失败不算通过，重复事件取最差状态。reward仅在23修复与122回归全部通过时为1，partial仅为通过比例，不自动混入AI总分。该适配不等同于原Linux镜像/官方排行榜。

@@ -80,6 +80,8 @@ def start(app,data):
     items=data.get('taskIds',[]);source=catalog(app);known={t['id'] for t in source['tasks']}
     if not isinstance(items,list) or len(items)>10 or any(not isinstance(t,str) or t not in known for t in items):raise ValueError('请选择索引中的题目，每次最多准备10道；空列表仅下载题包。')
     items=list(dict.fromkeys(items))
+    environment=data.get('prepareEnvironment') is True
+    if environment and items!=['tengo-callable-instance-isolation']:raise ValueError('请选择已支持的 Tengo 本机环境。')
     with app.lock:
         if getattr(app,'source_thread',None) and app.source_thread.is_alive():return app.db.get('source_job','deepswe-download')
         old=app.db.list('source_job');revision=next((x['revision'] for x in old if x['id']=='deepswe-download'),None)
@@ -93,10 +95,15 @@ def start(app,data):
                 files=bundle(app)
                 for tid in items:
                     update(phase='准备源码 · '+tid)
-                    try: completed.append(install(app,tid,files)['id'])
+                    try:
+                        task=install(app,tid,files)
+                        if environment:
+                            from .native_verifier import prepare_environment
+                            task=prepare_environment(app,task,lambda phase:update(phase=phase))
+                        completed.append(task['id'])
                     except Exception as exc:errors.append({'taskId':tid,'message':str(exc)[:600]})
                     update(completed=completed,errors=errors)
-                phase='已保存题包与源码；依赖及原生验收尚待适配' if items else '已保存全部题面与验收包；目标源码需按题下载'
+                phase=('本机环境与故障起点已验证' if environment and not errors else '已保存题包与源码；按题查看环境状态') if items else '已保存全部题面与验收包；目标源码需按题下载'
                 update(status='partial' if errors else 'completed',phase=phase,endedAt=now())
             except Exception as exc:update(status='failed',phase='题包准备失败，可重试',errors=[{'taskId':'bundle','message':str(exc)[:600]}],endedAt=now())
         app.source_thread=threading.Thread(target=work,daemon=True);app.source_thread.start()

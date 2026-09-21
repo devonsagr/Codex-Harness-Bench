@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import re
 
-IGNORED = {'.git', 'node_modules', '.venv', '__pycache__', '.pytest_cache', '.next'}
+IGNORED = {'.git', 'node_modules', '.venv', '__pycache__', '.pytest_cache', '.next', '.chb-cache'}
 SECRET = re.compile(r'(^|/)(\.env(?:\..*)?|auth\.json|credentials(?:\.json)?|id_rsa|id_ed25519)$|\.(pem|key)$', re.I)
 
 
