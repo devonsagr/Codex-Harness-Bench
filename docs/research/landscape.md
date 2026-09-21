@@ -1,4 +1,54 @@
-# 现有实现核查与底座选择
+# 公开题库、运行环境与评分方法
+
+## 当前结论 · 2026-09-21（U27）
+
+本项目固定正式执行入口为Codex桌面，研究模型与个人可配置Harness的交付表现。编码榜单通常也使用指定Agent/Harness，不能把所有榜单都描述成“裸模型分数”。Gemini仅提供前端起点，不决定本项目题库、评分或功能范围。下列是公开源码研究，不是本项目运行成绩；后附早期调研保留为历史依据，产品决策以主架构为准。
+
+### DRadar：准备、执行与判分是不同环节
+
+核对用户附件指定的公开客户端版本 `39e7567dc4e76db12748bb17a0ea9b12d6c68294`，而非执行附件命令。来源：[README](https://github.com/codex-radar/dradar/blob/39e7567dc4e76db12748bb17a0ea9b12d6c68294/README.md)、[runner.py](https://github.com/codex-radar/dradar/blob/39e7567dc4e76db12748bb17a0ea9b12d6c68294/src/dradar/runner.py)。
+
+1. 用户贴的说明是启动协议：网页保存运行范围，短期运行码关联本次计划；CLI处理版本、环境、执行、上传与恢复。它不是具体题面，也不是评分标准。运行码和私人计划不进入项目文档或Git。
+2. 客户端准备任务仓库，按服务端指定版本建立托管快照，再经Pier/Docker启动Agent。该版本默认任务仓库指向 `SecurityMind/deep-swe`，与下面索引的官方 `datacurve-ai/deep-swe` 需区分；不能声称二者每道题和分数完全一致。
+3. runner实际传入 `--disable-verification`，客户端负责Agent执行和采集补丁/轨迹等产物；README明确服务端使用题目自带verifier重新运行补丁并独立判分，评分与排行榜由服务端处理。不能从客户端推断服务端用了某个AI裁判、全部权重或所有判分规则。
+4. `doctor` 不是纯静态说明：其流程涉及运行工具、依赖、任务仓库及环境探测。用户明确“只看、不跑”，因此本轮没有执行安装、doctor、登录、领题、恢复或模型任务，也没有访问认证文件。
+
+可复用的设计是固定题包版本、预检、开发输入与隐藏验收分离、保存实际补丁和可恢复进度；正式执行仍保留桌面，不能把CLI结果写成桌面成绩。
+
+### DeepSWE：源码、依赖、隐藏测试都有独立落点
+
+官方仓库 [datacurve-ai/deep-swe](https://github.com/datacurve-ai/deep-swe/tree/0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea)，本次固定版本 `0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea`。逐项读取113份task.toml，提取任务名、语言、目标仓库、base commit与原文件链接，保存在 `catalog/public-task-sources.json`。这是来源索引，尚未转为本项目可执行题包。
+
+以 `aiomonitor-task-snapshots-diff` 为例：
+
+|材料|作用|
+|---|---|
+|[task.toml](https://github.com/datacurve-ai/deep-swe/blob/0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea/tasks/aiomonitor-task-snapshots-diff/task.toml)|声明目标aiomonitor仓库、base commit `b73fea2e0682803bda7531c93cd1dfb360839175`、独立验收与补丁收集|
+|[environment/Dockerfile](https://github.com/datacurve-ai/deep-swe/blob/0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea/tasks/aiomonitor-task-snapshots-diff/environment/Dockerfile)|安装系统和Python依赖，准备固定源码起点；测试与参考解不混入开发环境|
+|[tests/test.sh](https://github.com/datacurve-ai/deep-swe/blob/0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea/tasks/aiomonitor-task-snapshots-diff/tests/test.sh)|应用候选补丁和验收测试，执行pytest，生成JUnit结果并调用grader|
+|[tests/grader.py](https://github.com/datacurve-ai/deep-swe/blob/0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea/tasks/aiomonitor-task-snapshots-diff/tests/grader.py)|按固定测试集合计算reward和诊断指标|
+
+这个样例的reward为1，要求存在F2P用例、全部F2P通过且全部P2P通过。F2P检查应修复/新增的行为，P2P检查原功能不回归；还保存两类通过比例和partial比例，缺失指定用例不能当通过。整题解决率可以汇总成连续的百分比，但不能由此推断界面美观或全部工程质量。此样例用程序测试判分，不需要另一个模型印象打分；不能据此声称DRadar私有服务端完整实现相同。
+
+任务定义采用Apache-2.0，目标工程保留各自许可；索引附上游许可证与修改说明。上游[PROVENANCE](https://github.com/datacurve-ai/deep-swe/blob/0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea/PROVENANCE.md)需在后续分发目标工程时继续核对。未下载113套目标工程、镜像或参考解，未运行样题。
+
+### 其他方案与通用性的边界
+
+|一手来源|可以通用的部分|仍需逐题明确的部分|
+|---|---|---|
+|[SWE-bench](https://www.swebench.com/SWE-bench/api/harness/)|固定源码/补丁/隔离验收及结果汇总|Issue、测试集合与安装环境|
+|[Harbor](https://github.com/harbor-framework/harbor/tree/main/docs/content/docs/tasks)|instruction、environment、tests的任务格式与调度|任务环境和verifier|
+|[DesignBench](https://github.com/WebPAI/DesignBench)|前端生成、编辑、修复的专项执行与评价方法|页面要求、参照和对应任务；尚未导入，许可和条件仍须逐项核对|
+|[Agent-as-a-Judge](https://github.com/metauto-ai/agent-as-a-judge)|让独立裁判主动读工程和调用工具取证|具体需求、评分量表与正确性校准|
+|[Inspect scorers](https://inspect.aisi.org.uk/scorers.html)|程序/模型评分器的统一接口和日志|具体正确答案、判定准则或模型评分模板|
+
+**本项目采用的分工：**固定工程题保留原生验收指标；开放需求复用工具取证与机器量表，人工处理分歧。共同基础设施可以通用，成功定义不可能与题目无关。已有隐藏测试不交给开发任务；裁判补写的测试标注来源，不能冒充原题验收器。视觉与交互需要浏览器操作/截图等证据，单读源码不等于已验证。
+
+Docker是这些题包实现环境复现的常见方式，不是评测定义本身。改用本机必须明确依赖、OS与差异，重新验证后标注适配版本；不能删掉Docker要求就声称复现了原榜单。
+
+## 历史调研记录
+
+### 2026-09-12 底座选择
 
 查阅日期：2026-09-12。结论来自官方文档、GitHub README、API 元数据和 Harbor 本地安装源码；“支持”与本项目运行验收分开。此前原文明确未联网，本文件补上实际调查。
 
