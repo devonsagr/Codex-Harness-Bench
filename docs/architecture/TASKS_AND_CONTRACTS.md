@@ -16,7 +16,7 @@
 
 一道可交付的题由六部分组成：用户需求、项目契约、起点与环境、阶段推进、验收计划、来源与准备状态。它们必须能从选题页一路追到执行提示词、回收和历史，不能只存在于 JSON。
 
-Gemini 原型 `ProjectSpecContract` 已包含：userStories、apiEndpoints、dataModel、acceptanceCriteria、techStack。当前 catalog 中 **7 道题有该结构，8 道有 fullstackScope，31 道有 customChecklist，25 道有 evaluationRubric**。当前版本已将这些字段纳入类型、校验、编辑/阅读与独立评分材料，并以criteria连接人工逐项验收。原型细则正文保留，不把原points自动加到总分。
+`projectSpec` 保存 userStories、apiEndpoints、dataModel、acceptanceCriteria、techStack；已有字段纳入类型、校验、编辑/阅读与独立评分材料，criteria连接逐项验收。字段是否存在不能证明题目完整：必须核对实际需求、源码、环境和验收依据。原型只提供前端起点，当前题库范围与功能合同由本项目维护；旧points不自动加到总分。
 
 **数据保真和行为保真都必须验证。** 新Run分别冻结完整Spec/criteria与开发提示词；后者仅包含原始需求和当轮任务，并保留SHA-256。内部验收契约不再注入开发提示词；旧Run继续展示原来的文本编排，不追加原本没发送的要求。
 
@@ -131,3 +131,13 @@ U20新评测采用arena-machine-v1机器量表，默认需求、健壮性、交�
 题库与准备页默认“可开始”，缺源码的17份Gemini修复题面和1份项目类重构题面列于“待补全”，选用/开始受限；仍保存完整原文以便后续完善。从零构建题可从空目录实现，但这不代表依赖、数据库或外部服务已就绪。“项目起点”展示源码文件数、来源、快照与环境说明；environmentNote为可选文本，新增题包填入运行时和已有测试命令，旧记录不追写。
 
 requiresBaseline明确声明修复、重构和已有工程扩展需源码；Bug修复始终要求起点。旧perf-01-props-to-signals记录只读兼容为需要源码，不改变旧Run，用户编辑新版可明确选择起点要求。前端准备度与后端prepare使用相同条件，不只根据类别判断。
+
+## U27 公开题源与桌面适配
+
+`catalog/public-task-sources.json` 是固定上游版本的来源索引，113项包含id/title/language/category/repositoryUrl/baseCommit及题面、环境、验收器链接。界面可搜索和查看来源，状态 `indexed-not-adapted` 不进入可开始题目，不创建Run，不触发下载。元数据许可与变更见 `catalog/SOURCES.md`；不包含目标源码、参考解或隐藏测试。
+
+正式接入仍属B07：按来源版本获取题包，冻结题目与目标工程base SHA，准备源码/依赖，验证原验收器，再发布可执行题目。已有公开GitHub起点导入仅能准备源码，不代表这一整条适配链已经完成。
+
+开发工作区包含目标起点、允许的已有测试和原始任务说明；隐藏tests、参考解、裁判细则放独立验收材料。准备清单必须记录OS/运行时/依赖、原生或适配环境、校验结果；失败时留在待准备，不让修复题落入空目录。Windows本机无法等价复现的题不能静默变更条件。自动准备是产品能力，不能要求用户逐题手工拼装题包。
+
+评分接入须保留原题reward和测试结果，与本项目质量维度分开。先验证一个代表题包的完整链路，再扩展语言和工程类型；113项不等于已验证113套运行环境。具体顺序只在PROJECT_SPEC第8节维护。

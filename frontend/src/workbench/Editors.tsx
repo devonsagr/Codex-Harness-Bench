@@ -1,4 +1,5 @@
 import {CodexApply,NativeConfigFields} from './Codex';
+import {PublicTaskSources} from './PublicTaskSources';
 import {useEffect,useState} from 'react';
 import type {State,Act,Config,Task,Check,Imported} from './types';
 import {SkillPicker,ProjectConfigImport} from './Skills';
@@ -43,6 +44,7 @@ export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:s
 const newTask=():Task=>({id:'',revision:0,title:'',difficulty:'medium',taskParadigm:'open-ended-project',channel:'frontend-ui',inputPrompt:'',stages:[{title:'完成需求',prompt:''}],checks:[],hasFrontendUI:true,sourceKind:'user-authored',sourceNote:'本地自定义题',license:'用户自有内容'});
 export function TaskManager({state,act,onUse}:{state:State;act:Act;onUse:(id:string)=>void}){
   const [draft,setDraft]=useState<Task>(structuredClone(state.tasks.find(t=>t.taskParadigm==='open-ended-project')||newTask()));const [query,setQuery]=useState('');const [kind,setKind]=useState('open-ended-project');const [path,setPath]=useState('');
+  const [sourcesOpen,setSourcesOpen]=useState(false);
   const [section,setSection]=useState('overview');const [pendingOnly,setPendingOnly]=useState(false);
   const [repoUrl,setRepoUrl]=useState('');const [commit,setCommit]=useState('');const [fetching,setFetching]=useState(false);
   const change=(patch:Partial<Task>)=>setDraft({...draft,...patch});
@@ -58,7 +60,7 @@ export function TaskManager({state,act,onUse}:{state:State;act:Act;onUse:(id:str
     <Details title="恢复归档题目">{state.archivedTasks.map(t=><button key={t.id} className="btn-secondary mr-2" onClick={()=>act<Task>(`/tasks/${t.id}/archive`,{revision:t.revision,archived:false}).then(setDraft).catch(()=>{})}>{t.title} · 恢复</button>)}</Details>
     <div className="studio-list">{list.map(t=><button className={'list-card '+(t.id===draft.id?'selected':'')} key={t.id} onClick={()=>{setDraft(structuredClone(t));setSection('overview');}}><strong>{t.title}</strong><span>{t.difficulty} · {t.sourceKind==='repository-original'?'内置完整题包':'需求题面'}</span><small>{t.baselineId?'源码自动复制':needsBaseline(t)?'缺少源码起点':'从零构建'}</small></button>)}</div>
     {!list.length&&<Empty>{pendingOnly?'没有待补全题面。':'没有符合条件的可开始题目。'}</Empty>}
-  </aside><div className="studio-editor"><header className="editor-heading"><div><span className="eyebrow">{draft.sourceKind==='repository-original'?'内置题包':draft.taskParadigm==='deterministic-bugfix'?'工程修复':'项目构建'} · v{draft.revision}</span><h2>{draft.title||'新建题目'}</h2></div><button className="btn-primary" disabled={!draft.id||!canStartTask(draft,state.baselines)} onClick={async()=>{try{const t=dirty?await act<Task>('/tasks/save',draft):draft;setDraft(t);onUse(t.id);}catch{}}}>{dirty?'保存并选用':'选用此题'}</button></header>
+  <div className="library-actions"><button className="btn-secondary" onClick={()=>setSourcesOpen(true)}>浏览公开题源</button></div><Dialog title="公开题源 · 待接入" open={sourcesOpen} onClose={()=>setSourcesOpen(false)}><PublicTaskSources/></Dialog></aside><div className="studio-editor"><header className="editor-heading"><div><span className="eyebrow">{draft.sourceKind==='repository-original'?'内置题包':draft.taskParadigm==='deterministic-bugfix'?'工程修复':'项目构建'} · v{draft.revision}</span><h2>{draft.title||'新建题目'}</h2></div><button className="btn-primary" disabled={!draft.id||!canStartTask(draft,state.baselines)} onClick={async()=>{try{const t=dirty?await act<Task>('/tasks/save',draft):draft;setDraft(t);onUse(t.id);}catch{}}}>{dirty?'保存并选用':'选用此题'}</button></header>
     <nav className="section-nav" aria-label="题目分区">{[['overview','题目概览'],['content','编辑需求'],['checks','验收与步骤'],['source','源码与导入']].map(([id,label])=><button type="button" key={id} aria-current={section===id?'page':undefined} className={section===id?'active':''} onClick={()=>setSection(id)}>{label}</button>)}</nav>
     <section hidden={section!=='overview'} className="task-overview editor-body"><div className="reading-copy"><h3>要完成什么</h3><p className="task-prompt">{draft.inputPrompt||'先在“编辑需求”填写题目。'}</p>{draft.projectSpec&&<Details title="项目要求"><ContractView task={draft}/></Details>}</div><TaskEnvironment task={draft} baselines={state.baselines}/></section>
     <form className="editor-body space-y-4" hidden={section==='overview'} onSubmit={e=>{e.preventDefault();void save();}}>
