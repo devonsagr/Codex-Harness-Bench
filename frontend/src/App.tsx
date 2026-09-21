@@ -26,7 +26,7 @@ export function App(){
   const go=(id:string)=>{setRunId(id);setTab('workbench');};
   const run=state?.runs.find(r=>r.id===runId)||state?.archivedRuns.find(r=>r.id===runId);
   return <><ArenaHeader activeTab={tab} onTabChange={setTab} theme={theme} onToggleTheme={()=>setTheme(theme==='light'?'dark':'light')}/>
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+    <main className="arena-main mx-auto px-4 sm:px-6 py-6 space-y-5">
       <div className="flex justify-between items-center text-xs text-slate-500 dark:text-zinc-400"><span>本地工作台 · Codex 桌面评测</span><button className="btn-ghost" onClick={()=>refresh().then(()=>{setError('');setNotice('');}).catch(()=>{})}>刷新记录</button></div>
       {connectionError&&<div role="alert" className="alert-error">{connectionError}<button className="ml-4 underline" onClick={()=>window.location.reload()}>重新加载页面</button></div>}
       {error&&<div role="alert" className="alert-error">{error}<button className="ml-4 underline" onClick={()=>setError('')}>关闭</button></div>}

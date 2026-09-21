@@ -208,3 +208,11 @@ U19：/codex/status活动回执在有变化时增加canPreserveChanges（只读�
 state.models 增加 reasoningLevels、defaultReasoning、capabilitiesKnown，来自当前 CODEX_HOME 缓存；无记录时为空，不推测。/codex/status 新增当前全局文件 model/reasoning，不代表任务运行值。
 
 POST /runs/{rid}/trials/{tid}/judge-progress 是经过现有同源/令牌保护的只读接口，返回 execution、commands、truncated、error。execution 为当前任务的 jobId/model/reasoning/environment/captureId/status/起止时间和本机 logDirectory；commands 仅真实命令事件，最多最近30条，单条命令6000字符、输出10000字符，最多读取日志末尾1MB。路径由所属试次生成并检查符号链接，不能指定任意文件。后台生命周期保存在 Trial.judgeExecution；重启中断明确标记，不改历史评分。
+
+### U26 内置题与配置回收站
+
+启动种子阶段自动安装缺失的original-search-notes-v1、original-storage-migration-v1、original-csv-catalog-v1及各自baseline；存在活动或归档记录时跳过，保留旧版本。POST /tasks/import-originals仅保留兼容。Task新增可选environmentNote文本（最多10000字符），保存、题包导入和冻结沿用现有校验。
+
+删除配置仍使用POST /configs/{id}/archive，带当前revision与archived:true；恢复传false。接口不做永久删除、宿主撤销或历史Run更新。前端名称改为删除/回收站，存储语义不变。
+
+Task.requiresBaseline为布尔值，项目类重构也可要求源码；旧perf-01-props-to-signals未声明时兼容为true。新Run在创建目录前拦截缺源码的必需起点题；旧Run不重写。

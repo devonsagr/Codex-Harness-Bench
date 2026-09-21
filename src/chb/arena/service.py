@@ -14,7 +14,7 @@ from urllib.parse import urlencode, quote
 from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
 from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, MACHINE_POLICY, RUBRICS
-from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks, delivery_task
+from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks, delivery_task, requires_baseline
 from .models import capabilities, validate_effort
 from .skills import invocation, codex_home
 from .codex_apply import settings, connections, project_settings
@@ -85,6 +85,9 @@ class Arena:
             for task in json.loads((self.root/'catalog/arena-tasks.json').read_text(encoding='utf-8')):
                 self.save_task(task)
 
+        from .builtin_tasks import import_originals
+        import_originals(self)
+
     def save_config(self, value, import_source=None):
         value=copy.deepcopy(value)
         for key,limit in [('name',100),('agentsPrompt',200000),('baseModel',100)]:
@@ -134,7 +137,7 @@ class Arena:
             except ValueError as exc:raise ValueError(label+'：'+str(exc)) from exc
         value.setdefault('difficulty','未标注')
         text(value['difficulty'],100)
-        for key in ['description','sourceNote','sourceKind','referenceUrl','license']:
+        for key in ['description','sourceNote','sourceKind','referenceUrl','license','environmentNote']:
             if key in value:
                 try:text(value[key],10000,False)
                 except ValueError as exc:raise ValueError(key+'必须是文本。') from exc
@@ -233,8 +236,8 @@ class Arena:
         configs=[self.db.get('config',identifier(x)) for x in ids]
         for config in configs:validate_effort(config['baseModel'],config['reasoning'])
         selected=[self.db.get('task',identifier(x)) for x in tasks]
-        if any(t['taskParadigm']=='deterministic-bugfix' and not t.get('baselineId') for t in selected):
-            raise ValueError('Bug 修复题尚未准备项目源码。请在题库导入起始项目后再开始；参考链接不等于已下载环境。')
+        if any(requires_baseline(t) and not t.get('baselineId') for t in selected):
+            raise ValueError('修复或重构题尚未准备项目源码。请选择自带源码的内置题，或为自定义题绑定起点；参考链接不等于已下载环境。')
         if any(x.get('archived') for x in configs+selected): raise ValueError('归档配置或题目不可创建新评测。')
         request_id=identifier(data.get('requestId'))
         existing=[r for r in self.db.list('run')+self.db.list('run',True) if r.get('requestId')==request_id]

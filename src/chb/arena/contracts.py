@@ -10,6 +10,12 @@ DIMENSIONS = {'intent', 'maintainability', 'robustness', 'ux', 'verification', '
 SCOPES = {'frontend-only', 'fullstack-node', 'fullstack-sqlite', 'frontend-mockapi'}
 
 
+def requires_baseline(task):
+    # Legacy catalog refactoring task was incorrectly presented as an empty-project task.
+    return task.get('taskParadigm') == 'deterministic-bugfix' or task.get(
+        'requiresBaseline', task.get('id') == 'perf-01-props-to-signals')
+
+
 def string(value, label, limit=8000, required=False):
     if not isinstance(value, str) or len(value) > limit or (required and not value.strip()):
         raise ValueError(f'{label}必须是{limit}字符以内的文本' + ('且不能为空。' if required else '。'))
@@ -29,6 +35,9 @@ def validate_id(value):
 def normalize_contract(task):
     """Return a copy; callers decide whether to save a new revision or freeze a new run."""
     result = copy.deepcopy(task)
+    if 'requiresBaseline' in result and type(result['requiresBaseline']) is not bool:
+        raise ValueError('需要已有源码标记必须是布尔值。')
+    result['requiresBaseline'] = requires_baseline(task)
     result.setdefault('difficulty', '未标注')
     version = result.get('schemaVersion', 1)
     if type(version) is not int or version not in {1, CONTRACT_VERSION}:
