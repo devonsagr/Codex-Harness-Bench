@@ -207,3 +207,11 @@ Windows本机Edge失败来自受限令牌IPC权限，浏览器取证仍未接通
 验证：138项测试、TypeScript/Vite/compileall通过；后续小改6项专项通过。真实Tengo119份源码复制验证与单一Git提交通过；.local/qa/real-tengo-copy.json。浏览器下载状态、类型筛选、数据搜索、选中详情、禁用态和确认取消通过，窄屏无溢出、无console error。未改宿主配置、未清理实际用户数据、未调用正式模型/官方验收。
 
 限制：源码已下载≠依赖就绪≠官方reward；OPA/Prometheus大仓库与全题环境适配未完成。源码可回退本提交（须停止服务并先还原已清理工作区）；不自动回退/删除本地下载和记录，旧版不认识cleanup字段不能直接恢复删除动作。裁判D盘临时路径真实模型验收未执行。文件与SQLite跨介质强制退出仍有恢复风险。
+
+## 2026-09-21 U30 · Tengo免Docker运行与原测试适配
+
+回滚基准21c9bb1，分支codex/product-design-refresh。新增固定Go 1.26.8工具链下载校验、工作区PowerShell入口、上游隐藏测试/白名单的Windows适配。网页一键准备校验故障起点后保存题目新版本；快照后台验收、取消、逐组日志、回收版本历史及数据占用接通。native结果与AI评分/旧checks分开，取消不覆盖旧结果；校验源码来源SHA，变化后拒绝套用原验收器。修复Windows PowerShell误读中文路径（UTF-8 BOM），隔离缓存不进入快照/Git。
+
+验证：144项Python测试、TypeScript/Vite、compileall通过。真实NOP修复0/23、回归122/122；上游参考修复23/23、122/122，均在固定Windows适配器运行。独立QA实例经prepare/capture/native-check/native-log完整链路，保留2份回收及重测记录；回执.local/qa/u30-ui/receipt.json、final-receipt.json。浏览器验证真实数据的一键准备成功、QA通过数/输出/取消/旧版本失败记录，console error为空。网站8765运行更新构建；未调用模型、未改宿主Codex配置、未删除用户实际数据。
+
+边界：仅Tengo单题Windows适配，不是官方Linux排行榜；其余任务环境及大仓库边界仍待完成。Codex命令沙箱允许宿主读取、限制写入且禁网；不等同于VM。结果回执随记录导出，完整日志本机保留。回滚源码不删除已有nativeVerifications字段或本地证据；旧UI不展示该字段。工具链/参考解/日志仅.local，未提交。

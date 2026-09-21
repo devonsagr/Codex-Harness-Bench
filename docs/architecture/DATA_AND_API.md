@@ -225,3 +225,11 @@ Task.requiresBaseline为布尔值，项目类重构也可要求源码；旧perf-
 - POST `/storage/workspace`：runId/trialId/revision/action；trash还需desktopStopped=true，并核对最新快照与未回收改动；restore只恢复原位置；purge要求confirmation为“永久删除工作区”。仅completed且已有capture、无后台任务/容器时允许。所有路径由id推导，拒绝链接/联接。移动后DB失败回滚目录；purge先持久化deleting再删，故障后可重试。返回更新的storage状态。
 
 三接口保持本机Host/Origin/令牌校验，不接受任意路径或命令。清理后open/start/capture/next受限；恢复后重新允许，历史查看与评分证据保留。清理试次不继续自动同步桌面日志。下载和裁判临时文件位于.local/arena；不改变用户全局认证目录。数据页不是通用文件管理器，当前不支持任意删除被引用的证据或源码。
+
+### U30 本机测试接口
+
+- `/sources/prepare`增加prepareEnvironment:true，仅允许固定Tengo单题；先准备源码、工具链并验证故障起点，再保存ready-windows新版本。未支持或归档题拒绝。
+- POST `/runs/{rid}/trials/{tid}/native-check`：captureId指定冻结版本。后台checking，trial.nativeExecution保存jobId/阶段/状态/版本，支持既有stop。结果追加到capture.nativeVerifications，包含原生通过数、reward、manifest hash、工具链/来源版本、命令回执与日志目录；不覆盖checks或reviews。失败/取消不追加伪零分，重启标interrupted。
+- POST 同路径`native-log`：suite为1–7，只读该试次最近测试任务末尾20KB日志；不接受路径/命令。各次完整日志保留native-checks。JSON导出包含结果回执；完整原生日志仍保存在本机，不随ZIP导出。
+
+native-runtime/native-homes为每次临时副本和空CODEX_HOME，正常完成或取消清理；不复制认证，不调用模型。Windows命令沙箱允许root读取，写入限临时副本且禁网络，并非宿主读取隔离；不宣称无任何宿主可见信息。工具链准备按进程锁串行，超时/取消停止进程树。

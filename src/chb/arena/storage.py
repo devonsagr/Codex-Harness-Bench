@@ -22,7 +22,7 @@ def status(app):
             folder=safe_path(app.local,'runs/'+identifier(run['id'])+'/'+identifier(trial['id']))
             rows.append({'runId':run['id'],'trialId':trial['id'],'revision':run['revision'],
                 'title':next(t['title'] for t in run['tasks'] if t['id']==trial['taskId']),
-                'state':trial['state'],'workspaceBytes':size(folder/'workspace'),'reviewBytes':size(folder/'reviews'),
+                'state':trial['state'],'workspaceBytes':size(folder/'workspace'),'reviewBytes':size(folder/'reviews')+size(folder/'native-checks'),
                 'snapshotBytes':size(folder/'captures')+size(folder/'baseline'),'captures':len(trial['captures']),
                 'reviews':len(trial['reviews']),'workspacePath':str(folder/'workspace'),
                 'cleanup':trial.get('workspaceCleanup'),'canClean':trial['state']=='completed' and bool(trial['captures']) and (folder/'workspace').exists() and not trial.get('ownedContainers') and (run['id'],trial['id']) not in jobs})
@@ -30,6 +30,7 @@ def status(app):
         {'name':'配置、题目与历史记录','path':'arena.sqlite3','bytes':size(app.db.path),'purpose':'保存版本、评分、人工修正和索引；不会随工作区清理删除。'},
         {'name':'固定源码起点','path':'baselines/','bytes':size(app.local/'baselines'),'purpose':'创建工作区的来源。与已开始的评测副本分离。'},
         {'name':'公开题面与隐藏验收','path':'public-sources/','bytes':size(app.local/'public-sources'),'purpose':'可重新下载的固定题包；不把隐藏测试复制到开发目录。'},
+        {'name':'固定工具链与环境检查','path':'toolchains/ + environment-checks/','bytes':size(app.local/'toolchains')+size(app.local/'environment-checks'),'purpose':'免 Docker 工具链和故障起点校验日志；与用户系统安装分开。'},
         {'name':'技能快照','path':'skills/','bytes':size(app.local/'skills'),'purpose':'已选配置引用的版本，不清理用户全局技能。'},
         {'name':'待删除工作区','path':'trash/workspaces/','bytes':size(app.local/'trash/workspaces'),'purpose':'清理先移入这里；可恢复，彻底删除后才释放磁盘。'},
     ],'workspaces':rows,'sourceJobs':source_jobs,

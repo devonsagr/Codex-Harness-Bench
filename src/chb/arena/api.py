@@ -69,6 +69,19 @@ def post(app,route,data):
                 app.event(run,'已将本题冻结配置写入本机 Codex；桌面实际生效仍需核对。',tid)
                 app.db.save('run',run,run['revision'])
                 return result
+            if action=='native-log':
+                from .files import safe_path
+                run,trial=app.trial(rid,tid)
+                execution=trial.get('nativeExecution') or {}
+                suite=data.get('suite',1)
+                if type(suite) is not int or not 1<=suite<=7:raise ValueError('测试组编号无效。')
+                if not execution.get('jobId'):return {'output':'尚未执行测试','truncated':False}
+                log=safe_path(app.local,f"runs/{rid}/{tid}/native-checks/{identifier(execution['jobId'])}/suite-{suite}.jsonl")
+                if not log.is_file():return {'output':'该测试组尚未产生输出','truncated':False}
+                with log.open('rb') as stream:
+                    length=log.stat().st_size;stream.seek(max(0,length-20000));body=stream.read(20000)
+                return {'output':body.decode('utf-8',errors='replace'),'truncated':length>20000}
+            if action=='native-check':return start_job(app,rid,tid,'native',data)
             if action in {'check','judge'}:return start_job(app,rid,tid,action,data)
             if action=='stop':return stop_job(app,rid,tid)
             return app.mutate(rid,tid,action,data)

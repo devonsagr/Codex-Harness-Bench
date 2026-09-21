@@ -25,3 +25,4 @@
 - AI 审查专用镜像准备：`.venv\Scripts\python.exe -X utf8 scripts/prepare_arena_review.py`；使用 `reviewer/Dockerfile`，只需 Codex CLI 和 Node，不依赖旧修题 Agent 镜像。
 
 - U29：DeepSWE固定定义包下载与按题源码准备已接入；依赖/原生验收未就绪不能称官方跑分。下载缓存public-sources/downloads、裁判临时reviewer-runtime与开发runs均位于项目.local/arena，禁止提交。数据页清理仅已回收且结束的workspace，先移入trash/workspaces再显式永久删除，保留快照/复查/评分；验证删除只用隔离夹具。
+- U30：Tengo支持Windows固定Go工具链及原测试适配，题库一键准备、快照验收与日志/历史分存；不是官方Linux排行榜。工具链/环境检查/native-runtime/native-homes均在.local/arena；命令沙箱限制写入并禁网，但允许宿主读取，不宣称虚拟机隔离。参考解只用于.local/qa负例/正例验证，不进入开发起点、提示词或Git。
