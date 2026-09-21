@@ -10,7 +10,7 @@ from urllib.error import URLError
 from .files import safe_path, IGNORED, SECRET
 
 
-def unpack(archive,target):
+def unpack(archive,target, include=None):
     size=0;count=0;seen=set()
     with tarfile.open(archive,mode='r|gz') as tar:
         for entry in tar:
@@ -19,6 +19,7 @@ def unpack(archive,target):
             parts=entry.name.split('/')[1:]
             if not parts or not any(parts):continue
             relative='/'.join(parts).rstrip('/')
+            if include is not None and not include(relative):continue
             dest=safe_path(target,relative)
             if entry.issym() or entry.islnk() or not (entry.isdir() or entry.isfile()):raise ValueError('仓库包含链接或特殊文件，不能作为题目起点。')
             if any(part in IGNORED for part in parts) or SECRET.search(relative):continue
@@ -39,7 +40,8 @@ def import_repository(app,data):
     if not match or match[2] in {'.','..'}:raise ValueError('请输入公开 GitHub 仓库地址，格式为 https://github.com/作者/仓库。')
     if not re.fullmatch(r'[0-9a-fA-F]{40}',commit):raise ValueError('请选择题目起始版本的完整 40 位 commit SHA，不能使用变化中的分支。')
     owner,repo=match.groups();commit=commit.lower();url=f'https://github.com/{owner}/{repo}'
-    with tempfile.TemporaryDirectory(prefix='chb-source-') as temp:
+    temp_root=app.local/'downloads';temp_root.mkdir(parents=True,exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='source-',dir=temp_root) as temp:
         folder=Path(temp);archive=folder/'source.tar.gz';source=folder/'source';source.mkdir()
         request=Request(f'https://codeload.github.com/{owner}/{repo}/tar.gz/{commit}',headers={'User-Agent':'Codex-Harness-Bench'})
         try:

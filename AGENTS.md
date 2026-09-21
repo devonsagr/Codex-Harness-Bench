@@ -23,3 +23,5 @@
 - 长期项目按主架构持续推进完整闭环；交接写真实完成/未验证/阻塞，不再以小步结束要求用户不断回复继续。
 
 - AI 审查专用镜像准备：`.venv\Scripts\python.exe -X utf8 scripts/prepare_arena_review.py`；使用 `reviewer/Dockerfile`，只需 Codex CLI 和 Node，不依赖旧修题 Agent 镜像。
+
+- U29：DeepSWE固定定义包下载与按题源码准备已接入；依赖/原生验收未就绪不能称官方跑分。下载缓存public-sources/downloads、裁判临时reviewer-runtime与开发runs均位于项目.local/arena，禁止提交。数据页清理仅已回收且结束的workspace，先移入trash/workspaces再显式永久删除，保留快照/复查/评分；验证删除只用隔离夹具。

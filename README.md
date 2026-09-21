@@ -40,7 +40,7 @@ pnpm --dir frontend build
 .venv\Scripts\python.exe -X utf8 -m chb.cli ui
 ```
 
-Windows 也可双击 **launch-ui.cmd**。首次缺前端构建时，启动器会安装锁定依赖并构建。默认地址 **http://127.0.0.1:8765**，只监听本机；启动进程需保持运行。可加 `--port 8766` 或 `--no-browser`。更新源码后重新构建前端。
+Windows 也可双击 **launch-ui.cmd**。首次缺 Python 环境时自动执行 `uv sync --frozen`；缺前端构建时安装锁定依赖并构建。需要 uv、Node.js 和 pnpm 已可用。默认地址 **http://127.0.0.1:8765**，只监听本机；启动进程需保持运行。可加 `--port 8766` 或 `--no-browser`。更新源码后重新构建前端。
 
 Linux/macOS 将 Python 路径换为 `.venv/bin/python`；目前实机验证以 Windows 为主。支持源码仓库 editable 安装，独立 wheel 不含完整题库及前端，也尚无免依赖桌面安装包。
 
@@ -62,15 +62,30 @@ Linux/macOS 将 Python 路径换为 `.venv/bin/python`；目前实机验证以 W
 |---|---|---|
 |项目内置题包|笔记搜索修复、CSV导入修复、笔记存储演进|启动自动装载3套源码起点；Python标准库环境，已有测试可执行|
 |自定义需求|应用构建、前后端交付、个人工作流|可从完整需求开始；修改已有工程必须绑定起点|
-|[DeepSWE](https://github.com/datacurve-ai/deep-swe)|真实开源工程上的修复、重构及功能扩展|已逐项索引113道公开任务，提供题面/固定起点/环境/验收器链接；桌面运行适配未完成|
+|[DeepSWE](https://github.com/datacurve-ai/deep-swe)|真实开源工程上的修复、重构及功能扩展|113道题包可一键下载；按题下载固定源码。依赖与原生验收适配未完成|
 |[SWE-bench](https://github.com/SWE-bench/SWE-bench)|已有项目Issue修复与回归|已调研，尚未接入|
 |[DesignBench](https://github.com/WebPAI/DesignBench)|前端生成、编辑及修复|专项评测参考，尚未接入|
 
-题库中心的“浏览公开题源”可以搜索113道 DeepSWE 任务，固定来源版本 `0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea`。**来源索引不计入可运行题数。** 接入一个题包要完成源码准备、依赖检查、桌面执行适配和原验收器对接；不能只复制题面或仓库链接。
+题库中心的“下载 DeepSWE 题目”可以搜索、下载113道 DeepSWE 任务，固定来源版本 `0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea`。其中4道标为Bug修复，其余109道为已有工程扩展。全部题面/环境定义/隐藏验收可以一次下载；目标源码按所选题准备，单次最多10题。**下载成功不等于运行环境就绪，也不等于原生验收通过。** 超过快照限额、含链接或缺依赖时明确报出，不自动变成空目录任务。 接入一个题包要完成源码准备、依赖检查、桌面执行适配和原验收器对接；不能只复制题面或仓库链接。
 
 内置题不需要用户再次导入，创建评测时自动复制源码和已有测试；参考解和隐藏验收器不交给被测任务。自定义起点支持本地目录或公开 GitHub 仓库的完整 commit SHA。题目、源码和评分方案均按版本冻结。
 
 公开来源和本次DRadar只读研究见[调研依据](docs/research/landscape.md)。索引来源与许可见[catalog说明](catalog/SOURCES.md)。
+
+## 数据、缓存与清理
+
+导航“数据与存储”按题目或记录编号搜索，显示工作目录、冻结快照和 AI 复查的真实占用，直接进入产物与评分。已回收且交付结束的工作区可移入待删除区、恢复或再次确认后彻底删除；未回收改动和后台检查会阻止清理。清理不删除评分与快照。归档只是隐藏记录。
+
+|本机目录（均在 `.local/arena/`）|用途|
+|---|---|
+|`arena.sqlite3`|配置/题目版本、历史与评分索引|
+|`public-sources/`、`baselines/`|固定公开题包、目标源码起点；隐藏验收与开发起点分开|
+|`runs/<run>/<trial>/workspace`|桌面任务可修改的副本|
+|同一试次的 `captures/`、`reviews/`|回收快照和独立复查材料/结果|
+|`reviewer-runtime/`、`downloads/`|临时裁判目录与下载暂存；正常结束清理|
+|`trash/workspaces/`|可恢复的待删除工作目录|
+
+私有数据与下载文件不进入公开 Git；清理不触碰宿主 Codex 的登录和全局技能。当前支持工作区清理，尚不提供任意历史证据或被引用源码的永久删除。
 
 ## 怎样打分
 

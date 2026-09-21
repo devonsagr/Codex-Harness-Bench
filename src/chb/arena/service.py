@@ -53,6 +53,10 @@ class Arena:
         self.jobs={}
         self._last_trace_sync=0.0
         self._seed()
+        for job in self.db.list('source_job'):
+            if job['status']=='running':
+                job.update(status='interrupted',phase='服务重启，已保存内容保留，可重试')
+                self.db.save('source_job',job,job['revision'])
         for run in self.db.list('run'):
             if any(t['state'] in {'checking','judging'} or t.get('ownedContainers') for t in run['trials']):
                 for trial in run['trials']:
@@ -184,7 +188,7 @@ class Arena:
         return {'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
                 'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
-                'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
+                'sourceJobs':self.db.list('source_job'),'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
                 'mode':'desktop','source':'SQLite 与本机冻结文件','legacyExperiments':len(list((self.root/'runs').glob('*/plan.json')))}
 
     def sync_desktop_traces(self):
@@ -195,7 +199,7 @@ class Arena:
             for run in self.db.list('run'):
                 changed=False
                 for trial in run['trials']:
-                    if trial['state'] in {'checking','judging'}:continue
+                    if trial['state'] in {'checking','judging'} or trial.get('workspaceCleanup',{}).get('status') in {'trashed','deleting','deleted'}:continue
                     before=copy.deepcopy(trial)
                     try:
                         usage,message=discover_trace(codex_home(),trial['workspacePath'],trial.get('sessionId'))
@@ -326,8 +330,16 @@ class Arena:
                     prompts.append({'text':content,'sha256':hash_bytes(content.encode()),
                                     'source':'frozen-trial-v3','stageId':task['stages'][index].get('id')})
                 # A separate repository marks the instruction-discovery boundary.
-                init=shell(['git','init','--quiet',str(workspace)])
+                init=shell(['git','init','--quiet','--initial-branch=main',str(workspace)])
                 if init.returncode:raise ValueError('无法创建独立题目 Git 工作区。')
+                if task.get('sourceKind')=='deepswe':
+                    # A local baseline commit supports branching/diff without fetching
+                    # future upstream history or shipping the hidden solution.
+                    for command in [['config','core.autocrlf','false'],['add','--all'],
+                        ['-c','user.name=Harness Bench','-c','user.email=bench@localhost','-c','commit.gpgsign=false',
+                         '-c','core.hooksPath='+str(trialdir/'disabled-hooks'),'commit','--quiet','-m','Frozen task starting point']]:
+                        if shell(['git',*command],cwd=workspace,timeout=60).returncode:
+                            raise ValueError('无法保存题目 Git 起点，未创建评测记录。')
                 manifest=snapshot(workspace,trialdir/'baseline')
                 trial={'id':tid,'taskId':task['id'],'configId':config['id'],'state':'prepared','stageIndex':0,
                        'workspacePath':str(workspace),'baseline':manifest,'captures':[],'reviews':[], 'skills':skills,
@@ -362,6 +374,8 @@ class Arena:
             config=next(x for x in run['configs'] if x['id']==t['configId'])
             folder=self.local/'runs'/rid/tid
             workspace=folder/'workspace'
+            if action in {'start','open','capture','next'} and t.get('workspaceCleanup',{}).get('status') in {'trashed','deleting','deleted'}:
+                raise ValueError('工作区已清理；可在数据与存储恢复，或使用同题创建新评测。')
             if action=='start':
                 if t['state'] not in {'prepared','waiting_confirmation'}:raise ValueError('该轮已开始或需要先完成当前步骤。')
                 if not data.get('settingsConfirmed'):raise ValueError('请先核对桌面中的模型、推理档位和工作区。')
