@@ -1,4 +1,5 @@
 import React from 'react';
+import {ReadingSettings} from '../workbench/ReadingSettings';
 import { Play, Sliders, Trophy, BookOpen, Clock, HelpCircle, Sun, Moon, Database } from 'lucide-react';
 
 export type ArenaTab = 'workbench' | 'history' | 'tasks' | 'configs' | 'leaderboard' | 'spec';
@@ -75,7 +76,7 @@ export const ArenaHeader: React.FC<ArenaHeaderProps> = ({
         </nav>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-2 text-xs shrink-0">
+        <div className="flex items-center gap-2 text-xs shrink-0"><ReadingSettings/>
           <button
             onClick={onToggleTheme}
             title={theme === 'light' ? '切换到暗色模式' : '切换到白天模式'}

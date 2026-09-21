@@ -8,6 +8,9 @@ import {ContractEditor,TaskFilters,TaskImport,matchTask} from './Contracts';
 const newConfig=():Config=>({id:'',revision:0,name:'',agentsPrompt:'',baseModel:'gpt-6-astra',reasoning:'medium',interactiveMode:'adaptive',skills:[],customConstraints:[]});
 export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:string)=>void}){
   const [draft,setDraft]=useState<Config>(state.configs[0]||newConfig());
+  const modelInfo=state.models.find(m=>m.id===draft.baseModel);
+  const efforts=modelInfo?.reasoningLevels||[];
+  const supported=efforts.includes(draft.reasoning);
   const addSkills=(imported:Imported[])=>setDraft(current=>({...current,skills:[...new Set([...current.skills,...imported.map(s=>s.id)])]}));
   const change=(patch:Partial<Config>)=>setDraft({...draft,...patch});
   const save=async(copy=false)=>{try{setDraft(await act<Config>('/configs/save',{...draft,...(copy?{id:undefined,revision:undefined,name:draft.name+' · 副本'}:{})}));}catch{/* App displays error */}};
@@ -20,8 +23,8 @@ export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:s
   </aside><div className="space-y-5"><Panel title={draft.id?'编辑配置 · v'+draft.revision:'新建配置'}>
     <form onSubmit={e=>{e.preventDefault();void save();}} className="space-y-4">
       <Field label="配置名称"><input required value={draft.name} onChange={e=>change({name:e.target.value})}/></Field>
-      <div className="grid sm:grid-cols-3 gap-4"><Field label="模型" hint="来自本机模型缓存；正式执行前在桌面核对。"><ModelSelect value={draft.baseModel} onChange={baseModel=>change({baseModel})} models={state.models}/></Field>
-      <Field label="推理档位"><select value={draft.reasoning} onChange={e=>change({reasoning:e.target.value})}>{['none','minimal','low','medium','high','xhigh','max','ultra'].map(s=><option key={s}>{s}</option>)}</select></Field>
+      <div className="grid sm:grid-cols-3 gap-4"><Field label="模型" hint="来自本机模型缓存；正式执行前在桌面核对。"><ModelSelect value={draft.baseModel} onChange={baseModel=>{const m=state.models.find(m=>m.id===baseModel);change({baseModel,reasoning:m?.reasoningLevels?.includes(draft.reasoning)?draft.reasoning:m?.defaultReasoning||m?.reasoningLevels?.[0]||''});}} models={state.models}/></Field>
+      <Field label="推理档位" hint={efforts.length?undefined:'尚无能力记录，请在 Codex 刷新模型列表后刷新工作台。'}><select value={draft.reasoning} onChange={e=>change({reasoning:e.target.value})}>{!supported&&<option value={draft.reasoning} disabled>{draft.reasoning||'请选择'} · {efforts.length?'不受支持':'能力未知'}</option>}{efforts.map(s=><option key={s}>{s}</option>)}</select></Field>
       <Field label="交互约定"><select value={draft.interactiveMode} onChange={e=>change({interactiveMode:e.target.value})}><option value="adaptive">按任务自行判断</option><option value="one-shot-direct">一次交付</option><option value="step-by-step-confirm">分阶段等我确认</option></select></Field></div>
       <NativeConfigFields config={draft} change={change}/>
       <Field label="AGENTS 规则" hint="在独立工作区写入 AGENTS.override.md；桌面全局规则仍会继承。"><textarea rows={12} value={draft.agentsPrompt} onChange={e=>change({agentsPrompt:e.target.value})}/></Field>

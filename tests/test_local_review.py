@@ -13,11 +13,13 @@ class LocalReviewTests(unittest.TestCase):
     def test_only_fixed_sandboxed_invocation_and_auth_cleanup(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);home=root/'home';home.mkdir();(home/'auth.json').write_text('{"fixture":true}')
+            for name in ('AGENTS.md','config.toml','history.jsonl','memory.md'):(home/name).write_text('previous context')
             folder=root/'review';source=folder/'task';source.mkdir(parents=True);(source/'instruction.md').write_text('fixture')
             copied_home=[]
             def launch(args,**kwargs):
                 self.assertEqual(args[args.index('-s')+1],'workspace-write')
                 self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',args)
+                self.assertIn('--ephemeral',args);self.assertIn('--ignore-rules',args);self.assertNotIn('resume',args)
                 self.assertIn('--ignore-user-config',args);self.assertIn('--output-schema',args)
                 self.assertIn('model_reasoning_effort="max"',args)
                 self.assertNotIn('OPENAI_API_KEY',kwargs['env'])
@@ -26,13 +28,16 @@ class LocalReviewTests(unittest.TestCase):
                 self.assertTrue(Path(kwargs['env']['TMP']).is_relative_to(kwargs['cwd']))
                 copied_home.append(Path(kwargs['env']['CODEX_HOME']))
                 self.assertTrue((copied_home[-1]/'auth.json').exists())
+                for name in ('AGENTS.md','config.toml','history.jsonl','memory.md'):self.assertFalse((copied_home[-1]/name).exists())
                 self.assertFalse(copied_home[-1].is_relative_to(kwargs['cwd']))
                 Path(args[args.index('-o')+1]).write_text('{"summary":"fixture","findings":[]}')
                 return MagicMock(returncode=0,poll=lambda:0)
             with patch.dict(os.environ,{'CODEX_HOME':str(home),'OPENAI_API_KEY':'never-forward'}),patch('chb.arena.local_review.shutil.which',return_value='codex'),patch('chb.arena.local_review.subprocess.run',return_value=MagicMock(stdout='codex fixture')),patch('chb.arena.local_review.subprocess.Popen',side_effect=launch),patch('chb.arena.local_review.ProcessTree') as tree:
                 _,answer,_=execute_local(folder,source,'fixture','fixture',{}, {'stop':threading.Event()},1)
                 self.assertEqual(json.loads(answer)['summary'],'fixture');tree.return_value.close.assert_called_once()
-            self.assertFalse(copied_home[0].exists());self.assertFalse((folder/'auth.json').exists())
+                execute_local(folder,source,'fixture','fixture',{}, {'stop':threading.Event()},1)
+            self.assertNotEqual(copied_home[0],copied_home[1])
+            self.assertTrue(all(not path.exists() for path in copied_home));self.assertFalse((folder/'auth.json').exists())
 
     def test_nonstandard_cli_path_can_be_explicitly_configured(self):
         with tempfile.TemporaryDirectory() as temp:
