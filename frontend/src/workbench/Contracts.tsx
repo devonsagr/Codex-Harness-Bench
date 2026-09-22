@@ -1,4 +1,5 @@
-import {useRef,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
+import {difficultyKey,taskFacets} from './presentation';
 import type {Act,Task,ProjectSpec,Criterion,Review} from './types';
 import {Field,Details,Panel,Json} from './ui';
 import {request} from './api';
@@ -8,8 +9,13 @@ const emptySpec=():ProjectSpec=>({userStories:[],apiEndpoints:[],dataModel:[],ac
 export const verdicts:Record<string,string>={met:'已满足',partial:'部分满足',unmet:'未满足',unverified:'未核实',not_applicable:'不适用',not_met:'未通过',needs_review:'必要项被标为不适用，需复审',not_configured:'未指定必要项',legacy_unavailable:'旧记录未配置逐项验收',in_progress:'已核实条目，交付尚未结束'};
 export const channels:Record<string,string>={'frontend-ui':'应用与界面','deepswe-core':'功能与工程','architecture-constraint':'架构与约束','interactive-confirm':'协作与多轮'};
 const scopes:Record<string,string>={'frontend-only':'仅前端','fullstack-node':'前后端（Node）','fullstack-sqlite':'前后端与 SQLite','frontend-mockapi':'前端与模拟 API'};
-export function matchTask(t:Task,kind:string,query:string,channel:string,difficulty:string){return (kind==='repository'?!!t.baselineId||!!t.requiresBaseline||t.taskParadigm==='deterministic-bugfix':kind==='open-ended-project'?t.taskParadigm===kind&&!t.requiresBaseline&&!t.baselineId:t.taskParadigm===kind)&&(!channel||t.channel===channel)&&(!difficulty||t.difficulty?.toLowerCase()===difficulty)&&[t.title,t.description,t.inputPrompt].some(v=>v?.toLowerCase().includes(query.trim().toLowerCase()));}
-export function TaskFilters({channel,difficulty,onChannel,onDifficulty}:{channel:string;difficulty:string;onChannel:(v:string)=>void;onDifficulty:(v:string)=>void}){return <div className="task-secondary-filters"><Field label="任务方向"><select value={channel} onChange={e=>onChannel(e.target.value)}><option value="">全部方向</option>{Object.entries(channels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></Field><Field label="难度"><select value={difficulty} onChange={e=>onDifficulty(e.target.value)}><option value="">全部难度</option>{['Easy','Medium','Hard','Nightmare'].map(v=><option key={v} value={v.toLowerCase()}>{v}</option>)}</select></Field></div>;}
+export function matchTask(t:Task,kind:string,query:string,channel:string,difficulty:string){return (kind==='repository'?!!t.baselineId||!!t.requiresBaseline||t.taskParadigm==='deterministic-bugfix':kind==='open-ended-project'?t.taskParadigm===kind&&!t.requiresBaseline&&!t.baselineId:t.taskParadigm===kind)&&(!channel||(t.channel||'未标注')===channel)&&(!difficulty||difficultyKey(t)===difficulty)&&[t.title,t.description,t.inputPrompt].some(v=>v?.toLowerCase().includes(query.trim().toLowerCase()));}
+export function TaskFilters({tasks,channel,difficulty,onChannel,onDifficulty}:{tasks:Task[];channel:string;difficulty:string;onChannel:(v:string)=>void;onDifficulty:(v:string)=>void}){
+  const facets=taskFacets(tasks,channel,difficulty);
+  useEffect(()=>{if(channel&&!tasks.some(t=>(t.channel||'未标注')===channel))onChannel('');if(difficulty&&!tasks.some(t=>difficultyKey(t)===difficulty))onDifficulty('');},[tasks,channel,difficulty,onChannel,onDifficulty]);
+  const names:Record<string,string>={easy:'Easy',medium:'Medium',hard:'Hard',nightmare:'Nightmare'};
+  return <div className="task-secondary-filters"><Field label="任务方向"><select value={channel} onChange={e=>onChannel(e.target.value)}><option value="">全部方向 · {tasks.filter(t=>!difficulty||difficultyKey(t)===difficulty).length}</option>{facets.channels.map(([v,n])=><option key={v} value={v}>{channels[v]||v} · {n}</option>)}{channel&&!facets.channels.some(([v])=>v===channel)&&<option value={channel} disabled>{channels[channel]||channel} · 0</option>}</select></Field><Field label="难度"><select value={difficulty} onChange={e=>onDifficulty(e.target.value)}><option value="">全部难度 · {tasks.filter(t=>!channel||(t.channel||'未标注')===channel).length}</option>{facets.difficulties.map(([v,n])=><option key={v} value={v}>{names[v]||v} · {n}</option>)}{difficulty&&!facets.difficulties.some(([v])=>v===difficulty)&&<option value={difficulty} disabled>{names[difficulty]||difficulty} · 0</option>}</select></Field></div>;
+}
 
 export function ContractView({task}:{task:Task}){return <div className="space-y-4">
   {task.fullstackScope&&<p className="text-sm">项目范围：{scopes[task.fullstackScope]||task.fullstackScope}</p>}

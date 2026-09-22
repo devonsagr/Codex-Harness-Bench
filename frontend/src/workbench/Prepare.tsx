@@ -33,13 +33,17 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const [preview,setPreview]=useState<Config|null>(null);
   const stale=configs.some(c=>effective(c).revision!==c.revision);
   const invalid=configs.some(c=>{const ids=effective(c).skills;return ids.length>30||new Set(state.skills.filter(s=>ids.includes(s.id)).map(s=>s.name.toLowerCase())).size!==ids.length;});
-  const matches=catalog.filter(t=>matchTask(t,paradigm,query,channel,difficulty)&&(!category||t.publicSource?.category===category)&&(sourceFilter==='all'||(sourceFilter==='deepswe'?!!t.publicSource:!t.publicSource)));
+  const candidates=catalog.filter(t=>matchTask(t,paradigm,query,'','')&&(!category||t.publicSource?.category===category)&&(sourceFilter==='all'||(sourceFilter==='deepswe'?!!t.publicSource:!t.publicSource)));
+  const matches=candidates.filter(t=>matchTask(t,paradigm,query,channel,difficulty));
+  const facetTasks=candidates.filter(t=>showPending?!canStartTask(t,state.baselines):canStartTask(t,state.baselines));
   const pendingTasks=matches.filter(t=>!canStartTask(t,state.baselines));
   const tasks=matches.filter(t=>showPending?!canStartTask(t,state.baselines):canStartTask(t,state.baselines));
   const selected=catalog.filter(t=>taskIds.includes(t.id));
+  const canStage=selected.length>0&&selected.every(t=>t.stages.length>1);
+  const effectiveDelivery=canStage?deliveryMode:'single-delivery';
   const pending=useRef<{payload:string;requestId:string}|null>(null);
   const create=async()=>{
-    const data={configIds,taskIds,policy,notes,deliveryMode,configOverrides:configs.map(c=>({configId:c.id,...effective(c)}))};
+    const data={configIds,taskIds,policy,notes,deliveryMode:effectiveDelivery,configOverrides:configs.map(c=>({configId:c.id,...effective(c)}))};
     const payload=JSON.stringify(data);if(pending.current?.payload!==payload)pending.current={payload,requestId:crypto.randomUUID()};
     try{const job=await act<PreparationJob>('/runs/prepare-async',{...data,requestId:pending.current.requestId});setJobId(job.id);}catch{/* Reuse the request ID after a connection failure. */}
   };
@@ -56,13 +60,13 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
     <fieldset className="prepare-grid" disabled={preparing}>
       <div className="prepare-tasks" hidden={pane!=='tasks'}><Panel title="选择题目" aside={<label className="check-row"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>批量选择</label>}>
         <div className="task-filter-bar"><div className="task-primary-filters"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);setShowPending(false);}}><option value="open-ended-project">从零构建</option><option value="repository">已有仓库任务</option><option value="deterministic-bugfix">仅 Bug 修复</option></select><input aria-label="搜索评测题目" placeholder="搜索需求或题目" value={query} onChange={e=>setQuery(e.target.value)}/></div>
-        <div className="task-source-filters"><Field label="题目来源"><select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}><option value="all">全部来源</option><option value="deepswe">DeepSWE · 已有工程</option><option value="local">本地与内置题目</option></select></Field><Field label="DeepSWE 类型"><select value={category} onChange={e=>setCategory(e.target.value)}><option value="">全部类型</option>{Object.entries(publicCategories).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></Field></div><TaskFilters channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/></div>
+        <div className="task-source-filters"><Field label="题目来源"><select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}><option value="all">全部来源</option><option value="deepswe">DeepSWE · 已有工程</option><option value="local">本地与内置题目</option></select></Field><Field label="DeepSWE 类型"><select value={category} onChange={e=>setCategory(e.target.value)}><option value="">全部类型</option>{Object.entries(publicCategories).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></Field></div><TaskFilters tasks={facetTasks} channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/></div>
         <div className="catalog-switch"><button type="button" className={!showPending?'active':''} onClick={()=>setShowPending(false)}>可选题目 · {matches.length-pendingTasks.length}</button><button type="button" className={showPending?'active':''} onClick={()=>setShowPending(true)}>待补全题面 · {pendingTasks.length}</button></div>
         <div className="task-browser"><div><div className="prepare-task-list">{tasks.map(t=><label key={t.id} className={'list-card '+(taskIds.includes(t.id)?'selected':'')}><div className="flex items-start gap-3"><input className="mt-1" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id])}/><strong>{t.title}</strong></div><span>{t.difficulty} · {t.sourceKind==='deepswe'?`DeepSWE · ${publicCategories[t.publicSource?.category||'']||'已有工程'}`:t.sourceKind==='repository-original'?'内置题包':t.hasFrontendUI?'含界面':'工程或文档'}</span><small>{t.baselineId?'复用缓存 · 新工作区':t.publicSource?'创建时自动下载':needsBaseline(t)?'缺少源码 · 暂不可开始':'从零构建'}</small></label>)}</div>
         {!tasks.length&&<Empty>没有符合筛选的题目。</Empty>}
         </div><aside className="task-preview">{selected.length?selected.map(t=><section key={t.id}><h3>{t.title}</h3><TaskEnvironment task={t} baselines={state.baselines}/><Details title="完整需求"><PublicPrompt task={t}/>{!t.publicSource&&<ContractView task={t}/>}</Details></section>):<div className="preview-empty"><FileCode2 size={36} strokeWidth={1.2}/><h3>从一个真实问题开始</h3><p>选择左侧题目，预览完整需求、源码起点与环境。</p></div>}</aside></div>
-        <div className="delivery-row"><Field label="交付方式"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="single-delivery">完整需求 · 不限定对话轮数</option><option value="staged">按题目预设步骤分阶段（可选）</option></select></Field>
-        <p className="muted">{deliveryMode==='single-delivery'?'一次提供全部需求。由模型和你的配置决定实施过程，完成后回收评分。':'只有需要分步实验时选用。每步提示词需在原对话发送，也可以提前结束并评估整题。'}</p>
+        <div className="delivery-row">{canStage?<Details title="可选实验：分步提供需求"><Field label="需求提供方式"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="single-delivery">完整需求 · 不限定对话轮数</option><option value="staged">按题目预设步骤分阶段（可选）</option></select></Field>
+        <p className="muted">{deliveryMode==='single-delivery'?'一次提供全部需求。由模型和你的配置决定实施过程，完成后回收评分。':'逐步提供题目预先编写的提示词；同一对话继续。每步可回收版本，最终仍按整题需求评分。区别在提供需求的时机，不是限制模型回复次数。'}</p></Details>:<p className="muted">提供完整需求 → 在 Codex 持续完成 → 回收产物并评分。不限对话次数，无需选择轮数。</p>}
         </div>
 
       </Panel></div>
@@ -91,7 +95,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
         </div>}
         {invalid&&<p role="alert" className="alert-error">技能同名、不可用或超过30个，请调整选择。</p>}
         {stale&&<p role="alert" className="alert-error">原配置已更新，请恢复配置默认后重新核对。</p>}
-        <div className="prepare-footer-row"><div className="selection-summary"><span>{taskIds.length?`${taskIds.length} 道题已选`:'尚未选择题目'}</span><small>{configs.length} 套配置 · {deliveryMode==='single-delivery'?'完整交付':'分步交付'}</small></div><div className="prepare-footer-buttons">
+        <div className="prepare-footer-row"><div className="selection-summary"><span>{taskIds.length?`${taskIds.length} 道题已选`:'尚未选择题目'}</span><small>{configs.length} 套配置 · {effectiveDelivery==='single-delivery'?'完整需求':'分步提供需求'}</small></div><div className="prepare-footer-buttons">
           {pane!=='tasks'&&<button type="button" className="btn-secondary" onClick={()=>setPane(pane==='scoring'?'config':'tasks')}>上一步</button>}
           {pane==='tasks'?<button type="button" className="btn-primary" disabled={!taskIds.length||selected.some(t=>!canStartTask(t,state.baselines))} onClick={()=>setPane('config')}>配置与 Skills <ArrowRight size={16}/></button>:pane==='config'?<button type="button" className="btn-primary" disabled={!configs.length||invalid||stale||(compare&&configs.length!==2)} onClick={()=>setPane('scoring')}>确认评分方案 <ArrowRight size={16}/></button>:<button type="button" className="btn-primary" disabled={preparing||!taskIds.length||!configs.length||invalid||stale||(policy.objectiveWeight>0&&selected.some(t=>!t.checks.length))||!validPercentPolicy(policy)||(compare&&configs.length!==2)} onClick={()=>void create()}>{preparing?'正在准备所选题目…':'创建评测工作区'}</button>}
         </div></div>

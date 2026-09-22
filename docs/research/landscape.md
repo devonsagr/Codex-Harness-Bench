@@ -134,3 +134,11 @@ Docker是这些题包实现环境复现的常见方式，不是评测定义本�
 |[WebArena Verified](https://github.com/ServiceNow/webarena-verified)|基于轨迹/状态验证网页任务结果|任务成功不等于审美优秀|
 
 推导出的实现选择：程序提供执行事实，独立AI针对原始需求主动操作产物并按量表连续打分，人类修正争议。交互验证结合页面状态、键盘/点击、控制台；视觉判断需要截图，而非读取源码后猜分。通用的是工具和取证流程，业务含义仍由每题需求决定。固定题榜单常采用Docker提高可复现性；Docker不是模型评分的理论必要条件。U22本机裁判使用原生沙箱，代价是环境差异更大，暂不纳入严格比较。最新实跑与失败记录见当前交接，不沿用U20的Docker阻塞作为所有评分的前提。
+
+## 2026-09-22：Sub2API / CPA 美元等值
+
+- [Sub2API account_stats_pricing.go](https://github.com/Wei-Shaw/sub2api/blob/main/backend/internal/service/account_stats_pricing.go)：实际用量按输入、输出、缓存创建与缓存读取分项匹配价格，支持区间；不能将所有Token乘同一个比例。
+- [CLIProxyAPI-Plus README](https://github.com/ztx888/CLIProxyAPI-Plus/blob/main/README_EN.md)：展示公开API价格等值；容量推算还依赖官方周使用百分比，属于趋势估计。此处核对的是Plus分支，不等于所有CPA实现。
+- [OpenAI价格](https://developers.openai.com/api/docs/pricing)及[Sol模型页](https://developers.openai.com/api/docs/models/gpt-5.6-sol)：标准短上下文每百万输入/缓存读取/输出分别Astra 10/1/50、Sol 4/.4/20、Terra 2/.2/12、Luna .2/.02/1.2美元。缓存写入为普通输入1.25倍；Sol促销至少至2026-11-21。
+
+本项目只给标准短上下文等值：从累计输入扣缓存，按已知写入附加25%，未知写入量给0至全部非缓存输入写入区间。长请求、加速/区域处理、工具附加费未包含，不以累计上下文判断单请求长档；多模型缺分项、未知模型或无效数值不估。费率版本固定2026-09-22，后续需核对更新。没有找到Plus固定1亿Token=100美元的官方依据，不作为账单/配额承诺，也不读取用户凭据进行估算。
