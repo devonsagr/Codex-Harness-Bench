@@ -20,7 +20,7 @@ export function App(){
   const refresh=useCallback(async()=>{try{const s=await request<State>('/state');setState(s);setConnectionError('');}catch(e){setConnectionError((e as Error).message);throw e;}},[]);
   useEffect(()=>{document.documentElement.classList.toggle('dark',theme==='dark');localStorage.setItem('chb_theme',theme);},[theme]);
   useEffect(()=>{refresh().catch(()=>{});},[refresh]);
-  const activeJob=state?.sourceJobs?.some(j=>j.status==='running')||state?.runs.some(r=>r.trials.some(t=>['prepared','working','waiting_confirmation','checking','judging'].includes(t.state)));
+  const activeJob=state?.preparationJobs?.some(j=>j.status==='running')||state?.sourceJobs?.some(j=>j.status==='running')||state?.runs.some(r=>r.trials.some(t=>['prepared','working','waiting_confirmation','checking','judging'].includes(t.state)));
   useEffect(()=>{if(!activeJob)return;let live=true;let timer:ReturnType<typeof setTimeout>;
     const poll=async()=>{try{const s=await request<State>('/state');if(live){setState(s);setConnectionError('');}}catch(e){if(live)setConnectionError((e as Error).message);}finally{if(live)timer=setTimeout(poll,1800);}};
     timer=setTimeout(poll,1800);return()=>{live=false;clearTimeout(timer);};},[activeJob]);

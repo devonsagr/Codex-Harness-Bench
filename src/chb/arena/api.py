@@ -16,6 +16,12 @@ from .contracts import task_view
 
 def post(app,route,data):
     parts=route.removeprefix('/api/arena/').split('/')
+    if parts==['runs','prepare-async']:
+        from .preparation import start
+        return start(app,data)
+    if parts==['sources','preview']:
+        from .public_sources import preview
+        return preview(app,identifier(data.get('taskId')))
     if parts==['sources','prepare']:
         from .public_sources import start
         return start(app,data)

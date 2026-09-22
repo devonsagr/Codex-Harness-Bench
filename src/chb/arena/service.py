@@ -53,6 +53,12 @@ class Arena:
         self.jobs={}
         self._last_trace_sync=0.0
         self._seed()
+        for job in self.db.list('preparation_job'):
+            if job['status']=='running':
+                existing=next((r for r in self.db.list('run')+self.db.list('run',True) if r.get('requestId')==job['id']),None)
+                job.update(status='completed' if existing else 'interrupted',runId=existing['id'] if existing else None,
+                           phase='独立工作区已准备' if existing else '准备已中断；缓存保留，可重试')
+                self.db.save('preparation_job',job,job['revision'])
         for job in self.db.list('source_job'):
             if job['status']=='running':
                 job.update(status='interrupted',phase='服务重启，已保存内容保留，可重试')
@@ -190,7 +196,7 @@ class Arena:
         return {'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
                 'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
-                'sourceJobs':self.db.list('source_job'),'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
+                'preparationJobs':self.db.list('preparation_job'),'sourceJobs':self.db.list('source_job'),'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
                 'mode':'desktop','source':'SQLite 与本机冻结文件','legacyExperiments':len(list((self.root/'runs').glob('*/plan.json')))}
 
     def sync_desktop_traces(self):

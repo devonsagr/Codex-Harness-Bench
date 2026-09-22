@@ -1,10 +1,15 @@
 import type {Task,Imported} from './types';
 import {Details} from './ui';
+import {nativeTaskIds,publicCategories} from './PublicCatalog';
 export const needsBaseline=(task:Task)=>task.requiresBaseline||task.taskParadigm==='deterministic-bugfix';
-export const canStartTask=(task:Task,baselines:Imported[])=>!needsBaseline(task)||baselines.some(b=>b.id===task.baselineId);
+export const canStartTask=(task:Task,baselines:Imported[])=>!!task.publicSource||!needsBaseline(task)||baselines.some(b=>b.id===task.baselineId);
 export function TaskEnvironment({task,baselines}:{task:Task;baselines:Imported[]}){
   const source=baselines.find(b=>b.id===task.baselineId);
   const files=source?Object.keys(source.manifest.files):[];
+  if(task.publicSource)return <section className="task-environment" aria-label="项目起点与环境"><div className="environment-heading"><h3>{publicCategories[task.publicSource.category]||'已有工程任务'}</h3><span className="readiness ready">{source?'已缓存源码':'创建时下载'}</span></div>
+    <p>{source?'复用固定源码缓存，复制到本次新的工作区。':'创建评测时自动下载此题的固定源码，再生成独立工作区。'}</p>
+    <p className="muted">{nativeTaskIds.includes(task.publicSource.id)?'支持自动准备 Windows 环境与程序测试验收。':'目标源码自动准备；本机依赖和原测试尚未适配，需在工作区按项目说明准备。'}</p>
+    <Details title="缓存与工作区如何分开"><p>同一仓库、同一提交只缓存一次。每次评测使用新的 run / trial 目录，修改和 Git 提交不会影响源码缓存或其他评测。回收与评分另存，工作区可在交付结束后清理。</p>{source&&<p className="muted">{files.length} 个源码文件 · 提交 {source.sourceCommit}</p>}</Details></section>;
   return <section className="task-environment" aria-label="项目起点与环境"><div className="environment-heading"><h3>项目起点</h3><span className={'readiness '+(canStartTask(task,baselines)?'ready':'pending')}>{source?'源码已打包':needsBaseline(task)?'待补全源码':'从零构建'}</span></div>
     <p className="reading-copy">{source?'创建评测时，源码与已有测试会自动复制到独立工作区。':needsBaseline(task)?'此题目前只有题面，不能开始修改已有工程。':'这是需求实现题，创建空项目目录，由模型实现项目并准备所需依赖。'}</p>
     {source&&<><dl className="environment-facts"><div><dt>起点快照</dt><dd>{source.name}</dd></div><div><dt>文件</dt><dd>{files.length} 个</dd></div><div><dt>来源</dt><dd>{task.sourceKind==='repository-original'?'本项目原创':source.sourceUrl?'公开仓库固定提交':'导入的源码副本'}</dd></div></dl>

@@ -134,7 +134,7 @@ requiresBaseline明确声明修复、重构和已有工程扩展需源码；Bug�
 
 ## U27 公开题源与桌面适配
 
-`catalog/public-task-sources.json` 是固定上游版本的来源索引，113项包含id/title/language/category/repositoryUrl/baseCommit及题面、环境、验收器链接。界面可搜索和查看来源，索引自身不进入可开始题目；U29显式下载功能见下文。元数据许可与变更见 `catalog/SOURCES.md`；不包含目标源码、参考解或隐藏测试。
+`catalog/public-task-sources.json` 是固定上游版本的来源索引，113项包含id/title/language/category/repositoryUrl/baseCommit及题面、环境、验收器链接。界面可搜索和查看来源，U31允许从索引选题，但只在创建时按需准备，索引数不代表环境已验证数量。元数据许可与变更见 `catalog/SOURCES.md`；不包含目标源码、参考解或隐藏测试。
 
 正式接入仍属B07：按来源版本获取题包，冻结题目与目标工程base SHA，准备源码/依赖，验证原验收器，再发布可执行题目。已有公开GitHub起点导入仅能准备源码，不代表这一整条适配链已经完成。
 
@@ -151,6 +151,14 @@ requiresBaseline明确声明修复、重构和已有工程扩展需源码；Bug�
 
 ### U30 Tengo Windows适配
 
-仅固定revision的tengo-callable-instance-isolation受支持。官方Go 1.26.8 Windows x64 ZIP按SHA-256核对，解包至toolchains；不改系统PATH。故障起点须满足f2p=0、p2p=1才创建ready-windows题目新版本；已有Run冻结版本不重写。该题无第三方Go依赖，验收关闭GOPROXY/GOSUMDB和网络；候选go.mod变化不支持，保留未知而非猜分。
+支持固定revision的tengo-callable-instance-isolation、tengo-destructuring-bindings和yaegi-go-embed-directives，分别使用固定选择器/白名单。官方Go 1.26.8 Windows x64 ZIP按SHA-256核对，解包至toolchains；不改系统PATH。故障起点须满足f2p=0、p2p=1才创建ready-windows题目新版本；已有Run冻结版本不重写。该题无第三方Go依赖，验收关闭GOPROXY/GOSUMDB和网络；候选go.mod变化不支持，保留未知而非猜分。
 
-创建工作区时增加.chb/go.ps1及运行入口说明，仅此环境说明进入提示词；使用UTF-8 BOM兼容Windows PowerShell的中文路径，缓存.chb-cache不入快照/Git。验收复制冻结产物，恢复上游test.patch涉及的测试文件后应用隐藏补丁；固定七组Go命令运行，解析JSON事件，跳过/缺失/失败不算通过，重复事件取最差状态。reward仅在23修复与122回归全部通过时为1，partial仅为通过比例，不自动混入AI总分。该适配不等同于原Linux镜像/官方排行榜。
+创建工作区时增加.chb/go.ps1及运行入口说明，仅此环境说明进入提示词；使用UTF-8 BOM兼容Windows PowerShell的中文路径，缓存.chb-cache不入快照/Git。验收复制冻结产物，恢复上游test.patch涉及的测试文件后应用隐藏补丁；Tengo固定七组、Yaegi固定两组Go命令运行，解析JSON事件，跳过/缺失/失败不算通过，重复事件取最差状态。reward仅在该题目标与回归白名单全部通过时为1，partial仅为通过比例，不自动混入AI总分。该适配不等同于原Linux镜像/官方排行榜。
+
+### U31 按需准备与副本边界
+
+工作台可从固定113题索引选择，分类保留4 bugfix、106 feature_request、3 enhancement；题面预览只获取instruction。创建时按public-task-files.json的SHA-256逐文件获取该题定义，不下载其余题或solution；已有整包缓存经逐文件校验后兼容复用。源码基线按规范化仓库URL与base SHA匹配，校验通过才复用。
+
+定义/隐藏验收保存在public-sources/selected/<revision>/<taskId>/files，源码基线为baselines/<id>/files；每次创建使用新的runs/<runId>/<trialId>/workspace，逐文件复制并建立独立Git起点。不同评测不能共享可写文件，回收/裁判/日志仍按试次分存。失败保留已校验缓存，重试同一请求幂等；不同请求得到新目录。依赖未适配的题明确仅源码准备，已适配题须先完成起点核验。
+
+真实验证：Tengo解构绑定原始0/91目标、132/132回归，参考解91/91、132/132；Yaegi Embed原始0/38、58/58，参考解38/38、58/58；ABS工程改进验证源码下载和工作区，不声称依赖/原测试已可用。均不作为官方Linux排行榜成绩。

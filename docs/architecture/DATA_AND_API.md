@@ -228,8 +228,14 @@ Task.requiresBaseline为布尔值，项目类重构也可要求源码；旧perf-
 
 ### U30 本机测试接口
 
-- `/sources/prepare`增加prepareEnvironment:true，仅允许固定Tengo单题；先准备源码、工具链并验证故障起点，再保存ready-windows新版本。未支持或归档题拒绝。
+- `/sources/prepare`增加prepareEnvironment:true，仅允许固定适配白名单中的Tengo两题和Yaegi Embed；先准备源码、工具链并验证故障起点，再保存ready-windows新版本。未支持或归档题拒绝。
 - POST `/runs/{rid}/trials/{tid}/native-check`：captureId指定冻结版本。后台checking，trial.nativeExecution保存jobId/阶段/状态/版本，支持既有stop。结果追加到capture.nativeVerifications，包含原生通过数、reward、manifest hash、工具链/来源版本、命令回执与日志目录；不覆盖checks或reviews。失败/取消不追加伪零分，重启标interrupted。
 - POST 同路径`native-log`：suite为1–7，只读该试次最近测试任务末尾20KB日志；不接受路径/命令。各次完整日志保留native-checks。JSON导出包含结果回执；完整原生日志仍保存在本机，不随ZIP导出。
 
 native-runtime/native-homes为每次临时副本和空CODEX_HOME，正常完成或取消清理；不复制认证，不调用模型。Windows命令沙箱允许root读取，写入限临时副本且禁网络，并非宿主读取隔离；不宣称无任何宿主可见信息。工具链准备按进程锁串行，超时/取消停止进程树。
+
+### U31 创建时按需准备
+
+- POST `/runs/prepare-async`：沿用prepare字段，必须提供requestId。立即返回preparation_job（id/status/phase/taskIds/runId/error/时间）；state.preparationJobs供轮询。running/completed同内容请求幂等，不同内容同编号拒绝；failed/interrupted可重试。单实例一次准备，网络不占主API锁；完成前核对配置和题目版本，改变则不创建Run。源码按固定索引获取，适配题自动准备环境，最后调用原prepare冻结。
+- POST `/sources/preview`：taskId仅固定索引id，只下载并校验instruction.md，返回text。不能指定URL、路径或命令。
+- 服务重启将未完成准备标为interrupted；若同requestId的Run已写入则恢复completed。保留缓存，不自动重复执行。下载文件重试一次后给出可重试错误。原同步prepare和sources/prepare保留兼容，主UI不再要求预下载。

@@ -215,3 +215,11 @@ Windows本机Edge失败来自受限令牌IPC权限，浏览器取证仍未接通
 验证：144项Python测试、TypeScript/Vite、compileall通过。真实NOP修复0/23、回归122/122；上游参考修复23/23、122/122，均在固定Windows适配器运行。独立QA实例经prepare/capture/native-check/native-log完整链路，保留2份回收及重测记录；回执.local/qa/u30-ui/receipt.json、final-receipt.json。浏览器验证真实数据的一键准备成功、QA通过数/输出/取消/旧版本失败记录，console error为空。网站8765运行更新构建；未调用模型、未改宿主Codex配置、未删除用户实际数据。
 
 边界：仅Tengo单题Windows适配，不是官方Linux排行榜；其余任务环境及大仓库边界仍待完成。Codex命令沙箱允许宿主读取、限制写入且禁网；不等同于VM。结果回执随记录导出，完整日志本机保留。回滚源码不删除已有nativeVerifications字段或本地证据；旧UI不展示该字段。工具链/参考解/日志仅.local，未提交。
+
+## 2026-09-22 09:47 U31 · 按需创建与功能题适配
+
+回滚基准cf56bb7，分支codex/product-design-refresh。113题直接可选，创建时只获取所选定义与固定源码；缓存按repo/base SHA复用，每次独立Git工作区。preparation_job保存阶段、幂等重试、版本冲突和重启恢复；下载有界重试。新增Tengo解构、Yaegi Embed Windows验收适配，ABS改进题仅源码验证。历史计数同行、窄屏工具栏修复，说明与架构同步。
+
+验证：150项Python、TypeScript/Vite/compileall、diff检查通过。Tengo原始0/91目标+132/132回归，参考解91/91+132/132；Yaegi原始0/38+58/58，参考解38/38+58/58。浏览器实际创建第二个Tengo目录，2个路径共享1个只读起点，未调用模型。历史默认/窄屏无横向溢出，正式网站截图核对；8765已更新。回执与参考解只在.local/qa/u31-tasks，未提交或写入用户任务。
+
+边界：非官方Linux成绩，其余环境未适配，大仓库上限未放宽。源码回滚不删除准备任务/源码缓存/用户记录；旧UI不识别新准备状态。进程强制结束后标中断，保留校验缓存，不自动继续执行。

@@ -26,3 +26,5 @@
 
 - U29：DeepSWE固定定义包下载与按题源码准备已接入；依赖/原生验收未就绪不能称官方跑分。下载缓存public-sources/downloads、裁判临时reviewer-runtime与开发runs均位于项目.local/arena，禁止提交。数据页清理仅已回收且结束的workspace，先移入trash/workspaces再显式永久删除，保留快照/复查/评分；验证删除只用隔离夹具。
 - U30：Tengo支持Windows固定Go工具链及原测试适配，题库一键准备、快照验收与日志/历史分存；不是官方Linux排行榜。工具链/环境检查/native-runtime/native-homes均在.local/arena；命令沙箱限制写入并禁网，但允许宿主读取，不宣称虚拟机隔离。参考解只用于.local/qa负例/正例验证，不进入开发起点、提示词或Git。
+
+- U31：DeepSWE工作台直接选题，创建时仅准备所选定义与固定源码；同仓库同提交校验复用，每次独立run/trial/workspace。Tengo两题与Yaegi Embed支持Windows原测试适配；ABS改进题仅源码验证。preparation_job持久化进度、请求幂等与中断恢复，不宣称113套环境已就绪。

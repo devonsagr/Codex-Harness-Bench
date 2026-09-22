@@ -6,13 +6,68 @@ import tomllib
 import tempfile
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.error import URLError
 
-from .files import now, snapshot, verify_snapshot, safe_path
+from .files import now, snapshot, verify_snapshot, safe_path, hash_bytes
 from .repository_source import unpack, import_repository
 
 
 def catalog(app):
     return json.loads((app.root/'catalog/public-task-sources.json').read_text(encoding='utf-8'))
+
+
+DOWNLOAD_LOCK=threading.RLock()
+
+
+def task_files(app,task_id):
+    source=catalog(app)
+    if task_id not in {t['id'] for t in source['tasks']}:raise ValueError('未知公开题目。')
+    index=json.loads((app.root/'catalog/public-task-files.json').read_text(encoding='utf-8'))
+    if index['revision']!=source['revision']:raise ValueError('题目文件索引与来源版本不符。')
+    return source,index['tasks'][task_id]
+
+
+def download_file(source,name,digest):
+    url=f"https://raw.githubusercontent.com/datacurve-ai/deep-swe/{source['revision']}/{name}"
+    for attempt in range(2):
+        try:
+            with urlopen(Request(url,headers={'User-Agent':'Codex-Harness-Bench'}),timeout=25) as response:
+                if not response.url.startswith('https://raw.githubusercontent.com/'):raise ValueError('题目文件下载重定向异常。')
+                body=response.read(8_000_001)
+            break
+        except (URLError,TimeoutError,ConnectionError) as exc:
+            if attempt:raise ValueError('题目文件下载超时或连接失败；已校验文件保留，重新创建可继续准备。') from exc
+    if len(body)>8_000_000 or hash_bytes(body)!=digest:raise ValueError('题目文件校验失败；未使用不完整内容。')
+    return body
+
+
+def task_bundle(app,task_id):
+    """Download only the selected task; reuse old whole-definition caches read-only."""
+    with DOWNLOAD_LOCK:
+        source,files=task_files(app,task_id)
+        legacy=app.local/'public-sources/deepswe'/source['revision']/'files'
+        root=app.local/'public-sources/selected'/source['revision']/task_id/'files'
+        for candidate in [root,legacy]:
+            if all((candidate/name).is_file() and hash_bytes((candidate/name).read_bytes())==digest for name,digest in files.items()):return candidate
+        root.parent.mkdir(parents=True,exist_ok=True)
+        for name,digest in files.items():
+            dest=safe_path(root,name)
+            if dest.is_file() and hash_bytes(dest.read_bytes())==digest:continue
+            body=download_file(source,name,digest)
+            dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(body)
+        return root
+
+
+def preview(app,task_id):
+    with DOWNLOAD_LOCK:
+        source,files=task_files(app,task_id);name=f'tasks/{task_id}/instruction.md'
+        candidates=[app.local/'public-sources/selected'/source['revision']/task_id/'files'/name,
+                    app.local/'public-sources/deepswe'/source['revision']/'files'/name]
+        for path in candidates:
+            if path.is_file() and hash_bytes(path.read_bytes())==files[name]:return {'text':path.read_text(encoding='utf-8')}
+        body=download_file(source,name,files[name]);dest=candidates[0]
+        dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(body)
+        return {'text':body.decode('utf-8')}
 
 
 def bundle(app):
@@ -57,10 +112,15 @@ def install(app,task_id,files):
     source=catalog(app); item=next(t for t in source['tasks'] if t['id']==task_id)
     tid='deepswe-'+task_id
     existing=next((t for t in app.db.list('task')+app.db.list('task',True) if t['id']==tid),None)
-    if existing:return existing
+    if existing:
+        if existing.get('baselineId'):
+            baseline=app.db.get('baseline',existing['baselineId'])
+            verify_snapshot(app.local/'baselines'/baseline['id']/'files',baseline['manifest'])
+        return existing
     folder=files/'tasks'/task_id
     definition=tomllib.loads((folder/'task.toml').read_text(encoding='utf-8'))
-    baseline=next((b for b in app.db.list('baseline') if b.get('sourceUrl')==item['repositoryUrl'] and b.get('sourceCommit')==item['baseCommit']),None)
+    canonical=lambda url:url.rstrip('/').removesuffix('.git').lower()
+    baseline=next((b for b in app.db.list('baseline') if canonical(b.get('sourceUrl',''))==canonical(item['repositoryUrl']) and b.get('sourceCommit')==item['baseCommit']),None)
     if baseline:verify_snapshot(app.local/'baselines'/baseline['id']/'files',baseline['manifest'])
     else:baseline=import_repository(app,{'url':item['repositoryUrl'],'commit':item['baseCommit']})
     prompt=(folder/'instruction.md').read_text(encoding='utf-8')
@@ -81,7 +141,8 @@ def start(app,data):
     if not isinstance(items,list) or len(items)>10 or any(not isinstance(t,str) or t not in known for t in items):raise ValueError('请选择索引中的题目，每次最多准备10道；空列表仅下载题包。')
     items=list(dict.fromkeys(items))
     environment=data.get('prepareEnvironment') is True
-    if environment and items!=['tengo-callable-instance-isolation']:raise ValueError('请选择已支持的 Tengo 本机环境。')
+    from .native_verifier import ADAPTERS
+    if environment and (not items or any(t not in ADAPTERS for t in items)):raise ValueError('请选择已支持的本机环境。')
     with app.lock:
         if getattr(app,'source_thread',None) and app.source_thread.is_alive():return app.db.get('source_job','deepswe-download')
         old=app.db.list('source_job');revision=next((x['revision'] for x in old if x['id']=='deepswe-download'),None)
@@ -92,11 +153,11 @@ def start(app,data):
         def work():
             completed=[];errors=[]
             try:
-                files=bundle(app)
+                if not items:bundle(app)
                 for tid in items:
                     update(phase='准备源码 · '+tid)
                     try:
-                        task=install(app,tid,files)
+                        with DOWNLOAD_LOCK:task=install(app,tid,task_bundle(app,tid))
                         if environment:
                             from .native_verifier import prepare_environment
                             task=prepare_environment(app,task,lambda phase:update(phase=phase))
