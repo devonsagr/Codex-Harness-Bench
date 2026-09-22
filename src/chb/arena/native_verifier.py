@@ -1,4 +1,4 @@
-"""Fixed Tengo verifier adapter: upstream tests, Windows Go, Codex command sandbox.
+"""Fixed Go verifier adapters: upstream tests, Windows Go, Codex command sandbox.
 
 No model call and no user-supplied command. This is explicitly an adapted run,
 not the upstream Linux image or an official leaderboard submission.
@@ -17,7 +17,7 @@ from urllib.request import urlopen
 
 from .files import hash_bytes, inventory, now, safe_path, verify_snapshot
 from .local_review import codex_executable, ProcessTree
-from .public_sources import bundle, catalog
+from .public_sources import task_bundle, catalog
 
 TASK_ID='tengo-callable-instance-isolation'
 REVISION='0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea'
@@ -25,11 +25,19 @@ GO_VERSION='go1.26.8'
 GO_SHA='b92c3b2adae85a11ba71fe7216daf0d84e82af4c8ab6c5625807f28622043a59'
 ADAPTER='tengo-windows-go-v1'
 RUNTIME_LOCK=threading.Lock()
+TENGO_BASE=[('./parser',None,None),('.', '^TestScript_',None),('.', '^TestCompiler_',None),('.', '^TestCompilerScopes',None),('.', '^TestCompiled_',None),('.', '^TestScriptSourceModule',None)]
+ADAPTERS={
+    TASK_ID:{'id':ADAPTER,'suites':TENGO_BASE+[('.', '^TestCompiledFunctionCall','compiledcall')]},
+    'tengo-destructuring-bindings':{'id':'tengo-destructuring-windows-go-v1','suites':TENGO_BASE+[('.', '^TestDestructuring','destructuring')]},
+    'yaegi-go-embed-directives':{'id':'yaegi-embed-windows-go-v1','suites':[
+        ('./interp/','^(TestEvalCompositeArray|TestEvalCompositeMap|TestEvalChan|TestEvalFunc|TestEvalSliceExpression)$',None),
+        ('./interp/','^TestEmbed',None)]},
+}
 
 
 def supported(task):
     source=task.get('publicSource') or {}
-    return source.get('id')==TASK_ID and source.get('revision')==REVISION
+    return source.get('id') in ADAPTERS and source.get('revision')==REVISION
 
 
 def runtime(app):
@@ -46,8 +54,8 @@ def prepare_environment(app,task,progress=lambda message:None):
     with app.lock:
         fresh=app.db.get('task',task['id'])
         if fresh['revision']!=task['revision']:raise ValueError('准备期间题目已修改；环境回执保留，请重新核对。')
-        fresh['publicSource'].update(environmentStatus='ready-windows',verifierStatus=ADAPTER,environmentReceipt=str(folder/'result.json'))
-        fresh['environmentNote']=f'Windows 本机适配 · {GO_VERSION} · 无第三方 Go 依赖。故障起点已验证：修复测试 0/23，回归 122/122。创建工作区后用 .chb/go.ps1 运行 Go，无需全局安装。验收使用 Codex 命令沙箱，不调用模型；与上游 Linux 环境不同。'
+        fresh['publicSource'].update(environmentStatus='ready-windows',verifierStatus=ADAPTERS[task['publicSource']['id']]['id'],environmentReceipt=str(folder/'result.json'))
+        fresh['environmentNote']=f"Windows 本机适配 · {GO_VERSION} · 无第三方 Go 依赖。起点已验证：目标测试 {result.get('f2p_passed',0)}/{result.get('f2p_total','?')}，回归 {result.get('p2p_passed','?')}/{result.get('p2p_total','?')}。创建工作区后用 .chb/go.ps1 运行 Go，无需全局安装。验收使用 Codex 命令沙箱，不调用模型；与上游 Linux 环境不同。"
         return app.save_task(fresh)
 
 
@@ -168,13 +176,14 @@ def grade(config,logs):
 def run(app,task,source,manifest,folder,control,progress=lambda message:None):
     if not supported(task):raise ValueError('此题尚无本机测试适配器，不能冒充原生验收。')
     verify_snapshot(source,manifest)
-    original=next(t for t in catalog(app)['tasks'] if t['id']==TASK_ID)
+    task_id=task['publicSource']['id'];adapter=ADAPTERS[task_id]
+    original=next(t for t in catalog(app)['tasks'] if t['id']==task_id)
     baseline=app.db.get('baseline',task['baselineId']);base=app.local/'baselines'/baseline['id']/'files'
     if baseline.get('sourceCommit')!=original['baseCommit'] or baseline.get('sourceUrl')!=original['repositoryUrl']:
         raise ValueError('源码起点已更换，不能使用此固定题目的验收器；请重新下载原题。')
     verify_snapshot(base,baseline['manifest'])
     progress('校验 Go 工具链与固定测试包')
-    go=ensure_runtime(app,control['stop']);tests=bundle(app)/'tasks'/TASK_ID/'tests'
+    go=ensure_runtime(app,control['stop']);tests=task_bundle(app,task_id)/'tasks'/task_id/'tests'
     config=json.loads((tests/'config.json').read_text(encoding='utf-8'))
     if config['base_commit']!=original['baseCommit']:raise ValueError('验收器起点不一致。')
     if (source/'go.mod').read_bytes()!=(base/'go.mod').read_bytes():raise ValueError('当前适配器不支持修改 Go 依赖清单；请用上游环境复验，不生成猜测分数。')
@@ -202,13 +211,13 @@ def run(app,task,source,manifest,folder,control,progress=lambda message:None):
             applied=subprocess.run(['git','apply','--whitespace=nowarn',str(tests/'test.patch')],cwd=work,capture_output=True,timeout=30)
             if applied.returncode:raise ValueError('隐藏测试补丁无法应用，未生成分数。')
             env=clean_environment(work,home,go)
-            selectors=[('./parser',None),('.', '^TestScript_'),('.', '^TestCompiler_'),('.', '^TestCompilerScopes'),('.', '^TestCompiled_'),('.', '^TestScriptSourceModule'),('.', '^TestCompiledFunctionCall')]
+            selectors=adapter['suites']
             logs=[]
-            for i,(package,pattern) in enumerate(selectors):
+            for i,(package,pattern,tags) in enumerate(selectors):
                 if control['stop'].is_set():raise ValueError('已取消本机测试验收。')
                 progress(f'运行固定测试组 {i+1}/{len(selectors)} · '+(pattern or package))
                 args=[go,'test','-json','-count=1','-timeout','300s']
-                if i==6:args+=['-tags','compiledcall']
+                if tags:args+=['-tags',tags]
                 args+=[package]
                 if pattern:args+=['-run',pattern]
                 log=folder/f'suite-{i+1}.jsonl'
@@ -218,7 +227,7 @@ def run(app,task,source,manifest,folder,control,progress=lambda message:None):
                 (folder/'commands.json').write_text(json.dumps(commands,indent=2),encoding='utf-8')
             result=grade(config,logs)
             verify_snapshot(source,manifest)
-            result.update(id='native-'+uuid.uuid4().hex[:12],at=now(),adapter=ADAPTER,environment='windows-codex-sandbox',
+            result.update(id='native-'+uuid.uuid4().hex[:12],at=now(),adapter=adapter['id'],environment='windows-codex-sandbox',
                           officialEnvironment=False,goVersion=GO_VERSION,sourceRevision=REVISION,captureHash=manifest['sha256'],
                           seconds=round(time.monotonic()-started,2),commands=commands,logDirectory=str(folder),
                           scope='上游隐藏测试与白名单，Windows 适配；不等同于上游 Linux 排行榜。')

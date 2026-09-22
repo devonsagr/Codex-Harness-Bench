@@ -1,0 +1,1135 @@
+{
+  "revision": "0b9fabbb63b9104d678fe965e1632f2dd9eaa2ea",
+  "tasks": {
+    "abs-module-cache-flags": {
+      "tasks/abs-module-cache-flags/environment/Dockerfile": "69f10920ca0e9d9aa53d0bdb5e2d1ddff39f7eefc0b2d29b96dba9032ddbdbd8",
+      "tasks/abs-module-cache-flags/instruction.md": "cffcaa70386408363b090b563943fd63fdcc322ed44b8c76cc3e56cfd76b7ed8",
+      "tasks/abs-module-cache-flags/task.toml": "bb44f3275fde199bbe5d6706630a5c6140cfe5beb66e49f2c391fa548bd974e6",
+      "tasks/abs-module-cache-flags/tests/config.json": "18ae10bb40d545220bc46690d2ab749911b5bb12bfba870e3679ab3750684014",
+      "tasks/abs-module-cache-flags/tests/Dockerfile": "184c20de1b4d9fa4532be3345050de006670de023aaae508bcb7f0711f80fd71",
+      "tasks/abs-module-cache-flags/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/abs-module-cache-flags/tests/test.patch": "1f14443b836ad75b66975d9c8b6e735f675250136661dfc0a370d018ba4a97f9",
+      "tasks/abs-module-cache-flags/tests/test.sh": "dfecfd863824f3d9780fb1bdb13de5415d831a7c452a41f39202dd29e4454b81"
+    },
+    "abs-stepped-slices": {
+      "tasks/abs-stepped-slices/environment/Dockerfile": "dacb211959cc973ccece0461b252076a1d01c744699e2621a6db42bd6654d0ab",
+      "tasks/abs-stepped-slices/instruction.md": "0381637972fc77c6c27bbc9f999af79ce57e9fc78d9ac43cf1ced51c9f8ea3dd",
+      "tasks/abs-stepped-slices/task.toml": "695397d9964aac7e49f263199375a5c829549909eacb5790dc3a5d2e5ca877c5",
+      "tasks/abs-stepped-slices/tests/config.json": "15ca12416a45068f4b0f235130bb3375d6e2251e8bd8a67bf40edd3a0c0fe80f",
+      "tasks/abs-stepped-slices/tests/Dockerfile": "4e7ed635af4e4d6f724df880b305e66b39bf9f34505a4f20df366a4a65dea6a5",
+      "tasks/abs-stepped-slices/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/abs-stepped-slices/tests/test.patch": "bf9eab2e681531d83c458e7ad45e4a2fecf622c0ccaee6a9581d32875c45ecc9",
+      "tasks/abs-stepped-slices/tests/test.sh": "35a161fde459979916c034055c4559cbf38ff742591175be97111a60bb617a19"
+    },
+    "actionlint-action-pinning-lint": {
+      "tasks/actionlint-action-pinning-lint/environment/Dockerfile": "f0e0544d7c7cea38a8592bd91364110e223d0266481a65bcd564300734a228c9",
+      "tasks/actionlint-action-pinning-lint/instruction.md": "02472c08b7de7ca4d7d709a3b53db835fe8bcc76a887a13c18dc5aba86bd37f9",
+      "tasks/actionlint-action-pinning-lint/task.toml": "a171ddc6849f81f146c05b5fa230341fbc691e26b90edb4d3d80efd274141f66",
+      "tasks/actionlint-action-pinning-lint/tests/config.json": "003e2833f422b8c74af29572915c0c020466255dd5125ed33e8587e7ef60cf17",
+      "tasks/actionlint-action-pinning-lint/tests/Dockerfile": "0b9bdabc3f18bafa78d129d076c3464c5a8d9d52d4b1f07ff58603c85ca3e89e",
+      "tasks/actionlint-action-pinning-lint/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/actionlint-action-pinning-lint/tests/test.patch": "608be125ea90894b68b06e664229b6de7911403695132fc0ff794ceefa39a856",
+      "tasks/actionlint-action-pinning-lint/tests/test.sh": "ad32349418c97fe12a090d09ddb5c3880b1b992500c2f69275ef702b52c6e0e3"
+    },
+    "adaptix-name-mapping-aliases": {
+      "tasks/adaptix-name-mapping-aliases/environment/Dockerfile": "b542671f763b7ae231cbf9a4b3a29b27fa30adbd50c29012c4587eb45316b814",
+      "tasks/adaptix-name-mapping-aliases/instruction.md": "e8e4a39e65723ff56eb35bc9b9183fef4e09677159063abf8189f471cc1b2eac",
+      "tasks/adaptix-name-mapping-aliases/task.toml": "ec03c8bc5fd8ba4d86188d4b92681c4454bb90376ac4af1fdfda6353f9201b3f",
+      "tasks/adaptix-name-mapping-aliases/tests/config.json": "ad871fc46f60c2a3f7cd3127321dfc259db434cda099cc0bf5e3637a3eb2eda5",
+      "tasks/adaptix-name-mapping-aliases/tests/Dockerfile": "9365c46099b0571c2bad87c5e3d35e491ca817ecadb7b1876946f684d4de2cc3",
+      "tasks/adaptix-name-mapping-aliases/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/adaptix-name-mapping-aliases/tests/test.patch": "e9ea26e7b29f431bbeff3aa7230f7b384f0fd3100b8de5ad00f56c42fab9281f",
+      "tasks/adaptix-name-mapping-aliases/tests/test.sh": "66cf913bf92b41e0b675428e5a7b70caa8198059cb19dc2332be5309e495a4ad"
+    },
+    "aiomonitor-task-snapshots-diff": {
+      "tasks/aiomonitor-task-snapshots-diff/environment/Dockerfile": "4b0486135417a99cd60a6f7ef408eb844e37ec6fd84c1e031a9db706101e1c02",
+      "tasks/aiomonitor-task-snapshots-diff/instruction.md": "40f3eeea527d09aba7e54b35aadc1bb5f70743d41a9f09094e5968ebdf8b79d7",
+      "tasks/aiomonitor-task-snapshots-diff/task.toml": "4920836b0039b6c022f3200714a6d8107a7126a3a1354a19c66374e3aab445de",
+      "tasks/aiomonitor-task-snapshots-diff/tests/config.json": "69d3cbeb7cea0c75fb42351eec658f2721fe30de419436bec0ef02bec5e80ce7",
+      "tasks/aiomonitor-task-snapshots-diff/tests/Dockerfile": "9c095a7da92b46cc6cbdca1edfb399793d81a69137e0a599f222cff70e4519a8",
+      "tasks/aiomonitor-task-snapshots-diff/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/aiomonitor-task-snapshots-diff/tests/test.patch": "bfc1b309c7ce5b2557b9ba8c0b3f11888a08571c8baabdf8ff6a145db5e09a63",
+      "tasks/aiomonitor-task-snapshots-diff/tests/test.sh": "c55a19ff001be08d5ddb5bbe7b34cea03b6019cee1a680a79338f12a18811d21"
+    },
+    "anko-default-function-arguments": {
+      "tasks/anko-default-function-arguments/environment/Dockerfile": "2aefca1d5b234426d2aac51c599ba10a897f20ace48edb218966362b3252f0ef",
+      "tasks/anko-default-function-arguments/instruction.md": "72caeb802c4dc7b8cbd4d9ec61b467230383a923de4dd4cc300b9f1d99285f8f",
+      "tasks/anko-default-function-arguments/task.toml": "aabbd5deb2aad2e820ba7592883cc9ccbe7a7f73c87e03eac903164fe3d03bd0",
+      "tasks/anko-default-function-arguments/tests/config.json": "d3c466ba8c75740c49bd3abe360f0b93d1810e529c1d76565339f17bb56252d4",
+      "tasks/anko-default-function-arguments/tests/Dockerfile": "1c1927f7e36b2fb20066fec160e8956584ac331a6daf9740b1671a6a910eaede",
+      "tasks/anko-default-function-arguments/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/anko-default-function-arguments/tests/test.patch": "5666585ad86381c2d1439f0628abdb20532dd380d614c8b957b1ca37e36b01ec",
+      "tasks/anko-default-function-arguments/tests/test.sh": "6950b56a00ba6a197ab6b0a613af12ad39187ef201abc0aeb86045712ad2b0e9"
+    },
+    "anko-typed-variable-bindings": {
+      "tasks/anko-typed-variable-bindings/environment/Dockerfile": "167c90098edde010922af29a44456c905d91e5d61be1c5411cd99e828a24419e",
+      "tasks/anko-typed-variable-bindings/instruction.md": "96c0c7ad98237d6176034c8893d8bff164ec5fda45889e51780a65cf599ffcfe",
+      "tasks/anko-typed-variable-bindings/task.toml": "10e666616cddb0b75d2db407c5c89ea4b17a3284b5ad7c499a3305cc9483bcd1",
+      "tasks/anko-typed-variable-bindings/tests/config.json": "0f11e7c3d5aec8fbfe3e431d246e1b7b8a0ebf2326d7feafa39f389e248ebe48",
+      "tasks/anko-typed-variable-bindings/tests/Dockerfile": "e5c7d7da5f841382ec5187fefb132a804c83b3c44623c38ca9ddaf5493200cf9",
+      "tasks/anko-typed-variable-bindings/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/anko-typed-variable-bindings/tests/test.patch": "91aa103ce3d2a7978588a19aa33e6dbbb95f418fd5fc1e2d21bd40a376b5078a",
+      "tasks/anko-typed-variable-bindings/tests/test.sh": "3c022205d73128934751dbddac8136f25e8fa6b436243557730742f5186dda01"
+    },
+    "arcane-drift-detection-baselines": {
+      "tasks/arcane-drift-detection-baselines/environment/Dockerfile": "bd7de80821cf3e163f5ba396e15130af580a8221f6095f21233e1e221abae855",
+      "tasks/arcane-drift-detection-baselines/instruction.md": "ca4de99c747ee4897ecaef75bbfc1324e147bd701958f1beb2473c76521b70e2",
+      "tasks/arcane-drift-detection-baselines/task.toml": "bda69894e0fd8a7afda5dc81169d11db83058e78099c7889088f0c423a1db0a2",
+      "tasks/arcane-drift-detection-baselines/tests/config.json": "79cf19c04e35927c5a1eaf2cafb8c3b4f482cc7b24812dc68b6e3fab67eed7d4",
+      "tasks/arcane-drift-detection-baselines/tests/Dockerfile": "95b625c35b13245f309a45378ff0e337b0de6ad500928e9cf4be7f8822a993e9",
+      "tasks/arcane-drift-detection-baselines/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/arcane-drift-detection-baselines/tests/test.patch": "f4a5222a7c5a73c02df2f3d666d0adb2126c68df1ab0be0b03e1893348b7e081",
+      "tasks/arcane-drift-detection-baselines/tests/test.sh": "6e98e571e7d19b2a98e21436cc2af3b8584774006f227eaf7a1786bb7ef44f80"
+    },
+    "arktype-json-schema-refs-dependencies": {
+      "tasks/arktype-json-schema-refs-dependencies/environment/Dockerfile": "58f595eaf14a7854f339073deadc9d28fcbff9455e21ac986d6fbd908bb2e36d",
+      "tasks/arktype-json-schema-refs-dependencies/instruction.md": "594fa84b95c92f69e949de2781107a3ff5b6131e889203fc4505f6f41a136ea3",
+      "tasks/arktype-json-schema-refs-dependencies/task.toml": "6a91e7bd0fd5d1154f77e84c69a62d266e24552c83954dec0f18d3471b6a809c",
+      "tasks/arktype-json-schema-refs-dependencies/tests/config.json": "62ba14ca9fcc3b85ace2f26b1b3df885a0cb7ccdb1607d834df582be1f5c4c46",
+      "tasks/arktype-json-schema-refs-dependencies/tests/Dockerfile": "5ce0997f410a98a34ba9a4db8d7bf4e43591dd935d49a2934899933b9ce4e485",
+      "tasks/arktype-json-schema-refs-dependencies/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/arktype-json-schema-refs-dependencies/tests/test.patch": "2d79d38da986136779eeb69658b775fd380d32eb6ba27abac5d080714f47c92c",
+      "tasks/arktype-json-schema-refs-dependencies/tests/test.sh": "a529f019da4dfac1ae46dca104599c4489a52b70d71889486267a91e9df450f9"
+    },
+    "awilix-async-container-initialization": {
+      "tasks/awilix-async-container-initialization/environment/Dockerfile": "4a55090bdce3abad4ab256d3676f1155b6eee8e7c2cdf21a55253da10626edb2",
+      "tasks/awilix-async-container-initialization/instruction.md": "340a292a209ce1ad90dc30ba47d0062f543805cf9e212bce662b0fb6bd5d3c66",
+      "tasks/awilix-async-container-initialization/task.toml": "051f78a9f7c1641dfa9a362dacf26a8ea3b4100eaade210db2a74ef23061fc3d",
+      "tasks/awilix-async-container-initialization/tests/config.json": "f521bba2e5f1083b43903e3ddd2b06f9a1be7dbf8d7d888f3b80a373239a37cf",
+      "tasks/awilix-async-container-initialization/tests/Dockerfile": "576a380c075a65f8a4ea83f960d5996e86d45de2017fdc64157ce40911184fd1",
+      "tasks/awilix-async-container-initialization/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/awilix-async-container-initialization/tests/test.patch": "21387269b2484e1c89419bb04fda51bd60e220e4571bd1bbabe450fdb3c16e04",
+      "tasks/awilix-async-container-initialization/tests/test.sh": "5a0003161a27d9c944ebb3817053f338f614d157c4b52ad6f6957e4c5a40300f"
+    },
+    "bandit-incremental-cache-control": {
+      "tasks/bandit-incremental-cache-control/environment/Dockerfile": "439d3b13920b498e1af31f928acf47c46cf4523eb93041e582a2a44d85513d60",
+      "tasks/bandit-incremental-cache-control/instruction.md": "78a166bd4aca7057e98d11106812396f9aa695a80b57ce346aa8231af2cecb12",
+      "tasks/bandit-incremental-cache-control/task.toml": "1807632d919182dd98c7ba8398ef82f8d0982b12739c0b209322130893424a75",
+      "tasks/bandit-incremental-cache-control/tests/config.json": "2fcbdd24460e28b429b91baf0c63c1a7f85afcae134a90d1219af5148cbc6ebc",
+      "tasks/bandit-incremental-cache-control/tests/Dockerfile": "849524499935e46c64c64c4602b1da402a7eab7af57f39715df70a4334f51b4b",
+      "tasks/bandit-incremental-cache-control/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/bandit-incremental-cache-control/tests/test.patch": "7944f3ebe21a8c506e754da2037b70bbf22fea3372e7da86fda9158f33a55c5c",
+      "tasks/bandit-incremental-cache-control/tests/test.sh": "7d0e64a42deb1a10af17eee4c7a13546f8f04c9e2fdabcde623ffc41854c8145"
+    },
+    "bandit-interprocedural-taint-checks": {
+      "tasks/bandit-interprocedural-taint-checks/environment/Dockerfile": "1af159eefc1421c0ca49a5e0846583b6efd0588d591715efada37d033ed6a4da",
+      "tasks/bandit-interprocedural-taint-checks/instruction.md": "d780c0ef58de282522a94650d7fd54eed4e24aec73affc55c90898e2f11ba3b2",
+      "tasks/bandit-interprocedural-taint-checks/task.toml": "eb38b1482426d94b804589a67b1632027c0ed9767b41524aabbf2472a2aca067",
+      "tasks/bandit-interprocedural-taint-checks/tests/config.json": "d7bf57cde123079ba241f2a605aa3d4cd61a80e6ef5a3d779fd0e687b3e4fd17",
+      "tasks/bandit-interprocedural-taint-checks/tests/Dockerfile": "15aa87fd13060626c803ed4b1cdfe70e7b0fc824ae779902d8a0db896f756e99",
+      "tasks/bandit-interprocedural-taint-checks/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/bandit-interprocedural-taint-checks/tests/test.patch": "192f96e4106bb272e8b72924da5e286b536717514b830237faa09ba9fa8f2837",
+      "tasks/bandit-interprocedural-taint-checks/tests/test.sh": "3759d1d7adcb93ca69a61708a8315d0d193d87ad853980e4160edce8e72544ff"
+    },
+    "bandit-structured-nosec-directives": {
+      "tasks/bandit-structured-nosec-directives/environment/Dockerfile": "62b268ffaa054727799a7c46df61ab8d9834a37ad435606c4eb9420c56f2b6d3",
+      "tasks/bandit-structured-nosec-directives/instruction.md": "310eeb36b46c3aece39ab187817b87764f0a428affe5e8a1688e0c92f7b92f9d",
+      "tasks/bandit-structured-nosec-directives/task.toml": "f912cafd5cc5a526e16147d9151a4dd9fc6eea151ad7967adfd37ce05709c22d",
+      "tasks/bandit-structured-nosec-directives/tests/config.json": "0b614af60ffde18e0a7e91fe3c81af8a62eca7e05646b1044ab91b45f0913961",
+      "tasks/bandit-structured-nosec-directives/tests/Dockerfile": "89a85e13a98f496c3a509ad43eaf62b20b5e6dc95a67422ac2fe5cd6c3e41e78",
+      "tasks/bandit-structured-nosec-directives/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/bandit-structured-nosec-directives/tests/test.patch": "433d6b981ac0c768176e1d326daa1848c6cb8f4431d1bd6bdc78485b7d0ac30f",
+      "tasks/bandit-structured-nosec-directives/tests/test.sh": "de0e216c64b696e7e70a1c4d28b5cb47543586d265b582f622252a383879dbae"
+    },
+    "boa-hierarchical-evaluation-cancellation": {
+      "tasks/boa-hierarchical-evaluation-cancellation/environment/Dockerfile": "0f072222e5d9dae712372ab5cf06d7b25ebdd3f541f517335bee0613a23cdabb",
+      "tasks/boa-hierarchical-evaluation-cancellation/instruction.md": "72e6aa910687e1fe0401b7d97183880ee143d60b5183cb554d554abe003cedec",
+      "tasks/boa-hierarchical-evaluation-cancellation/task.toml": "01f6340fa9c876a0707f3a71a1196820b2de88d0ae292b7778d5acd3407d1dab",
+      "tasks/boa-hierarchical-evaluation-cancellation/tests/config.json": "078a67abf9a790dcfd1c2bb9de140bee33b0405c353762eda275ae3c17a607a0",
+      "tasks/boa-hierarchical-evaluation-cancellation/tests/Dockerfile": "4a6b549c44184290c6318acc0f747923459ded18aad1076946c54037424dd983",
+      "tasks/boa-hierarchical-evaluation-cancellation/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/boa-hierarchical-evaluation-cancellation/tests/test.patch": "1c72b2542ed76a17eefcc2b623d4927d20f68e6d371c76b6e27210c65f00d07f",
+      "tasks/boa-hierarchical-evaluation-cancellation/tests/test.sh": "1ed7e5e530c945362eb083f1a54563cba7673b01b2f837354fe0b956b258c20c"
+    },
+    "cattrs-partial-structuring-recovery": {
+      "tasks/cattrs-partial-structuring-recovery/environment/Dockerfile": "2bd6e8a1ded869b85334eebbad3c29588b71a2ee1486c06713648485c2b3560e",
+      "tasks/cattrs-partial-structuring-recovery/instruction.md": "13eab1ccb6c77dafa95e7e815a35fc76033aaf271076012067c3502c0c11272c",
+      "tasks/cattrs-partial-structuring-recovery/task.toml": "6c4f2907ee8a96f9a054e54cfae86fa248a37c06337cf990e3a124000a32bb0b",
+      "tasks/cattrs-partial-structuring-recovery/tests/config.json": "d32fbbb9320863afda4000a3b87efbe1a1eb36565c474fbc37eb400d6301d62c",
+      "tasks/cattrs-partial-structuring-recovery/tests/Dockerfile": "bdca07e5a8e64ab175c28a2fa0d53d2225ae439abe6f0723213cd99ffdfb5228",
+      "tasks/cattrs-partial-structuring-recovery/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/cattrs-partial-structuring-recovery/tests/test.patch": "50154d90fca5e57254affc3a5378082a6782cb4d7e27182a7860a5827b8afef9",
+      "tasks/cattrs-partial-structuring-recovery/tests/test.sh": "f17974eb262c2263c538fd31d62ff40597674ce4bc70084abad190885862e481"
+    },
+    "clack-async-autocomplete-options": {
+      "tasks/clack-async-autocomplete-options/environment/Dockerfile": "ee1171af0650ea7024cb26dcdf6d693721479094e425ad9ca35e5a4bb0b56e24",
+      "tasks/clack-async-autocomplete-options/instruction.md": "5792630a916783910328e8d7778dc9483ed949bf713a09d00d4b8f6d4bdb6bf3",
+      "tasks/clack-async-autocomplete-options/task.toml": "977c453c2c4701b1d58df42f7d11a9f9b16ae9b57c7e2522fa45c2bd14f44603",
+      "tasks/clack-async-autocomplete-options/tests/config.json": "68f5bdaa5ed70850c3e4f3e8f97328a86bac535f6cd325b9111207d1b0f86bed",
+      "tasks/clack-async-autocomplete-options/tests/Dockerfile": "f9f060804da06d2ed40954ec21c5f41a6eb3e2541f0a0e270638a4c548edbd32",
+      "tasks/clack-async-autocomplete-options/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/clack-async-autocomplete-options/tests/test.patch": "bf6aaeaac58a1093d509332cd3f36562c6c8c61f41fa84178d87afcf50de9ab8",
+      "tasks/clack-async-autocomplete-options/tests/test.sh": "121e16f34db26fc1799f8c28db93eb33228d3d54fcd997d13b4b85277d06e18f"
+    },
+    "claude-code-by-agents-recursive-delegation": {
+      "tasks/claude-code-by-agents-recursive-delegation/environment/Dockerfile": "024ac5ab524abe07b4fee864f6263cdd1a0f18865f5bb257a78f7fae052f1f3d",
+      "tasks/claude-code-by-agents-recursive-delegation/instruction.md": "56818b3491a387c482911fe0a88859cb1b802e56a7087d51e0a77965fd68a59c",
+      "tasks/claude-code-by-agents-recursive-delegation/task.toml": "5f5b092341a9f654ac3b25c68381f6a0eb028280f6fbc4001003227e4729959d",
+      "tasks/claude-code-by-agents-recursive-delegation/tests/config.json": "dcad2febfc7e522049640b207c452ddde41ca32a7b414f5fb37ee8590d1d2dff",
+      "tasks/claude-code-by-agents-recursive-delegation/tests/Dockerfile": "61c1b42f652c7cb7b5a091c6e06f76251009def9520770aa597fc7ed5efc6bda",
+      "tasks/claude-code-by-agents-recursive-delegation/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/claude-code-by-agents-recursive-delegation/tests/test.patch": "55461bb04560e038ea9aebd02df39b3c94eda33ecba5b806f8b7bdcde0e27149",
+      "tasks/claude-code-by-agents-recursive-delegation/tests/test.sh": "a4c421e0ce5cdf1189f70c5001884304d3b5fcee0f2ee3722ebf036b50768ffa"
+    },
+    "cliffy-config-file-parsing": {
+      "tasks/cliffy-config-file-parsing/environment/Dockerfile": "1d281ffef4637946ecc6306f0e49c2c2eb493cbd9d9c39bbf9c92f9ec2bf1a57",
+      "tasks/cliffy-config-file-parsing/instruction.md": "39668d18670621b7760751128fc57ffbe519e3529601567ea9e11d31faaa2daf",
+      "tasks/cliffy-config-file-parsing/task.toml": "c21651d7a9fd6b3dbe5562e804153c51775cf1d4ed112f775229d11560b94ba4",
+      "tasks/cliffy-config-file-parsing/tests/config.json": "f1a3c7c5dc48fb089183f3605bd123c5761cfe315cf87817fec97de360e0db8e",
+      "tasks/cliffy-config-file-parsing/tests/Dockerfile": "d0c883063e1aadc797daec10b05fdfb1e9b492b318703e466d451b964ac0fb84",
+      "tasks/cliffy-config-file-parsing/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/cliffy-config-file-parsing/tests/test.patch": "b26350181e80c7e9f9b0010a659474b571cd8da204cad3b1aa1bfcfeb76dd34f",
+      "tasks/cliffy-config-file-parsing/tests/test.sh": "18eafe2b80661bdb11a8cc5091b1ae66f6c8c58b129dace402faa754d2bfbe94"
+    },
+    "csstree-shorthand-expansion-compression": {
+      "tasks/csstree-shorthand-expansion-compression/environment/Dockerfile": "1855a58bfa42e80d0f8af5ead2f6a66662c618cbd8602121935408b18570bf86",
+      "tasks/csstree-shorthand-expansion-compression/instruction.md": "fcf3984dab65cdb6fa5255587e5f09f75231da6c8e4840f47e25a4c0303afdb7",
+      "tasks/csstree-shorthand-expansion-compression/task.toml": "461fbe15ef2afa084f988e225fab1bfafeb02d7f34114b55e01fefbd66ee31e6",
+      "tasks/csstree-shorthand-expansion-compression/tests/config.json": "569c1c8e0db40506847f74bef946775a6f3cb777078513b6798dbb90b296d50a",
+      "tasks/csstree-shorthand-expansion-compression/tests/Dockerfile": "a038169d3661f0fd9bdc7cead44fad1d41d42358e9ae9f07bd7f7422421a266e",
+      "tasks/csstree-shorthand-expansion-compression/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/csstree-shorthand-expansion-compression/tests/test.patch": "8d7175cbea6420d5eb0511cbce41cdba865de1ea676a41aa31352e569fb4dd0a",
+      "tasks/csstree-shorthand-expansion-compression/tests/test.sh": "6e409ebeebde2c5739e7dec243c2ac70a3c9d26dd7540b4660ea972b50c534ab"
+    },
+    "dasel-html-document-format": {
+      "tasks/dasel-html-document-format/environment/Dockerfile": "eee0408cb309aa0e077c5078c32a799df61122c0ae638da0b382267a7e042619",
+      "tasks/dasel-html-document-format/instruction.md": "53a67fd1336d4b281f47b37e809834369ebd9d1d2178c5da2c80fd1b0e4393f8",
+      "tasks/dasel-html-document-format/task.toml": "e178607fca1ac99213f24493abcdbc97c1258decbbd16ee660adc35f29538443",
+      "tasks/dasel-html-document-format/tests/config.json": "e7d759b64af0e0924645964ab28c3026a43e6f6cb2ee0a90de0ef7b5ac685840",
+      "tasks/dasel-html-document-format/tests/Dockerfile": "ca38860b2a2e6b9828cdd8e7eff7b58647784023a2f41ae2d715f1f81200bbfd",
+      "tasks/dasel-html-document-format/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/dasel-html-document-format/tests/test.patch": "bb1e42d866510f92b7c880bb580eff0fa14b072a7f176e85e2cc99dd4c248d40",
+      "tasks/dasel-html-document-format/tests/test.sh": "d01f75d8005e4acf291ddb2890b8b7a01491a39fc7f3afbd5ae11b4b0ce0d160"
+    },
+    "dateutil-rfc5545-timezone-interop": {
+      "tasks/dateutil-rfc5545-timezone-interop/environment/Dockerfile": "e174d448fa55fab6cf934ea8a1aa778ef92dd3d5e251a8da3db231a0265cdbbf",
+      "tasks/dateutil-rfc5545-timezone-interop/instruction.md": "029feb3185f43a1ed77c0fa9e250c50e82758c78b7544f8905782c2dda9eb9b6",
+      "tasks/dateutil-rfc5545-timezone-interop/task.toml": "0908cc9e22d4b0bcd9605598eea9d4fe4733307da8efe86a055c1816251578c6",
+      "tasks/dateutil-rfc5545-timezone-interop/tests/config.json": "956f267962825dcb4c79567c7295264d67b35795371d86b6a5cccdff14535465",
+      "tasks/dateutil-rfc5545-timezone-interop/tests/Dockerfile": "895d2c7cabbbf436ab65d7d1ae00024d6bd9b9bd986a0d8687c9a917164e4c5f",
+      "tasks/dateutil-rfc5545-timezone-interop/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/dateutil-rfc5545-timezone-interop/tests/test.patch": "927af366a90b1e4eee529cf8d64b6c755a9abb0b6342196a8b307a2b5c74fade",
+      "tasks/dateutil-rfc5545-timezone-interop/tests/test.sh": "98d7b3311bd48f58be70827f3fcd5b4a45426a3ef1cebf45af41c5457fd6a004"
+    },
+    "drizzle-orm-window-function-builders": {
+      "tasks/drizzle-orm-window-function-builders/environment/Dockerfile": "a4231ad44fe5b8ddeb186f175298c02be3c9cce32eaf9e043e964b6f4c6213a5",
+      "tasks/drizzle-orm-window-function-builders/instruction.md": "72fc9abfb71ae51619dd571f8034beb55bfd8a86741c901560d3ff7a905032a8",
+      "tasks/drizzle-orm-window-function-builders/task.toml": "6e1b4327782244e00702f20bd33921a43dbfb7b61613197a6f4f5e839bbc349b",
+      "tasks/drizzle-orm-window-function-builders/tests/config.json": "cb9ac3fe98b5fe94b6f3e319ce02db5a11cf305f2c8b776e8c262df3a99aa842",
+      "tasks/drizzle-orm-window-function-builders/tests/Dockerfile": "28abebce0c4c7063fed8e062bede2a3b1583b55d42e05ec742e2d7840e9aa7d5",
+      "tasks/drizzle-orm-window-function-builders/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/drizzle-orm-window-function-builders/tests/test.patch": "b8c9b81721d254efc4dcb494d9badc13c71f07668ea5d9985fc0fbca93cd42e8",
+      "tasks/drizzle-orm-window-function-builders/tests/test.sh": "f11c254611433772ec2738a44e8787b1adf0f68e4beabaf3a0c02ef501a35883"
+    },
+    "dynamodb-toolbox-conditional-attribute-requirements": {
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/environment/Dockerfile": "2a36a5917d14b89e418d253adf456018cb69c364a8bfabf75e870250e39d65a8",
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/instruction.md": "b3f779ea7ac151568f0dad3838f9bcdeabff7e4fca45677b26c406fa442a7fc6",
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/task.toml": "06726026383a8949dba3e40e939a6064754cb0c94068985ab589acd0021a4ee5",
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/tests/config.json": "55c1e802037762a4162153075814c0c2934cca1430e8773a0ca98f13543ccbab",
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/tests/Dockerfile": "cdcf0bbc02a69c5bc10459f2bf7ccb13fa67b29d63d85af24235f5142a8d2cec",
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/tests/test.patch": "8ce1dba15aba916565de041b0855e5b4e1fdc817d6ecb3999a4a3c8933cb7a03",
+      "tasks/dynamodb-toolbox-conditional-attribute-requirements/tests/test.sh": "a3714559c87a393c397d934956be828f01de26490708a0370839faaba8d76fa7"
+    },
+    "dynamodb-toolbox-lazy-recursive-schemas": {
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/environment/Dockerfile": "7a0e3848e3abd724fda65ec36a7205bedbce82ffea6e53caca52e0f40e15b227",
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/instruction.md": "531983ffe0ed3b3a6dbc84deb6004d6ece59daa54830c360649d4c52977b0c9c",
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/task.toml": "9d644d0a98f9a8a9a8ec13de600ecdf5914c3aaaded2d37f8d0ea0e4828d4857",
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/tests/config.json": "dcca0826ad4a22ef990cda849773d8db5d5f4be72265f94ecc0db9614aa55949",
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/tests/Dockerfile": "a587dbe93da09a9ca21768d743ca008335c9ddbe53b34573617992ca14e93063",
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/tests/test.patch": "e0e217cfd598b8a5e2379bc5265f1c47baefa1c9e248933aafc8112fbf6aa613",
+      "tasks/dynamodb-toolbox-lazy-recursive-schemas/tests/test.sh": "e162201a0d2d4614f9da3dc079cae5f2a66655c4e57756b97dc169be44e9abf2"
+    },
+    "effect-sse-httpapi-streaming": {
+      "tasks/effect-sse-httpapi-streaming/environment/Dockerfile": "78d78fa945613e684e897664a9b16363a424ad5ef2fd140f3576581a183951af",
+      "tasks/effect-sse-httpapi-streaming/instruction.md": "b9fc8403f53c0aed7e53cf7c2ca3f5df4249de5af8ac5ffc1dfc8500d21ce205",
+      "tasks/effect-sse-httpapi-streaming/task.toml": "51a10714acd40f8fae6823ef0c7f7d24d0b0972568ca9a8d0690d25ff0656464",
+      "tasks/effect-sse-httpapi-streaming/tests/config.json": "33fae1e60d48f5c17bb54ded984d00e590887f64799a5d47cd54735752724713",
+      "tasks/effect-sse-httpapi-streaming/tests/Dockerfile": "a0db50255915bd2b0c8f5dbb5d01d31cb56527e4cafaac4e633a9b2dcc7b8d32",
+      "tasks/effect-sse-httpapi-streaming/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/effect-sse-httpapi-streaming/tests/test.patch": "ce032707d6f1bfefb225d3b888dfac2991a50e4bcdcaa6cae0bef3f3518f5599",
+      "tasks/effect-sse-httpapi-streaming/tests/test.sh": "1f32078a437f204badf3e77d61479a9051fe12a358070d4058595c6120c5f47d"
+    },
+    "eicrud-keyset-pagination-cursor": {
+      "tasks/eicrud-keyset-pagination-cursor/environment/Dockerfile": "4d490afc7aa9a2c87cc97fe11b957e0fd4466218fdcf6d45830c7cf673fd4baa",
+      "tasks/eicrud-keyset-pagination-cursor/instruction.md": "7c2af7789aa9e8a722136303a6c97d0f44ee8f7732e4f63af93e57c041fdb821",
+      "tasks/eicrud-keyset-pagination-cursor/task.toml": "b010e489ed12e2548648a59bbd4de2f37bf5418cb15755d4e915eabf77403695",
+      "tasks/eicrud-keyset-pagination-cursor/tests/config.json": "932b43448966a9fe7bda8eb695d203df1235ecac07bc2887b0692455f2739db8",
+      "tasks/eicrud-keyset-pagination-cursor/tests/Dockerfile": "3c75461523f3d867d8337c3eec97f19c8faa900ac01940e42222995adefe6e45",
+      "tasks/eicrud-keyset-pagination-cursor/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/eicrud-keyset-pagination-cursor/tests/test.patch": "add83b36122c513404055a43f09878d030c00e99d7519fed4195985154898fe8",
+      "tasks/eicrud-keyset-pagination-cursor/tests/test.sh": "db2f4f484a09646586c7bec18848ad58e593f343942c2687c02adba79c92be88"
+    },
+    "etree-xml-diff-patch": {
+      "tasks/etree-xml-diff-patch/environment/Dockerfile": "682a7bf45b7b5baf4dfc7186aad9a7ef64c29d56abfce360df347bc3309607f2",
+      "tasks/etree-xml-diff-patch/instruction.md": "4f4d384d226a49687890fffedc17242d5261c7a214c7bf247e3e505331698130",
+      "tasks/etree-xml-diff-patch/task.toml": "d2f80a52546ff0c5c1c059cdc690bb69fa98cb3a782d1e13c633d2b45104afd0",
+      "tasks/etree-xml-diff-patch/tests/config.json": "bbe92b48c36a9cd3f868d95238c281e876f278c5262d793a01a9a3e2ad2d41d6",
+      "tasks/etree-xml-diff-patch/tests/Dockerfile": "00a5d767a216d14966d0653d70e84148b9fe0b33518e6ef099be029a39fdb78d",
+      "tasks/etree-xml-diff-patch/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/etree-xml-diff-patch/tests/test.patch": "7cab6711718deca89a068e57146c28b490e77320144b413061fab2333b1f8c88",
+      "tasks/etree-xml-diff-patch/tests/test.sh": "ffb75d0fa4c759ded3186c1ec49c533db27ec34776a6ae829de5a4692337099a"
+    },
+    "expr-try-catch-errors": {
+      "tasks/expr-try-catch-errors/environment/Dockerfile": "002841e554f06f3e77cd28673deaa7b232e2ab518cf303727a21ba6ffdd37ef5",
+      "tasks/expr-try-catch-errors/instruction.md": "6f19f8363f75963c69072f03aa7515ffa304d6b726f85b09188760ae682e3447",
+      "tasks/expr-try-catch-errors/task.toml": "1206c54353bb7982f44be6473f2bc2837fb2826cc674d1a672612648160ede54",
+      "tasks/expr-try-catch-errors/tests/config.json": "91d9f4547c567e798644c3ad80016ad2745db3184df82440e8b93b9b6d163fd6",
+      "tasks/expr-try-catch-errors/tests/Dockerfile": "0a0e3016434f05f233f2af6215a2df509de25cdc8aa47f69d6f1625a03a92488",
+      "tasks/expr-try-catch-errors/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/expr-try-catch-errors/tests/test.patch": "4f3f19e8f52c0e10cf4fe194b7adbf84f59541576e2f557d0624ce9af5aa3eb7",
+      "tasks/expr-try-catch-errors/tests/test.sh": "2340ff25d99a8ced4acdfd1fa5e11dca45990265b58c37744f0fd96afd3521af"
+    },
+    "fastapi-deprecation-response-headers": {
+      "tasks/fastapi-deprecation-response-headers/environment/Dockerfile": "262992aa68ad90e32aab45aadb01c777c34a4dfde10c4523da70e5a9878ed633",
+      "tasks/fastapi-deprecation-response-headers/instruction.md": "b8e0cb43fe2850b2173c8b5e940d463345b96aed6a2b3e7c0c559deda468c568",
+      "tasks/fastapi-deprecation-response-headers/task.toml": "b00b517b6f66358b735c0764dfed3b92a69079e366bb3ee5c6c2a9c6bf1b75c8",
+      "tasks/fastapi-deprecation-response-headers/tests/config.json": "5efe6485b83827a1f6127ba54b36a6fbfc3f973ff352f953bf9115fb41df35d8",
+      "tasks/fastapi-deprecation-response-headers/tests/Dockerfile": "a719057b36e6a9695e4cf44ad89b35402b13746719e3a1564b1356caef9d9709",
+      "tasks/fastapi-deprecation-response-headers/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/fastapi-deprecation-response-headers/tests/test.patch": "029972f1d78ec9c9e9e38f9abe4c3bcc9801b73a9e1aa83d4d1dfd2e79ecc35e",
+      "tasks/fastapi-deprecation-response-headers/tests/test.sh": "48340b1ac95a07e08c6aff4f3ea4495d3e3265baba3262393316afe713504988"
+    },
+    "fastapi-implicit-head-options": {
+      "tasks/fastapi-implicit-head-options/environment/Dockerfile": "c09996d6d4fadb04cbf3a1c89cae4d7e8a931fc5e887501d7197bc8552f09f5b",
+      "tasks/fastapi-implicit-head-options/instruction.md": "b55a492424e74cf6267a1bcf75c48942f397e9e9f00ac15e97809145794056d6",
+      "tasks/fastapi-implicit-head-options/task.toml": "4d48ce45311547285d7ad281ecfd5278abf73d3355305bce88bb889e99980f89",
+      "tasks/fastapi-implicit-head-options/tests/config.json": "e107f42aef1cb942378748fefbc5abd73d3f04ddacdc6538b33683cd18688960",
+      "tasks/fastapi-implicit-head-options/tests/Dockerfile": "254220c50ed009f0a8bf2870b90683448036b5203cdafca2843db974652b14b1",
+      "tasks/fastapi-implicit-head-options/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/fastapi-implicit-head-options/tests/test.patch": "2b7fd7bd3b52f9cbe6f15ac564e7d76c7dadbfdb7deab83e02855f02fa56ad61",
+      "tasks/fastapi-implicit-head-options/tests/test.sh": "39219607ca90e8fa563bcc733598fab4ce277c646ff25148d23c229e5bbdf38d"
+    },
+    "fd-deterministic-multi-key-sorting": {
+      "tasks/fd-deterministic-multi-key-sorting/environment/Dockerfile": "661fd1617da2b0dfb2d9ae0655ac73a58660b9a2a2c5a2f622b4a74ee9cd417f",
+      "tasks/fd-deterministic-multi-key-sorting/instruction.md": "c0f8b4310a2317da0f3222da839dc56a1580ed3d4fc493c2783ae418e6e2a657",
+      "tasks/fd-deterministic-multi-key-sorting/task.toml": "85ed92e88c27e6b9d789cd35d05a17ba92c1cefbd93cea6800e256889fdf0714",
+      "tasks/fd-deterministic-multi-key-sorting/tests/config.json": "b230517bac266c9f135daf0f2c1edfe2f03625210711efdabb59c1a6e09bb51f",
+      "tasks/fd-deterministic-multi-key-sorting/tests/Dockerfile": "445062ca923bc0c1b83c2271c42a5ab5eb682e5c4c571adbd9a5f99402e7c580",
+      "tasks/fd-deterministic-multi-key-sorting/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/fd-deterministic-multi-key-sorting/tests/test.patch": "a2cad74364a51fc25fc4dfa9aac7edfaf18ba88aa8b0f51ea04e7152959cf2b6",
+      "tasks/fd-deterministic-multi-key-sorting/tests/test.sh": "21d2943bf6cf9ec67600daa5bb9ecb7483bb69a8850e72e78b05451cf93a2cde"
+    },
+    "geo-shapeindex-serialization": {
+      "tasks/geo-shapeindex-serialization/environment/Dockerfile": "7e823bb05659d9b94ee38f6c63e849d381c4c7c2bd2b5c6f4e91519c4bc4a84c",
+      "tasks/geo-shapeindex-serialization/instruction.md": "963f10993838f2f3f33935632d2b1181a1fa0b1174991a8b52ca8a66d40e5afd",
+      "tasks/geo-shapeindex-serialization/task.toml": "a95140adb066b732b69b8485392576cf89e0cf22a0d7028ad5d9d08f37c08f29",
+      "tasks/geo-shapeindex-serialization/tests/config.json": "86251536c51deab078e271cb73e6e2702a68ec6723e0432c02d108f5087cb537",
+      "tasks/geo-shapeindex-serialization/tests/Dockerfile": "eb690a7ce678281fd6a22f7c238825cece49a7ab9aabac6eb2f4a0aaa19cc31b",
+      "tasks/geo-shapeindex-serialization/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/geo-shapeindex-serialization/tests/test.patch": "3b7c5fa6515e30264550c34bc44d89341595fbe42e02858cf60e8c32d27a8b59",
+      "tasks/geo-shapeindex-serialization/tests/test.sh": "c511bcfecb33e338d41446aaed2d748c8adb7944877428784b51cb83a899a4bc"
+    },
+    "go-critic-doc-link-checker": {
+      "tasks/go-critic-doc-link-checker/environment/Dockerfile": "4cb93c39bdc379bf52e23fc8ed379ffd860a85f1dd1c8312a0b75c96235ff757",
+      "tasks/go-critic-doc-link-checker/instruction.md": "101d1e82dfbb0514de914d8be1912f99f74a3f9c450ea8816cf3443a7faf24fb",
+      "tasks/go-critic-doc-link-checker/task.toml": "38ca3fb39ac476817895615ce3cf962c223e57e0e2359b64d16f19aa457b747e",
+      "tasks/go-critic-doc-link-checker/tests/config.json": "cbe8ca67bbba86fd3a0f925b7d80d94a8b0f1e40ea6937a8a11bca6c630076ff",
+      "tasks/go-critic-doc-link-checker/tests/Dockerfile": "0d52e408cf95708965457f3a1424f48904d7faf24e9b459f31e72cd9157cebfc",
+      "tasks/go-critic-doc-link-checker/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/go-critic-doc-link-checker/tests/test.patch": "72b0856bd4b8ba3429955c94a16105fcb1a94a55a416dc6f8329eb47bcebd106",
+      "tasks/go-critic-doc-link-checker/tests/test.sh": "57f1b844634b36b7951787eda1440438d6d70c7f795dc9798b4d26be0baba55c"
+    },
+    "go-genai-streamed-function-args": {
+      "tasks/go-genai-streamed-function-args/environment/Dockerfile": "1d1a9490d1ff32171313dfa334de212708e7331c096ef9f65572a479f4aa8f5e",
+      "tasks/go-genai-streamed-function-args/instruction.md": "a01fe3132affb9ec483885da4fd8574d3dd056cf7448a2a7cdc74e6486aed632",
+      "tasks/go-genai-streamed-function-args/task.toml": "0a5f6124b68f5938ae0315079a7a2e7d0aa62ece38e4ad380a4a18703696b537",
+      "tasks/go-genai-streamed-function-args/tests/config.json": "b32378ce48e5408b1d95f8ec0eaa3e7ddc7cf63d5fc6307ee0fb75fcb5cb7df3",
+      "tasks/go-genai-streamed-function-args/tests/Dockerfile": "8e248979defb2758a1e6feabe84cdcedde7ddb32a646bf8b07d4e28acd679a6f",
+      "tasks/go-genai-streamed-function-args/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/go-genai-streamed-function-args/tests/test.patch": "dc0eae728d2fc8fb40d0524774ea1a6223906544e9c7efe9abf0cef2f35bb2ee",
+      "tasks/go-genai-streamed-function-args/tests/test.sh": "2d72aefedcf8f032e0ac6f2b68c6dc71b0edc153469dbfddd063492b90da5c2f"
+    },
+    "go-git-worktree-merge-conflicts": {
+      "tasks/go-git-worktree-merge-conflicts/environment/Dockerfile": "09a227f14936e3ccaefe8638e10e0c1dba52dc8c3d24f6e6f2fc3f5a10cb228b",
+      "tasks/go-git-worktree-merge-conflicts/instruction.md": "4d6c197ad66c5d90b51f52d7db5f539fd164ce9b60e6c0d8bfa356f1f77cea7e",
+      "tasks/go-git-worktree-merge-conflicts/task.toml": "17a105a1d8e8aed5f45da06820dc65a1048a3a3f5a8d0f2dbd7c23ee74f94eb9",
+      "tasks/go-git-worktree-merge-conflicts/tests/config.json": "dbc43b094397ef9089b8a7f7fa796c40d339959e8b33d983f138f0282535e432",
+      "tasks/go-git-worktree-merge-conflicts/tests/Dockerfile": "b7ffd787df1c07ca5d8917814979d5be5f118c7eaca3dbca77fb348f1be6863e",
+      "tasks/go-git-worktree-merge-conflicts/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/go-git-worktree-merge-conflicts/tests/test.patch": "da79a6a7e63d63a2fd54b054d1956e5a8cbc83fbcd955a1cc2a31188b1dd3d7c",
+      "tasks/go-git-worktree-merge-conflicts/tests/test.sh": "fb303ec6756715ddd56011430db27e7c400bc8ca9dbf4cf09f42c73e9cb5784f"
+    },
+    "goreleaser-retry-publish-auditing": {
+      "tasks/goreleaser-retry-publish-auditing/environment/Dockerfile": "c10ff996caf916eed55953dc248c72375a0797511369dd6347d754b0863bc442",
+      "tasks/goreleaser-retry-publish-auditing/instruction.md": "b6474aa4d752c52c130bb2d4627ed5742caabb685570f689bc756fd8b8baa128",
+      "tasks/goreleaser-retry-publish-auditing/task.toml": "deddcda00d669f9962eec4cdd418549a54c6ad2e51cf52cbcd253637e5f1d9c1",
+      "tasks/goreleaser-retry-publish-auditing/tests/config.json": "6fee63cd3196470e20b4f47ddedf609f33a94e0b786ba80b7c1dc72149ce1bac",
+      "tasks/goreleaser-retry-publish-auditing/tests/Dockerfile": "790328c75bfe08d808e5f7c551739a01b9ba1e87de0fa18ee4a91200ca66d380",
+      "tasks/goreleaser-retry-publish-auditing/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/goreleaser-retry-publish-auditing/tests/test.patch": "505bf02762e936740955aa7ac50f9538deb5cbf4649120389be03bebc7649ab5",
+      "tasks/goreleaser-retry-publish-auditing/tests/test.sh": "ffba2c3f49f643ac6d22011d16a72d63d2092c1b118eb4f382170b94c12d9477"
+    },
+    "gql-incremental-graphql-delivery": {
+      "tasks/gql-incremental-graphql-delivery/environment/Dockerfile": "73e0084d9c40761bae4b983b1628f528343392286a11429dc4cdc44cd64ab989",
+      "tasks/gql-incremental-graphql-delivery/instruction.md": "0d14a5dac7fa2d6fe2e9d9d9a113fb02cfb2495f63f8b7edcaa18ba73dd16edf",
+      "tasks/gql-incremental-graphql-delivery/task.toml": "ff09cd73d7d8159825beb009c3f11770d776ed089fc0639b732ea6cd48030793",
+      "tasks/gql-incremental-graphql-delivery/tests/config.json": "c67e129b0d2f1510da79aa2af992ce65063f3d49392178bd7f4e7c183afdd4ed",
+      "tasks/gql-incremental-graphql-delivery/tests/Dockerfile": "9ffe7a80d9f43b0041774c6d4f30e0b34d8aba93a7023791312f69f039fb65c9",
+      "tasks/gql-incremental-graphql-delivery/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/gql-incremental-graphql-delivery/tests/test.patch": "031de3d902d74cdc8ef142886d5aca3342ff63611a3a903797f3e8d6fb413670",
+      "tasks/gql-incremental-graphql-delivery/tests/test.sh": "44092634c1bde1fe11ff7c5cefbd29bc2aaca23d505169188f00bd4494df9820"
+    },
+    "happy-dom-abort-pending-body-reads": {
+      "tasks/happy-dom-abort-pending-body-reads/environment/Dockerfile": "84f8bca577143b631b03a2f37c3b829e33fef54ecef70dc1d70bf94057de93c5",
+      "tasks/happy-dom-abort-pending-body-reads/instruction.md": "b6359654736d87c782a090174d53f818b4a98dfe3edbdf45fe327d9dcb1fa4ac",
+      "tasks/happy-dom-abort-pending-body-reads/task.toml": "8fed63affc8986aa96bbef06a95a184d4f20715db14f28cd138d78eee1fb441c",
+      "tasks/happy-dom-abort-pending-body-reads/tests/config.json": "88ef140ea308fba8b44347a95c7720f2d4f5b237195b3427e812d0ab82c6127e",
+      "tasks/happy-dom-abort-pending-body-reads/tests/Dockerfile": "a1147ac3fc0cdab52b2b79a54f87e6e8a114241f394ec6c9c8ae0cc57fbf2a1c",
+      "tasks/happy-dom-abort-pending-body-reads/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/happy-dom-abort-pending-body-reads/tests/test.patch": "ac3de2fd7659c284427cbae8502f551f5bceccf142a0deaadf2d65a9fea1cbdc",
+      "tasks/happy-dom-abort-pending-body-reads/tests/test.sh": "9f29bb73c7b2b79095e0612416a77d64da13e75542c70df901e782ce68c6c2c0"
+    },
+    "happy-dom-deterministic-intersectionobserver": {
+      "tasks/happy-dom-deterministic-intersectionobserver/environment/Dockerfile": "6b16bb76389b541ffa58d08732dc8abdeb6f9d9f5a5987e846407470133b3263",
+      "tasks/happy-dom-deterministic-intersectionobserver/instruction.md": "c294cb6d4e31f4c274fe79c373afa7d79ce36e9839739d7bac899fb6839ac368",
+      "tasks/happy-dom-deterministic-intersectionobserver/task.toml": "9a590906c60ed3bac08f96331cdd719f781f7e72a55a6fa82648f966acb25409",
+      "tasks/happy-dom-deterministic-intersectionobserver/tests/config.json": "49e86b1fe9c73f8ee26b2e11142a34cf56df6b7e20e45b21c471829a37ee16b3",
+      "tasks/happy-dom-deterministic-intersectionobserver/tests/Dockerfile": "1de62cd34f62c96bac9602542e043f6599dbdf0b12a3a81dce2642f853cc4ccf",
+      "tasks/happy-dom-deterministic-intersectionobserver/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/happy-dom-deterministic-intersectionobserver/tests/test.patch": "4242f50b3d6c63ec8f7d71e961b6bcca3406d69cbe7db3cac4269ef90ee0157f",
+      "tasks/happy-dom-deterministic-intersectionobserver/tests/test.sh": "7809908ad5607b4cda7f00921012eb7cc865aced5a8c2473b18d646fcf4100e5"
+    },
+    "helm-array-merge-strategies": {
+      "tasks/helm-array-merge-strategies/environment/Dockerfile": "23087a458240aceeb106be6e5a57126f37e94fcd4983746d0824bd22fe4dbe1e",
+      "tasks/helm-array-merge-strategies/instruction.md": "4d39c1963676acb1c1cdab6ac09d91fd5c321a77939b2db0cbbb666c911e47f6",
+      "tasks/helm-array-merge-strategies/task.toml": "ce111f2acc7237a7c1e767fcb871a91ccdeea767bfb87f6f21c058efbb530626",
+      "tasks/helm-array-merge-strategies/tests/config.json": "48862793ddf24d616f309dae91e8e54ac9c5b5b179c056d4b54ec8c71ddf76e6",
+      "tasks/helm-array-merge-strategies/tests/Dockerfile": "80eac300794c49263ead90b469143220b4288addf21b691c601c9a83092ec42a",
+      "tasks/helm-array-merge-strategies/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/helm-array-merge-strategies/tests/test.patch": "64f4a75c0095cf563856f48bc90e6c0fd0a0d5144a51150fc605f9ca22aa26db",
+      "tasks/helm-array-merge-strategies/tests/test.sh": "93af2f55dc0fb621b5e89f5aab94bee89dbe149757e296482fa80cf91fc35f2d"
+    },
+    "helm-unified-manifest-stream": {
+      "tasks/helm-unified-manifest-stream/environment/Dockerfile": "104631d393aa3ec3d8c60ca38389fbdb8d38e0cef5001ed3386ee7e05419b001",
+      "tasks/helm-unified-manifest-stream/instruction.md": "c69a568df4d740e1e4c6b1e8db40d9fcb3562fafc2f2c3422daf53181b808799",
+      "tasks/helm-unified-manifest-stream/task.toml": "2660916e53c102665b429f50173ee87dad21a319a4e6aea60900e24d4b8b3406",
+      "tasks/helm-unified-manifest-stream/tests/config.json": "ce08781f14b1c95a06396a0bfeeef6d0e507f2b8f183ba72fae0b5c179ab7308",
+      "tasks/helm-unified-manifest-stream/tests/Dockerfile": "58a5904153a3b69f970e26e3a2d1db2386ed93a9434cdef9c1ad15750c145067",
+      "tasks/helm-unified-manifest-stream/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/helm-unified-manifest-stream/tests/test.patch": "5b686ef623b47fb1952a5b88f618634b5c70d4ab40458a18f40e2e6cd890cf1a",
+      "tasks/helm-unified-manifest-stream/tests/test.sh": "2b319d982b0d02b59b2d02ec37e20740eafac295a68a40618e97bd957439fc54"
+    },
+    "httpx-deterministic-cookie-store": {
+      "tasks/httpx-deterministic-cookie-store/environment/Dockerfile": "aa71466fa6f71fab7fc6df1278377549c57a1d6b74bfd270a70005ce0fede297",
+      "tasks/httpx-deterministic-cookie-store/instruction.md": "97bd72180711c083997403fd5e88d7ebcca405360b06b93d5080cd2a6e625f22",
+      "tasks/httpx-deterministic-cookie-store/task.toml": "625136dd58235803eb622abda1855fdc4dc790b4016ce51c9ab987a8067f0b5a",
+      "tasks/httpx-deterministic-cookie-store/tests/config.json": "7878b7c49f92222e1114759f85809023939e104fdeb7743708e72055dbae7549",
+      "tasks/httpx-deterministic-cookie-store/tests/Dockerfile": "860e97dc73215d6681683fcbde86d7c9725c56615683c480636a7494138aad3c",
+      "tasks/httpx-deterministic-cookie-store/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/httpx-deterministic-cookie-store/tests/test.patch": "aeb6ad57532b08b38229ea05fda43a81ae3bb8a7ae702bddfb031ef51afc0443",
+      "tasks/httpx-deterministic-cookie-store/tests/test.sh": "937aed0e11cecfc1c91964a79f7278dfd6b2cc7d70e93f1ea3b4f1a7d0c4cddb"
+    },
+    "httpx-multipart-response-parsing": {
+      "tasks/httpx-multipart-response-parsing/environment/Dockerfile": "aa71466fa6f71fab7fc6df1278377549c57a1d6b74bfd270a70005ce0fede297",
+      "tasks/httpx-multipart-response-parsing/instruction.md": "6a9c3400a23ad61f43c6e6f5b2dfbe8f5a5af81061cc063fd9440f327c5a0fb5",
+      "tasks/httpx-multipart-response-parsing/task.toml": "7ee0209ec928035b9c0ac28997c886cbef8197567429e1c0493631856fdad5e5",
+      "tasks/httpx-multipart-response-parsing/tests/config.json": "33734c0f6a77183d0c59aa5fc68f92c07fa9382846f968e284e82bba2f465b89",
+      "tasks/httpx-multipart-response-parsing/tests/Dockerfile": "925c9b16416aa5b8f83e243e790da6bb90df7e6f12236b1792e7ed33c85d870c",
+      "tasks/httpx-multipart-response-parsing/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/httpx-multipart-response-parsing/tests/test.patch": "a6b6512793b4102041ea3cb835efbc8ba61cba800e07453dffd66703e123262e",
+      "tasks/httpx-multipart-response-parsing/tests/test.sh": "e39706afa8974f3a9949f2aa77012b37399578a647136bd065000f3273cbe719"
+    },
+    "httpx-streaming-json-iteration": {
+      "tasks/httpx-streaming-json-iteration/environment/Dockerfile": "aa71466fa6f71fab7fc6df1278377549c57a1d6b74bfd270a70005ce0fede297",
+      "tasks/httpx-streaming-json-iteration/instruction.md": "8b9cf46588b87c532be947e1ab102f1bf3241ad01133f5ca6c461dc7f7ecd9e6",
+      "tasks/httpx-streaming-json-iteration/task.toml": "4539d7eb6bc6e38c202b7b7afdf808c3f7aaa06283b58cc91f1d3aa437334e63",
+      "tasks/httpx-streaming-json-iteration/tests/config.json": "c3c1d983f347e37c7b131039dc97590f5160303acb26ee541b9499f906c751a1",
+      "tasks/httpx-streaming-json-iteration/tests/Dockerfile": "f7c81ed884c26eadc54f108ca7950a8a1a1f60683f5db3e86c41dae7ec11195b",
+      "tasks/httpx-streaming-json-iteration/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/httpx-streaming-json-iteration/tests/test.patch": "bd31b5332a542e94b8ebb1fe9e749512a942db9c7649e74533030e669900e849",
+      "tasks/httpx-streaming-json-iteration/tests/test.sh": "fb21502b6357332d46af6c1e78e2999960e8953ccbb37bf699f62fb1dda47277"
+    },
+    "igel-persist-feature-schema": {
+      "tasks/igel-persist-feature-schema/environment/Dockerfile": "e6108b2307831a5e498c1c5b2d640c125a4fb4a35b0a85a198647c1e04542cb4",
+      "tasks/igel-persist-feature-schema/instruction.md": "af7e38939072f50ed4d0fa9743dce1d963140700d4623289fa7ecfbcae301c49",
+      "tasks/igel-persist-feature-schema/task.toml": "f6bfad291ade307db9897cc4f27e00b01604eca70a4bd8037359c7bb58070740",
+      "tasks/igel-persist-feature-schema/tests/config.json": "9e556f511b64cd3a8e26ecb03743d9664f86096036dfd8c41a6ec5f3bbefcca7",
+      "tasks/igel-persist-feature-schema/tests/Dockerfile": "41bc7debc27a03883e2c14b6d910a4862db3aefb7078b9eb6a5bdc88d52f4f6c",
+      "tasks/igel-persist-feature-schema/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/igel-persist-feature-schema/tests/test.patch": "39cf81de193669537a82544b9ec939aa0c0ce7431f11b1d9cb0a3dcae89b4f61",
+      "tasks/igel-persist-feature-schema/tests/test.sh": "5f7eff61b7fb6815fae9456383d3a2529b85b825109bbdaf0a0644b52c85f06a"
+    },
+    "ink-grid-box-layout": {
+      "tasks/ink-grid-box-layout/environment/Dockerfile": "1ab7c26aeb7ddade4c7ddc8fca14341abba4a216345682f0bf8e4a39be3ce9db",
+      "tasks/ink-grid-box-layout/instruction.md": "8913c555865b03f915888ad262db805a5d6b004b01b034c6502fe64a5938a34b",
+      "tasks/ink-grid-box-layout/task.toml": "c75064d6aa2d3a136ef42d6f56257d32f992eab663caf182c4d17adc4a4e18e8",
+      "tasks/ink-grid-box-layout/tests/config.json": "351b102db016486d92ac5c5273957f9169c89d0a9593cd3a3239ce1e5c5d8273",
+      "tasks/ink-grid-box-layout/tests/Dockerfile": "675a1b433680a7f643998592c98d45d9a6229611500378e75b6311d4c08520e0",
+      "tasks/ink-grid-box-layout/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/ink-grid-box-layout/tests/test.patch": "49243aec9574c640065b6ad959e71d2d328768483695750a31bde3d087eba264",
+      "tasks/ink-grid-box-layout/tests/test.sh": "dfdcb3233f8d3dc796baeb19c5b5a57f6aff87d0e42cdf1174f6988b45f17e48"
+    },
+    "ipython-session-bundle-replay": {
+      "tasks/ipython-session-bundle-replay/environment/Dockerfile": "5ffe0364654e51a15ae67cf29d81ef2d2adbaea22e6381597109f68fa06da200",
+      "tasks/ipython-session-bundle-replay/instruction.md": "4f32a1ba02f7c46ccdedd09b6de17a91a89b0567980bb343508ecdfcd90388b1",
+      "tasks/ipython-session-bundle-replay/task.toml": "eaf41b8bf1a7965f6d050b6b4c3799a919871461a29dab6fc681852eba9a5417",
+      "tasks/ipython-session-bundle-replay/tests/config.json": "7817190e5771f00559e1aec725c9df1f09f295f8692a2beb34a77a73069a452e",
+      "tasks/ipython-session-bundle-replay/tests/Dockerfile": "13f793ad3ad4e06b2bbc610fde8d26adc979a9877c0d262d060aff24dfa431e0",
+      "tasks/ipython-session-bundle-replay/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/ipython-session-bundle-replay/tests/test.patch": "b4fb1073b86da6b432ab67fdfdb4dac4e474de85e186be8c7f1986ec5ef5c487",
+      "tasks/ipython-session-bundle-replay/tests/test.sh": "050ce2558e7759be9ce57bb406befbeb33258239615eb479d90f4dd1cbcf11ea"
+    },
+    "katex-multicolumn-array-spans": {
+      "tasks/katex-multicolumn-array-spans/environment/Dockerfile": "6a55c5b3d5d354503dc38b75d50bdc754b917bcd29da1a70c1552dd98745db47",
+      "tasks/katex-multicolumn-array-spans/instruction.md": "54e5a648f5c2151a57f895d5ea4d814f44cca52daa5e58a198877f398ace28f1",
+      "tasks/katex-multicolumn-array-spans/task.toml": "cd0d93fd52c3755d8ab44b7709253aca2b31d6eedcf7a33e15f856e5a35975b6",
+      "tasks/katex-multicolumn-array-spans/tests/config.json": "ec1a2fd78e14224482b9d4ee6857a0a58117bb0bbf87a0dcefb6383a95e0c6c1",
+      "tasks/katex-multicolumn-array-spans/tests/Dockerfile": "0274ff3beb685b126ae383feddc61a44601c7392a35adfd719ed585e69533058",
+      "tasks/katex-multicolumn-array-spans/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/katex-multicolumn-array-spans/tests/test.patch": "9a45f15ab7b2f1737aa4ebb05c532d85189f759a649b849fe147e9e61377de9b",
+      "tasks/katex-multicolumn-array-spans/tests/test.sh": "487f01bcc81d69b492c6cb6c18e3e2d078ab739b3a4c37cdaff4fb4366de93a2"
+    },
+    "kcp-go-multiplexed-kcp-streams": {
+      "tasks/kcp-go-multiplexed-kcp-streams/environment/Dockerfile": "cd9d8a133b6e0044af417565dd1d475f4cf15a46e6ff4cd670f118c9097bc134",
+      "tasks/kcp-go-multiplexed-kcp-streams/instruction.md": "1bc7b826ff68f5bd9771c80ac355986ddfa2e0c5987dda4d4896ecd47ef3072b",
+      "tasks/kcp-go-multiplexed-kcp-streams/task.toml": "5e96d688262621929f72f333abd4b42c324eeef838ec527a8c127d60cad1a71c",
+      "tasks/kcp-go-multiplexed-kcp-streams/tests/config.json": "80e5f39921f45fcb803b728f316f8275f0dd2129923e84ce0117dc21e71afc63",
+      "tasks/kcp-go-multiplexed-kcp-streams/tests/Dockerfile": "4b450f91c93cc13aca53f092b00bfdc91e2cdda99088a4a9cdafbf67bcb4e784",
+      "tasks/kcp-go-multiplexed-kcp-streams/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/kcp-go-multiplexed-kcp-streams/tests/test.patch": "dbe5032029bd02c9a4994a43659fdbf4555cfce7c6d0da87a56fecb5a4735c38",
+      "tasks/kcp-go-multiplexed-kcp-streams/tests/test.sh": "a31d38bd16093125de66bd0ab4ad103f70fdec835a1c14b339427febd2b29c56"
+    },
+    "kea-atomic-signal-selectors": {
+      "tasks/kea-atomic-signal-selectors/environment/Dockerfile": "21754941b1392fb75d8a5b775a507608af2e4eced4e303659131388cd22cb53e",
+      "tasks/kea-atomic-signal-selectors/instruction.md": "a7bde3311b63eb381fc29740e504ccb259e60466625b0626fa440ac545527deb",
+      "tasks/kea-atomic-signal-selectors/task.toml": "e348f26d469643cf8bfd535e9d9f86c8c20f7e7169aeda515223874a9dea271c",
+      "tasks/kea-atomic-signal-selectors/tests/config.json": "f26007a19eeefae915f6902906c7f29ce6060f688a0ef783f327192b56166f39",
+      "tasks/kea-atomic-signal-selectors/tests/Dockerfile": "5f3fab7316c0c02292338938d5ac198ef4862eec588322c69e77b4bdbb7eb233",
+      "tasks/kea-atomic-signal-selectors/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/kea-atomic-signal-selectors/tests/test.patch": "22a472624a5b29fc12ef5cb27da0af4c7e8636250e625a710ead46d6c07e9170",
+      "tasks/kea-atomic-signal-selectors/tests/test.sh": "b9c820bd610f1476221c663fd326574dcb1d0a97cde064a2ccad342651de1d56"
+    },
+    "kgateway-consistent-hash-policy": {
+      "tasks/kgateway-consistent-hash-policy/environment/Dockerfile": "60b1f8d6301043d88be22929ff12b58bdd4e6c1030455598a2455c7ee9943c76",
+      "tasks/kgateway-consistent-hash-policy/instruction.md": "6316ebc35a9c06f88ad2a8a72aa395dc0059927cec392b820106b27e9c20aa3f",
+      "tasks/kgateway-consistent-hash-policy/task.toml": "7994028e8d6a5de468af7a97b9a4ede8a0dc5a9280eabac18406a2735e85fd68",
+      "tasks/kgateway-consistent-hash-policy/tests/config.json": "89914cf84a4dff3bc61c4667312db4a2f2bb5431deae2ee8c47d868ca0b8978c",
+      "tasks/kgateway-consistent-hash-policy/tests/Dockerfile": "228067e1b7e1da85f465256930e8ed9cb5733554e6b61566a821e4237914e616",
+      "tasks/kgateway-consistent-hash-policy/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/kgateway-consistent-hash-policy/tests/test.patch": "b2e3c1d5107d70c66fe312f38c8e6e505268451205f0044b462974a814c295fd",
+      "tasks/kgateway-consistent-hash-policy/tests/test.sh": "0193cb942ae3ddc24996fccf4cc41063ad2dd84f05641a1f757da1efcb249182"
+    },
+    "kombu-single-active-consumer-priority": {
+      "tasks/kombu-single-active-consumer-priority/environment/Dockerfile": "4d5a8b0bef8b52454d96ec94b5c95cd8fe22f13d729e4a3b08f5facae5fd8724",
+      "tasks/kombu-single-active-consumer-priority/instruction.md": "c40c52ac1ec444168f42dbf58babb9d92360d1cff4b5d71cb3abd388832b2cf2",
+      "tasks/kombu-single-active-consumer-priority/task.toml": "9291e2b4b0a6dbbc83a35658943e2c9037bce4170014481b798cbd80b2e2ebff",
+      "tasks/kombu-single-active-consumer-priority/tests/config.json": "80e1d1cb3b4efc258fc24da8a1efe84f4af43179873b6809202efd846a732703",
+      "tasks/kombu-single-active-consumer-priority/tests/Dockerfile": "dc8659d28ca74c383fc89d0d935f73251954bc73fefca9ed81964f7e716389f5",
+      "tasks/kombu-single-active-consumer-priority/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/kombu-single-active-consumer-priority/tests/test.patch": "2c64d576317fed808845ff100f8b6aeceed079d3ea7b881d3b7fad90e3e098a3",
+      "tasks/kombu-single-active-consumer-priority/tests/test.sh": "721e10ab0c2d26aee8cbade1e90c145924ecfedebab160974d8619c0210f7c6f"
+    },
+    "kombu-virtual-queue-dead-lettering": {
+      "tasks/kombu-virtual-queue-dead-lettering/environment/Dockerfile": "d261f273070c961825bf7df7f79d40cb311555df425aea2be1b7274ab0045045",
+      "tasks/kombu-virtual-queue-dead-lettering/instruction.md": "c9758bde38041c99fa9bcd8cab3611de4c25bd0389671af6b4ef9a59cc8c988d",
+      "tasks/kombu-virtual-queue-dead-lettering/task.toml": "9893e227362bfe1d99340ed20eed31f552d54281b0dddf068276db4327d87148",
+      "tasks/kombu-virtual-queue-dead-lettering/tests/config.json": "20aa9064ade9801cd915e0bdc0f2d15e3357fb3ddc7afba6a0089c101ac3f6c1",
+      "tasks/kombu-virtual-queue-dead-lettering/tests/Dockerfile": "6107f9d5151d2e66c86dfa81426289e70e42d1405d187504a9c9bff898879a57",
+      "tasks/kombu-virtual-queue-dead-lettering/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/kombu-virtual-queue-dead-lettering/tests/test.patch": "7c3d2c91426f0d99ec7bc6613da8793ad0dbc5735b43214b3bc74d1e3ac85974",
+      "tasks/kombu-virtual-queue-dead-lettering/tests/test.sh": "721e10ab0c2d26aee8cbade1e90c145924ecfedebab160974d8619c0210f7c6f"
+    },
+    "koota-composite-trait-aspects": {
+      "tasks/koota-composite-trait-aspects/environment/Dockerfile": "02482161ba013a92d585c04960e8c319e4acbb5f6fcdce8d6d6b56982b29b116",
+      "tasks/koota-composite-trait-aspects/instruction.md": "300c70ea3b277bf799c272cb7415368bb631856c5a89bee1e7cac474f5810c25",
+      "tasks/koota-composite-trait-aspects/task.toml": "fa101fd31b866c79a5d14188e5d1a8e84d9a770703f4c5ac5c983eff4a599ee7",
+      "tasks/koota-composite-trait-aspects/tests/config.json": "3f7cc1dbf20abd2c2d354fb1270feed07a5df0a3eefa464c8c3449240c8dd8cb",
+      "tasks/koota-composite-trait-aspects/tests/Dockerfile": "e9cfaddf37a9cadcca7256aaf80d2ef5b6317823cf42ff8ee82159d45c8e67a4",
+      "tasks/koota-composite-trait-aspects/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/koota-composite-trait-aspects/tests/test.patch": "5d8c926bf93a041f4010fda23da2942583384a15f67e97f770b5d76f227a6912",
+      "tasks/koota-composite-trait-aspects/tests/test.sh": "775164cab62cb1b75a8586cabfde5c95629914e599e61312eaddae7f7ef6d12c"
+    },
+    "koota-deferred-mutation-buffer": {
+      "tasks/koota-deferred-mutation-buffer/environment/Dockerfile": "ca8ccab21b98b92d30fccbeee31b929d638c9d36753ae0a2d98b9de0db2a80bf",
+      "tasks/koota-deferred-mutation-buffer/instruction.md": "740e7847d71f883e8897b409693689ef06c0099bc333cfa78932f7e70e4b4077",
+      "tasks/koota-deferred-mutation-buffer/task.toml": "0400378a79973f9cce02965ecdf35124fbbbc9a74fca1091d5993c0fe1e06aaa",
+      "tasks/koota-deferred-mutation-buffer/tests/config.json": "8f7d3b3118bdb53a1519721df84bb164204ded25eb8122d9320d6dbf2e148bf0",
+      "tasks/koota-deferred-mutation-buffer/tests/Dockerfile": "f537f612f5a9c47890641765539110104da36724671bb1b1c8140e032e6e2309",
+      "tasks/koota-deferred-mutation-buffer/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/koota-deferred-mutation-buffer/tests/test.patch": "af4f3463f8b40ed7dd999cff618c7b697db4e03318888cd653cf83bf235e49d3",
+      "tasks/koota-deferred-mutation-buffer/tests/test.sh": "446d048f13ed142328be2e6dccb848a43f20ff611480c55a20a45e388cef135e"
+    },
+    "koota-entity-snapshot-rollback": {
+      "tasks/koota-entity-snapshot-rollback/environment/Dockerfile": "8a11212a1821f0ff49fa083f7913e17f9010bd28f351378e15b13b305e4d208c",
+      "tasks/koota-entity-snapshot-rollback/instruction.md": "e725648c0a8d0d84d50ad33749127cdca35f16d2921253b10d833ee559cbc671",
+      "tasks/koota-entity-snapshot-rollback/task.toml": "11444ab835894c82a89dce7232632d74cc2ec15cc23047c045dfb931b22d50b1",
+      "tasks/koota-entity-snapshot-rollback/tests/config.json": "3788792b28af8d62644d86a8b42303890ae3fc5f53a071ebd8f0087f96ba7e8e",
+      "tasks/koota-entity-snapshot-rollback/tests/Dockerfile": "ded3cd6d20197b3fdb02feef7c0fe152b10e810f4e1e4990ea526bee19a0d5a5",
+      "tasks/koota-entity-snapshot-rollback/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/koota-entity-snapshot-rollback/tests/test.patch": "1d5430d25fd8fbb9c4641559dc2e9d1b114108502379e143648f1796c2526f9f",
+      "tasks/koota-entity-snapshot-rollback/tests/test.sh": "32c881672c2b74e20e0fc309dcdbdb67ac3a50eabf62c3e0cf3cf80ee1df7cfd"
+    },
+    "koota-pair-relation-tracking": {
+      "tasks/koota-pair-relation-tracking/environment/Dockerfile": "02482161ba013a92d585c04960e8c319e4acbb5f6fcdce8d6d6b56982b29b116",
+      "tasks/koota-pair-relation-tracking/instruction.md": "7b15510d617d38ac1fab6cdf902aa577aedb34516e047bd469f4e8ec868d778b",
+      "tasks/koota-pair-relation-tracking/task.toml": "2990c6c0dc3c0877b008a92b20427395ab3bcc520651e4d5dcfe784a3b486935",
+      "tasks/koota-pair-relation-tracking/tests/config.json": "504f84556eff4a39f98a33c9788e9528ba1db10050132c95d08381cda3d7c3a6",
+      "tasks/koota-pair-relation-tracking/tests/Dockerfile": "b1f6bec667f067908b1c80744d1d4fa0ae28344ceaf56677233f291c8a78cb5e",
+      "tasks/koota-pair-relation-tracking/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/koota-pair-relation-tracking/tests/test.patch": "a5702a062000b6c1e717e061bac7e5c1b8423b42ecbd7af34d19cdf596d03b3c",
+      "tasks/koota-pair-relation-tracking/tests/test.sh": "0d29fc15947278de26c3381f0532504dd902968ab9d454f14271a42343a99494"
+    },
+    "koota-query-predicates": {
+      "tasks/koota-query-predicates/environment/Dockerfile": "e03ab75b44e42ad12484fb518de0569a59c1a050f67b57bbeafb138357a0e7ba",
+      "tasks/koota-query-predicates/instruction.md": "eb244417839f2591a1ac02ddd06f719db942d8d81cbb703c873a6d71d7749e0e",
+      "tasks/koota-query-predicates/task.toml": "0f338c650ee74c6a7d7517a2ea2edfd1240c0e2667e2a5dea2c9988f70e54fc7",
+      "tasks/koota-query-predicates/tests/config.json": "9a1630e3cdf80b87c647f04a1232d21e90f7dade043705d59ef599a711f3e979",
+      "tasks/koota-query-predicates/tests/Dockerfile": "f382b3f36f8b04549aa2f4ce406458eda0811fcd03cb716d887e8c7d34dff127",
+      "tasks/koota-query-predicates/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/koota-query-predicates/tests/test.patch": "7960fb8e48de9b8a381d52e23c4cdaf64afd5e09d6e8a6e27da2b7a4d5ba3e9f",
+      "tasks/koota-query-predicates/tests/test.sh": "607c3e5978719ecf33e8820f8798438eaa8abc96ecf95446081acc85d8b1446c"
+    },
+    "kysely-window-grouping-helpers": {
+      "tasks/kysely-window-grouping-helpers/environment/Dockerfile": "1dffbacf7832ced035075548c83dcc4e1917e7475b9a15b0b8c990be759ce676",
+      "tasks/kysely-window-grouping-helpers/instruction.md": "7b56ec113b59dc9386b1ea5c7c6d252c6dbcef333b7740744cfbd454eacfa19d",
+      "tasks/kysely-window-grouping-helpers/task.toml": "965f2e0b07ea9ff508c6cac0712c853c6b1fbffba31955c8bf2e628fca013ce5",
+      "tasks/kysely-window-grouping-helpers/tests/config.json": "a6454a3aa832579bed3c45f7698c16e76def9514db4847149284df96948948c2",
+      "tasks/kysely-window-grouping-helpers/tests/Dockerfile": "d2768a461663aa40405d6cc1fa0d976f5d73bb3fe0194a7a4831381b219f80bb",
+      "tasks/kysely-window-grouping-helpers/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/kysely-window-grouping-helpers/tests/test.patch": "ddfb6a402bceb390dca9066749028c0737d6c09c650670ef22f3af6356e6ace0",
+      "tasks/kysely-window-grouping-helpers/tests/test.sh": "658c4a54b468d4b4702cf92c5c19f39fa670b5292c45186fc06fed7b5ee5e5bf"
+    },
+    "langchain-request-coalescing": {
+      "tasks/langchain-request-coalescing/environment/Dockerfile": "79411a442a223e4f70db7faf2ec476967c1299bdb441655000e30e93f83e0178",
+      "tasks/langchain-request-coalescing/instruction.md": "208b99162a6a2a40e25630f566c3b735d3fea91dbb3c7b3717f5a3a3c7ea3557",
+      "tasks/langchain-request-coalescing/task.toml": "efd60419b581db6e23c27d4c234b3af6bb4bdd976fa510e40ced09c7eaaaeb98",
+      "tasks/langchain-request-coalescing/tests/config.json": "6cc46a5ee7708dea6c53c5048f1578cfd83395a59ab00668810756910c4e151b",
+      "tasks/langchain-request-coalescing/tests/Dockerfile": "2a7af00d28a1aaa4c8256b6adeb1102b2237a0e8f08f58d06a3ed581ccd9e5e7",
+      "tasks/langchain-request-coalescing/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/langchain-request-coalescing/tests/test.patch": "2b36e5be1d7281433efeb6dd2ee1896db6f268b30f3f12655fb9772324e41c13",
+      "tasks/langchain-request-coalescing/tests/test.sh": "a5d4229a4171a52bcb7d05f2ac8e443fbcae9f406a167d3bbabf6dee84ff4aee"
+    },
+    "mashumaro-flattened-dataclass-fields": {
+      "tasks/mashumaro-flattened-dataclass-fields/environment/Dockerfile": "4d5d48b25b73a0a8b111809755c79ca07dba126e98f43bf8043507629ed8bc38",
+      "tasks/mashumaro-flattened-dataclass-fields/instruction.md": "de53da160889bdacf28b492d639f84ff899e4ada661d4afa550460ccb89ba9f3",
+      "tasks/mashumaro-flattened-dataclass-fields/task.toml": "a8ee6657fb49de52915f2ae4bd5f00e5ebc92bb776a56c528248d29ba46273fc",
+      "tasks/mashumaro-flattened-dataclass-fields/tests/config.json": "93129d2c6ef2531a12d2dd9ff3fcf158525114367b0cb494912af83c37f80332",
+      "tasks/mashumaro-flattened-dataclass-fields/tests/Dockerfile": "d4a69044b937698ecdd82f60fc26580578451c0a3d41ccbf9fe2e754ab11803b",
+      "tasks/mashumaro-flattened-dataclass-fields/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/mashumaro-flattened-dataclass-fields/tests/test.patch": "0a35d05bf2ee1e3ef9b8f4c8765725218ad6e9695dc094ded8a3899372731d4e",
+      "tasks/mashumaro-flattened-dataclass-fields/tests/test.sh": "9875ee2d2ecae63d0bbbe037aff1be899f37ca3cf84f230efa51ac591aeea40f"
+    },
+    "meriyah-explicit-resource-declarations": {
+      "tasks/meriyah-explicit-resource-declarations/environment/Dockerfile": "8e3dccc5e0a57da2fde8036cc6747b25f2f502bb5db9fecbbe339b2fcdbfb9b5",
+      "tasks/meriyah-explicit-resource-declarations/instruction.md": "a85dfeb98a4203f9eb7392f918543fab27d83f344a92d290454aedc145c7b5f7",
+      "tasks/meriyah-explicit-resource-declarations/task.toml": "1c245857d89c6c4f0d12922bd83d0a2eeeb56277e2d9c01094a0421daa2af905",
+      "tasks/meriyah-explicit-resource-declarations/tests/config.json": "3c3f0aa5fead486cf8e4e96882db3e930c8023ef4b289eae19a923bde3638d0f",
+      "tasks/meriyah-explicit-resource-declarations/tests/Dockerfile": "c0acd01d13712e67e8b6b29e9a777bbaf782674b263f0b438ab9a31a776c7cea",
+      "tasks/meriyah-explicit-resource-declarations/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/meriyah-explicit-resource-declarations/tests/test.patch": "295fa1d4bb16409303a13b5252641b439cb4e3e19c65fade6341c01a00581395",
+      "tasks/meriyah-explicit-resource-declarations/tests/test.sh": "2541c912d82661288d00d9c396b59d766fa84876a659662d58ba7043306571c3"
+    },
+    "mnamer-daemon-watch-lifecycle": {
+      "tasks/mnamer-daemon-watch-lifecycle/environment/Dockerfile": "77e21b0e43365b2ee9dd6710b5de39c2068b2f47564f1589a671c7c9a9384c65",
+      "tasks/mnamer-daemon-watch-lifecycle/instruction.md": "1759aa73299b2871d311613b6d53259f7b32dce806f6978542e5b111f5ab4649",
+      "tasks/mnamer-daemon-watch-lifecycle/task.toml": "73b6024b768f0af0a178de6de7aa59ac460c2ec96fe1ca7cc9ac35269c118916",
+      "tasks/mnamer-daemon-watch-lifecycle/tests/config.json": "e3ba95332512d174d0db1ddaaf37ba880c9bcca163ada0536375cacf0d96e5d6",
+      "tasks/mnamer-daemon-watch-lifecycle/tests/Dockerfile": "74da2983245bd0b4720b1668aa26bbd89306ab98dc0d131a22c2fbb7715f7ddb",
+      "tasks/mnamer-daemon-watch-lifecycle/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/mnamer-daemon-watch-lifecycle/tests/test.patch": "36f071c42aaee9907bb6ac8c0bec7a8d3a285ed2030edadb4c0cc57f1ac4435b",
+      "tasks/mnamer-daemon-watch-lifecycle/tests/test.sh": "62377dc1a9b1b88a797570b7093a8eeedaf5f04e5d5d87078c3042355a7e35c9"
+    },
+    "mobly-grouped-test-barriers": {
+      "tasks/mobly-grouped-test-barriers/environment/Dockerfile": "91ff81059d0532ae2dcd239992ff90c7977692cd1589b0c3a18d0a3b5ef216ff",
+      "tasks/mobly-grouped-test-barriers/instruction.md": "475b2b59d25c8bf27ba72b9b079207cca38f1b39d250fb695cf1f47015a0f064",
+      "tasks/mobly-grouped-test-barriers/task.toml": "872d09f2629bd0cb136f1e5e85191559641266f88477e48cb7c5c96af862545a",
+      "tasks/mobly-grouped-test-barriers/tests/config.json": "6aa8c682778dd290aaad72ed6b3d5e8f1e2d30587ff8dcf11b2c37eeaf52096a",
+      "tasks/mobly-grouped-test-barriers/tests/Dockerfile": "db1d50fa69bd696d663980c19e21811ee51e4707db85ac93e510b71614542518",
+      "tasks/mobly-grouped-test-barriers/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/mobly-grouped-test-barriers/tests/test.patch": "231b908fe00bd2b65e8e81d470aa2ea3b944627fe458b4ad3ea901a0c4b927ff",
+      "tasks/mobly-grouped-test-barriers/tests/test.sh": "8a054e2dc9c60e0c6fd246dab9417a8a1014b8b81d3b8132286c540ebe320cd0"
+    },
+    "narwhals-rolling-window-suite": {
+      "tasks/narwhals-rolling-window-suite/environment/Dockerfile": "2a855e27920ce6f4098619b22e4f95142ddd2c709a9912aec1b58101b36aa151",
+      "tasks/narwhals-rolling-window-suite/instruction.md": "d25036c0761a9e6a2194f40bda5ae29b12487ee4f4c2045e4326ece0a80679a2",
+      "tasks/narwhals-rolling-window-suite/task.toml": "d2b133d6a3a2d5d8d2f9474d34fcd3c5cd2f892dfc05326a6f4f7ceb169bd8b7",
+      "tasks/narwhals-rolling-window-suite/tests/config.json": "8137378ce50c0b4ba10c51b41fbfeee36be20b80de8237ecdeba0e41c2747b9b",
+      "tasks/narwhals-rolling-window-suite/tests/Dockerfile": "d6af76a6b1661fb4c6992bdfb87c239a62b0c3a9407dd1cd77a583d7fe530b14",
+      "tasks/narwhals-rolling-window-suite/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/narwhals-rolling-window-suite/tests/test.patch": "4a63f38ce6e17c87c27db085c4e4146601be990e17141a1c0fdea25a607fc0cc",
+      "tasks/narwhals-rolling-window-suite/tests/test.sh": "04e46fc9e42527bb5e72c971da3ebc71d49c6ae73c249d2290d8bbed59b4e66e"
+    },
+    "numba-stencil-boundary-modes": {
+      "tasks/numba-stencil-boundary-modes/environment/Dockerfile": "0b5c828b63cd95c25cb60897901bee6f8ff2f52e8973e30faadda0b466331e15",
+      "tasks/numba-stencil-boundary-modes/instruction.md": "f04c458707106be3c67a530cd724a92b72f4a8e5e546fe926a8891a7e2fb98bd",
+      "tasks/numba-stencil-boundary-modes/task.toml": "fffecc2a19aaf159d5e647461f3d9686b424eaedc0973a47e717bd648272f37b",
+      "tasks/numba-stencil-boundary-modes/tests/config.json": "67af6f610b1635fb72fc9a6e579f420213f3288fc5854698aa8eba6ceec7bcc7",
+      "tasks/numba-stencil-boundary-modes/tests/Dockerfile": "e698d1b614a3cd432eb42cea77cf7c75aa51b364efc468b6082aae6742adb0ae",
+      "tasks/numba-stencil-boundary-modes/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/numba-stencil-boundary-modes/tests/test.patch": "2723583dd41a692bc47bb08a5cf70c63e141326771c2b035eb274a10b92de50f",
+      "tasks/numba-stencil-boundary-modes/tests/test.sh": "2c76b2c889efcef23ce7db8a80aa9db67459b2f0fc51aa564f8447f6354c4feb"
+    },
+    "obsidian-linter-auto-table-of-contents": {
+      "tasks/obsidian-linter-auto-table-of-contents/environment/Dockerfile": "fb7e8fcdca2a39c67aec5bcb81d10011b8be0c53cc93a2733720ac6fe93e1add",
+      "tasks/obsidian-linter-auto-table-of-contents/instruction.md": "f102c36c7b1167be2f741746385459ede300afd054d5adbe0e66b63ff234af36",
+      "tasks/obsidian-linter-auto-table-of-contents/task.toml": "e42b13e38bc68792c8ca2b098e0fe08bcb86b2bce12e0a0817701a226c97b19e",
+      "tasks/obsidian-linter-auto-table-of-contents/tests/config.json": "4c5ce41675eda064cfd9463d21b16515b0c65c3c98f86ab3627331e115348b1f",
+      "tasks/obsidian-linter-auto-table-of-contents/tests/Dockerfile": "b25afcfb16acbc8edf22725dd2f422abc8d0c155568b477a2e440ac326de1710",
+      "tasks/obsidian-linter-auto-table-of-contents/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/obsidian-linter-auto-table-of-contents/tests/test.patch": "4eeb646c5ba0f884961b3c2551b8004c931d111c3af7d51a8151acb755fef263",
+      "tasks/obsidian-linter-auto-table-of-contents/tests/test.sh": "3bf3bcf3ec007176d2fe8cedd9b6727c22e4811f9ac1e8a8549e2b9e9d779756"
+    },
+    "obsidian-linter-link-format-conversion": {
+      "tasks/obsidian-linter-link-format-conversion/environment/Dockerfile": "b07d8202844b1e0d4f179a966c6764f541317cba17b76df065ce7dc51abead0a",
+      "tasks/obsidian-linter-link-format-conversion/instruction.md": "c54e9a11b92254161afeb32cbce31ada65524854df372f889c00f5d9ee8962a9",
+      "tasks/obsidian-linter-link-format-conversion/task.toml": "52a326cb1d708909e778398b71920e0c43f86ef533f14f01a8f5d117e2dc7951",
+      "tasks/obsidian-linter-link-format-conversion/tests/config.json": "6760f97e57f635d52cdf60e193213a6704188708480c564e95348a1bb864eabe",
+      "tasks/obsidian-linter-link-format-conversion/tests/Dockerfile": "690045563c5b67e0f1e64feecd9c0d8f027da2a409118fb4209d1b11f66cd4d4",
+      "tasks/obsidian-linter-link-format-conversion/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/obsidian-linter-link-format-conversion/tests/test.patch": "3d33a26a9d85a2656040cc3a508d30d7ed0d54f7471bfedeb071100b4af84d48",
+      "tasks/obsidian-linter-link-format-conversion/tests/test.sh": "def4baf8427d64d8e4268742f6efa763e976429cededd499f7d0d5a9a22a6020"
+    },
+    "obsidian-linter-scoped-ignore-markers": {
+      "tasks/obsidian-linter-scoped-ignore-markers/environment/Dockerfile": "68e8ade02fbb14a6f0d0ca526c729001eb115acbd94568c51347a38569c2d2b7",
+      "tasks/obsidian-linter-scoped-ignore-markers/instruction.md": "4d3c90c60dad5a6c2a760b36b484e510c080fcfd5d6b35779c4e82e869d09014",
+      "tasks/obsidian-linter-scoped-ignore-markers/task.toml": "cf4efb2590d037ab27f5493b244a3f9c82b5c6ccc690ded93f23adfd7334e6bf",
+      "tasks/obsidian-linter-scoped-ignore-markers/tests/config.json": "a0875cccb58e2b474f8d7690cbf4b45c5652247bb535258f6419014927dfb4b6",
+      "tasks/obsidian-linter-scoped-ignore-markers/tests/Dockerfile": "0114fd97512b8a18fa629954ffd783493804d97571c069466660e82103c5a20b",
+      "tasks/obsidian-linter-scoped-ignore-markers/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/obsidian-linter-scoped-ignore-markers/tests/test.patch": "8aaf0e46be0c8ed9e377d5a216b937a8a3e56f56f2028911a1dea43dcabe5da6",
+      "tasks/obsidian-linter-scoped-ignore-markers/tests/test.sh": "bbe45cadf610294ff87ded1ce978b0b75784f75a4f9d2589d69f2b424bc6c060"
+    },
+    "ofetch-per-origin-circuit-breaker": {
+      "tasks/ofetch-per-origin-circuit-breaker/environment/Dockerfile": "60261453113290249ba1e5d23f342179fcc84f17013db15ef99f3d30fb009c5c",
+      "tasks/ofetch-per-origin-circuit-breaker/instruction.md": "b6f09e6cf27c3116f8f1791a0cd14204b59803d8e2fd4df8275598796d76f83c",
+      "tasks/ofetch-per-origin-circuit-breaker/task.toml": "7f0151fc6f6afe79096cb5cce6cd33077d05c3e76365e90396a832d1bc146460",
+      "tasks/ofetch-per-origin-circuit-breaker/tests/config.json": "b476f2a22a58c881e68c1e361d82352650f9e1c185c3752f2a9e9d7eb693a94c",
+      "tasks/ofetch-per-origin-circuit-breaker/tests/Dockerfile": "2ea2d52453480ec31278132d23d8dc4d848e031246c1876cec7425d3d3cf4e55",
+      "tasks/ofetch-per-origin-circuit-breaker/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/ofetch-per-origin-circuit-breaker/tests/test.patch": "757b924819aba7f6e7e557021a7fccfb9b3d46c5b8fadc40892b7b0a8f11d307",
+      "tasks/ofetch-per-origin-circuit-breaker/tests/test.sh": "fcce930164d6342990c80afe1df3d761a829babb7eeec4014182238a34047c96"
+    },
+    "onedump-dump-encryption-pipeline": {
+      "tasks/onedump-dump-encryption-pipeline/environment/Dockerfile": "468670e686b24e4dab01098339d3f93a74c264161b348dd9f19c44f5e05e490f",
+      "tasks/onedump-dump-encryption-pipeline/instruction.md": "4d8930c28068d48abcec2357f0d526aa7be68a1b3f972cf7da20046e37a5f852",
+      "tasks/onedump-dump-encryption-pipeline/task.toml": "5cc40301f1e93c0bec6dc6a5d4dd8a91dd30df7489ff7ea0f4a3eb280bf4d2b2",
+      "tasks/onedump-dump-encryption-pipeline/tests/config.json": "03f3978db21a68c3f6668957df387bce759a37cd9cd231b4d214bd595e917414",
+      "tasks/onedump-dump-encryption-pipeline/tests/Dockerfile": "1a9a1c888aef393d3311c2180bc162bd4c1df30ec0eac0e5fa8d21c5475c54fc",
+      "tasks/onedump-dump-encryption-pipeline/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/onedump-dump-encryption-pipeline/tests/test.patch": "58f3390136a08ab93ff54804391abaa034c1b218b9bffbab21a8c9e0c5cac5bf",
+      "tasks/onedump-dump-encryption-pipeline/tests/test.sh": "97ec9ba43875916dd1a57d933ab944929703e03b55f332a4e3134520cecc0bc4"
+    },
+    "opa-rego-rule-profiling": {
+      "tasks/opa-rego-rule-profiling/environment/Dockerfile": "88e7afcd41fe3507ad804b18bdab1d26da69ca834ac52fb4f7d34923db660ed7",
+      "tasks/opa-rego-rule-profiling/instruction.md": "7892902b74c649f6cb76caf6d311b880ecff88179e6b5afaceedaa143160ae87",
+      "tasks/opa-rego-rule-profiling/task.toml": "1584034120b0c598b342c56f1a88c95ca2d7d16be64e2e790ce229a6055a2c28",
+      "tasks/opa-rego-rule-profiling/tests/config.json": "6eb4f03a0660b63d529d187b476507950f150ec3d80fc5f11dea44f24180d6bd",
+      "tasks/opa-rego-rule-profiling/tests/Dockerfile": "1a6fb2e0c766125ab59cab61eb78b59fcd6b5f46dda6c2f8b8cbd8cf67b8dfb4",
+      "tasks/opa-rego-rule-profiling/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/opa-rego-rule-profiling/tests/test.patch": "32942b417d85a4d8d31b2ff51398985990cecd84f5f9103e46648f5e25232fec",
+      "tasks/opa-rego-rule-profiling/tests/test.sh": "12168cae30285574437073741e2fa24576bdd4cabe7ce5ff89ce420c04f71ab3"
+    },
+    "opa-template-string-reconstruction": {
+      "tasks/opa-template-string-reconstruction/environment/Dockerfile": "5c0b31159e67c3e33a1dcce8c8b9bc652a9f6f5f0f035d2ff027db478b517551",
+      "tasks/opa-template-string-reconstruction/instruction.md": "d36537d6cbe3c99fedc73640fda871cd77cdc1940d74b70af1df8cb77089c7df",
+      "tasks/opa-template-string-reconstruction/task.toml": "4e7f300a81a3ba3da7beb92a07bc7bce51c6dea46cb7e8b915ab0b8dbf1c7240",
+      "tasks/opa-template-string-reconstruction/tests/config.json": "b4ed8eac969ee56a83e35b79364621735022ff2ea19d547029ef2f2fd0ef9a15",
+      "tasks/opa-template-string-reconstruction/tests/Dockerfile": "1a8e3765f6056e1d59f07f6a869ac137c848a5cb2c5685b5563f84aaaa981ace",
+      "tasks/opa-template-string-reconstruction/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/opa-template-string-reconstruction/tests/test.patch": "c43cc961616fcbada6a8752b2606da3c1fca736e5bd85d95f235b5c2b5c6e6dd",
+      "tasks/opa-template-string-reconstruction/tests/test.sh": "539162ab1b5207da4b27e60520cd57814ae983a87ef6278f7d3a3f4ae38edcb6"
+    },
+    "optique-conditional-option-dependencies": {
+      "tasks/optique-conditional-option-dependencies/environment/Dockerfile": "b74ffdbe6530014a9b801649b2146a771ae35e165ab12ef5b61e4496e9b9de86",
+      "tasks/optique-conditional-option-dependencies/instruction.md": "bfe35f35e82efdeba62d75a21df8687029ce5c0e50bddba5327e4285cc5cc41b",
+      "tasks/optique-conditional-option-dependencies/task.toml": "21fdf725891f2c73a44723242e397fd0333800c2209f76f83eb8ed2d357ec273",
+      "tasks/optique-conditional-option-dependencies/tests/config.json": "9834dc7684dcb9bb9cfa99f17648850b71e8b24ae42b4ede2fab01c86c50b96f",
+      "tasks/optique-conditional-option-dependencies/tests/Dockerfile": "6e03d7edbcff8b85ca51c2356826a2d0208b44e4a0f4d9a9daea3a7e8fa3298b",
+      "tasks/optique-conditional-option-dependencies/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/optique-conditional-option-dependencies/tests/test.patch": "0f1c2133c2c749365028a9a6896893394256542ec57b55adf59eb67ff4b42af1",
+      "tasks/optique-conditional-option-dependencies/tests/test.sh": "78aa2f7b8be06086b0b69638fdc523d965f016fb6b002a81cf656585825c9d4b"
+    },
+    "oxvg-structural-selector-preservation": {
+      "tasks/oxvg-structural-selector-preservation/environment/Dockerfile": "7db40297497359cc48a80c0aecc445d57346c545a7b6aec9ee58b788313d0e47",
+      "tasks/oxvg-structural-selector-preservation/instruction.md": "8d2295f55760d269913b22c17b4c345ca41fd2d586fc6ba59c34fb97b4422db9",
+      "tasks/oxvg-structural-selector-preservation/task.toml": "06e000bb4c397b72fcbf523d95923b73be636e8eb398b60842ab4f0e2ce57d23",
+      "tasks/oxvg-structural-selector-preservation/tests/config.json": "04fc572bcc90d3e8e23b948e68ee19ca337151fea85893164a1e6b3e49d3dbfd",
+      "tasks/oxvg-structural-selector-preservation/tests/Dockerfile": "061917cc091b1a8cd46852c4f50febf09a6467f8b87a591192b1ddb80dd3c533",
+      "tasks/oxvg-structural-selector-preservation/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/oxvg-structural-selector-preservation/tests/test.patch": "e5f182a2b2c14b2c1be8899cdafaabac2d5b41cfd4b6edf3fcb1a905d070fe2c",
+      "tasks/oxvg-structural-selector-preservation/tests/test.sh": "5f7468f0e7b6edb21c7f843cb56bd9982015ac5a8e224d3ebdf6a2788dc96459"
+    },
+    "participle-grammar-conflict-analysis": {
+      "tasks/participle-grammar-conflict-analysis/environment/Dockerfile": "591b1c96ef486c88f6a12ceccb618b8217d0bcf8f5bb147bfca1628298c5841f",
+      "tasks/participle-grammar-conflict-analysis/instruction.md": "c8b17d9d68b6774d3b9d178bf49a9257bb75e47946f8f75254e03244e0e4cacc",
+      "tasks/participle-grammar-conflict-analysis/task.toml": "3456b6108ac7d3e14e379af7e92a61b44d3f8947a212cdde2e407f346ab845b6",
+      "tasks/participle-grammar-conflict-analysis/tests/config.json": "2cddad1b73db6dbb89d1aa69dc7295f1b5566b38ca6b2c96e132f0c486cd5d05",
+      "tasks/participle-grammar-conflict-analysis/tests/Dockerfile": "286d7361bd798c97a3a248a80445735eaefe37ff3a672f9ee08fdad7ceddc451",
+      "tasks/participle-grammar-conflict-analysis/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/participle-grammar-conflict-analysis/tests/test.patch": "ceeca49eb1da519269be4ca93770bb53d8b628bdd12cf12841b980d703be4ace",
+      "tasks/participle-grammar-conflict-analysis/tests/test.sh": "b2ecdefd02ff259baa21ff354f60d63ef265397f740a558685877690b7388934"
+    },
+    "pebble-durability-wait-apis": {
+      "tasks/pebble-durability-wait-apis/environment/Dockerfile": "9ba81ae38ed1908e91052b06d8a636e0510763371581aa6225d54a9ef1f6f629",
+      "tasks/pebble-durability-wait-apis/instruction.md": "c450d7ce94f6312c9a1171eed84e0b7ab9bdc1c4cf9d79e5995c208a50c1c9b8",
+      "tasks/pebble-durability-wait-apis/task.toml": "e378b9c84c87b65ab26b7f6687fdebb8124c404654f17ee181cdafffe62910ce",
+      "tasks/pebble-durability-wait-apis/tests/config.json": "77a94dfbd343232650d3e7cea87f708a9d672db5f60bd7fa1f8b395979c5eb1d",
+      "tasks/pebble-durability-wait-apis/tests/Dockerfile": "a8bb3bfce99a3f65b01a488b337804adf579cb389f26907a62914b1df58b758e",
+      "tasks/pebble-durability-wait-apis/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/pebble-durability-wait-apis/tests/test.patch": "e635a3d517ec5568def10b2cb0eb4cbf752ac840748e8f959952c09494a32276",
+      "tasks/pebble-durability-wait-apis/tests/test.sh": "b9c22073ce9e5b2d1ed2984ef2f71382371d4587db1c9266b71ebf31678cd4bc"
+    },
+    "pest-character-class-coalescing": {
+      "tasks/pest-character-class-coalescing/environment/Dockerfile": "d437fa558f843fe5a839d26e7f6fddc8e913660ccdfc8426f93215d7db63f60d",
+      "tasks/pest-character-class-coalescing/instruction.md": "0368afdee566cf6b3685fb3be6432afb26104661c06c8d3102175eb8c2a31438",
+      "tasks/pest-character-class-coalescing/task.toml": "f27e32038560083ffc87d25564ef695ccda4ee18e8b4d82ae3766559d68ed1b0",
+      "tasks/pest-character-class-coalescing/tests/config.json": "3fa5b7f456d3527539878ae5df3b82f9c08e8446ff6ac421addddc82c80984d0",
+      "tasks/pest-character-class-coalescing/tests/Dockerfile": "78a0a672c83df85a639466b07fd72fd27f9aa45353e17a41185af7a31826e175",
+      "tasks/pest-character-class-coalescing/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/pest-character-class-coalescing/tests/test.patch": "e415499694272a9e232b8e824306093996cae3a6d8783656464f1c4eedfdc9d5",
+      "tasks/pest-character-class-coalescing/tests/test.sh": "a65c498000b2b71fdc1249152cd6ea54223232db203dc15fa88706cdbf428dbb"
+    },
+    "prometheus-transactional-reload-status": {
+      "tasks/prometheus-transactional-reload-status/environment/Dockerfile": "28441c7e7e988691c2c515502a67342ac8947d4ba1d3c9ba5b98c705264d2e76",
+      "tasks/prometheus-transactional-reload-status/instruction.md": "72d6a78c1fe380ee2f8e163cff7255b30ea6cdb6e81fe8753b5fd62d2677362f",
+      "tasks/prometheus-transactional-reload-status/task.toml": "1767d51c1cd60b8b57b823eeca1c76fe72e7e642c9d89fbabc7e205f03ac52be",
+      "tasks/prometheus-transactional-reload-status/tests/config.json": "c6a709c0d8f7f4581fbb495f10089e25fe6a13e9cd81b7e5ff93145254a475b3",
+      "tasks/prometheus-transactional-reload-status/tests/Dockerfile": "c40776b518bc7995be6af56ff3e4574363e423694e8552ac75e8a61676cb738e",
+      "tasks/prometheus-transactional-reload-status/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/prometheus-transactional-reload-status/tests/test.patch": "e570ec05827cb951b1cd58b417e04d39805523f2abdab32dce84d7d4d8c50435",
+      "tasks/prometheus-transactional-reload-status/tests/test.sh": "cceaea3336cd8280818ecf9b9707f90e7924d3a836c8a36c70abb8c2927efa51"
+    },
+    "prometheus-typed-label-sorting": {
+      "tasks/prometheus-typed-label-sorting/environment/Dockerfile": "839af7bbb747626c9a596ce2aac4427c806b25dcd7c7445abbaa9427a071e2d4",
+      "tasks/prometheus-typed-label-sorting/instruction.md": "02ffc5959762f9358d2b6a046c808e1468cc5afdf52bdcd7c36c6020b8b748df",
+      "tasks/prometheus-typed-label-sorting/task.toml": "ee7b6fe19ee8477f8a2eda14bf36da1eba3ab41a52e475a9f7f5118e23e4b1f1",
+      "tasks/prometheus-typed-label-sorting/tests/config.json": "eb9d602cde24d308f289071bcd009f1b671e01c0fa811b7c1176b40a244dba03",
+      "tasks/prometheus-typed-label-sorting/tests/Dockerfile": "5ba7289b6bbda45041226fd289dd68185600dc086f612ad154adc699d9e9ad55",
+      "tasks/prometheus-typed-label-sorting/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/prometheus-typed-label-sorting/tests/test.patch": "a13c61457beb3a5a50d3cfa89105a56efd8c2a447ffc5887962358516b712afe",
+      "tasks/prometheus-typed-label-sorting/tests/test.sh": "ac2015ad9cb5a81dd69014f6187e9b505da0c29ac093f85074a7829c5030ac1d"
+    },
+    "psd-tools-blend-range-api": {
+      "tasks/psd-tools-blend-range-api/environment/Dockerfile": "89d178e5d7e7138e8ad63f8a5d294ebe2b1246ce9bae3d4995b97f350a434c2c",
+      "tasks/psd-tools-blend-range-api/instruction.md": "be619e943671da3bb1e9855c0ce939d54491c5cce4a45553403cf026d33255ce",
+      "tasks/psd-tools-blend-range-api/task.toml": "e929855b9ee6d1874df3f9a628a8ba60243c06bb7c97d40a2f60286ef5c289e9",
+      "tasks/psd-tools-blend-range-api/tests/config.json": "80ee7decc21f15c78887a4d59ff14208d4dd2c17718ed43253a11c5d0da0f720",
+      "tasks/psd-tools-blend-range-api/tests/Dockerfile": "453af07d6f03d33595befb56b8f592159103d6b34ac190a25bb80a1f90ea9312",
+      "tasks/psd-tools-blend-range-api/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/psd-tools-blend-range-api/tests/test.patch": "4816d794589fa15547ba819f591d8211b0a1d1f7f9fd6902d985ab74565ede9c",
+      "tasks/psd-tools-blend-range-api/tests/test.sh": "69d2132262265cdac82af21251827871226645b0fe2f431df5e5956663e395e9"
+    },
+    "pwntools-tube-multiplexing": {
+      "tasks/pwntools-tube-multiplexing/environment/Dockerfile": "30a0cf06a05c6bf1d4fb4bab810563646fd3332e54d60e4d79da6b9a5bb91e7d",
+      "tasks/pwntools-tube-multiplexing/instruction.md": "d57d68f683be7ddebfb65a2a25dd139143ebc4409c46f09425ea4e38ef3b336a",
+      "tasks/pwntools-tube-multiplexing/task.toml": "745d238dd73edca759016a833da57c236901f1461416a2d46844c2bfa933a048",
+      "tasks/pwntools-tube-multiplexing/tests/config.json": "643e81014a15f61805ea85b2d4b36fdf780f76cdbda8b0bbc7791096b498633d",
+      "tasks/pwntools-tube-multiplexing/tests/Dockerfile": "fd0c94a658a65dfe8fa4210eab3a89ace6e6fd16f3b2b8390fd58904dcda1d9b",
+      "tasks/pwntools-tube-multiplexing/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/pwntools-tube-multiplexing/tests/test.patch": "7ca6180f5d0c2d0b6109b3f649b30db29447dcf42803d8a615ba11f500db8e88",
+      "tasks/pwntools-tube-multiplexing/tests/test.sh": "b7ca71e97618709eb379d99056d085e25a4eefc8c32e4f9e589b47d98d4edda5"
+    },
+    "python-statemachine-state-data-scoping": {
+      "tasks/python-statemachine-state-data-scoping/environment/Dockerfile": "7d5dd81c0197acefd46e9bc21d05c6e637726d28c245e8b61b1d474e3345ad16",
+      "tasks/python-statemachine-state-data-scoping/instruction.md": "17e0781f9837bebd7304d5f1594dbf7de9a147a3ba8f03111e005f8376b3126a",
+      "tasks/python-statemachine-state-data-scoping/task.toml": "70834d169bc3d03bb362df6ffd41995fbb5c85abf8cc2b53c63f31562423f83a",
+      "tasks/python-statemachine-state-data-scoping/tests/config.json": "1e80a71d50ca26e61d859d2593af7fd7e1018dc0dd09dc884256ebaa2c01573d",
+      "tasks/python-statemachine-state-data-scoping/tests/Dockerfile": "f7c574cf212a62954cd96de929254e567263b90cdd3e87482e049a016be71c0c",
+      "tasks/python-statemachine-state-data-scoping/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/python-statemachine-state-data-scoping/tests/test.patch": "fcf7628db832d77da0f31fb287d5f016e27c02550ca54aa6fd19c9aa4d8bf0ec",
+      "tasks/python-statemachine-state-data-scoping/tests/test.sh": "862042ae6ce0f2d7683bb6f6f8d8e1b40dfaee4f63b250b6c08b1d64dd4130dc"
+    },
+    "query-persist-restored-query-state": {
+      "tasks/query-persist-restored-query-state/environment/Dockerfile": "c4ab1241105d3d0b2fd5f4f67daab49a939748d866ab810602ab75dae4fd49ac",
+      "tasks/query-persist-restored-query-state/instruction.md": "f3a5f63f195bbc7d556ff62ffb609e2bef69cbef25f1e0c537b8d18cfa91ac95",
+      "tasks/query-persist-restored-query-state/task.toml": "d3ffb5325266363d392750f96eb2ad9a453a8252ba6dac2d4cbd9538b16d9276",
+      "tasks/query-persist-restored-query-state/tests/config.json": "3be4ee52eff3096e9292fd6b357e6bbc8fd46f190897d577747a59d6dcca33be",
+      "tasks/query-persist-restored-query-state/tests/Dockerfile": "89f16ba3ad86e063fa2acf415ee47b684810f78b7630003ae04a5ab54f2c4f27",
+      "tasks/query-persist-restored-query-state/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/query-persist-restored-query-state/tests/test.patch": "873954d4d1240a64e4f338627fe65c0d124b256311998339507ddddd1943fbc9",
+      "tasks/query-persist-restored-query-state/tests/test.sh": "b7b1bbc059c2c12ec60f66c66e584eaee9bb70825e0f16b666c887703b061926"
+    },
+    "quill-shared-toolbar-focus": {
+      "tasks/quill-shared-toolbar-focus/environment/Dockerfile": "f4bbe16cd3ea3e8db8440bd17bac040bd3cec6afe9d833d8074d9bbd9869b768",
+      "tasks/quill-shared-toolbar-focus/instruction.md": "a983670bc6aaee7de85eb8aeef1a4f1db44788ecc36905a0bccbec469e0c73cd",
+      "tasks/quill-shared-toolbar-focus/task.toml": "01df5b9915d64e073900c2a00da5a71639614b3baa24f9d5f83bd401740073ac",
+      "tasks/quill-shared-toolbar-focus/tests/config.json": "ba4cdf0d3cf6ce04e0984ca7a4c6e622786d5590ce8d0dfaab3fec42eb7f818d",
+      "tasks/quill-shared-toolbar-focus/tests/Dockerfile": "d752bd9ee3bbef8c067b96b7ca2e5db759f15759ef950699ea24bc5cca755bd8",
+      "tasks/quill-shared-toolbar-focus/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/quill-shared-toolbar-focus/tests/test.patch": "8e9c5503be1e2b4add7aa4e7840c133c732d04e0877b425b03a3eba0dee4f60d",
+      "tasks/quill-shared-toolbar-focus/tests/test.sh": "28a3d3184cf39f1f18b8a01860064ff6112065eeddb156b14fd4622321ce6b54"
+    },
+    "returns-validated-error-accumulation": {
+      "tasks/returns-validated-error-accumulation/environment/Dockerfile": "472d7d07a6ccdcd19351cae32fb0eacfcca9d21b33d43734b0be9131ff7a577f",
+      "tasks/returns-validated-error-accumulation/instruction.md": "77d27406cd485339c36030cde62de2a50233a0e3253536ac0468b4f1c46cc208",
+      "tasks/returns-validated-error-accumulation/task.toml": "b61c04c7661b4011859a4889081daa0329958ad5dd73155f33ed07281c6e4a81",
+      "tasks/returns-validated-error-accumulation/tests/config.json": "060f07ca8a5c74c88f3e253a4b72eb44fadd9f82f28884fc786f37eaa8b6d471",
+      "tasks/returns-validated-error-accumulation/tests/Dockerfile": "26dd2766c4eb5c1f5b3ebcbd82ee073c8221b886e526c3bedaa8e7abb9fc9e5c",
+      "tasks/returns-validated-error-accumulation/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/returns-validated-error-accumulation/tests/test.patch": "d4f92adfa57f16c3a05b6990022f4e9cd75979ef63e8f9ee10eb63fe313847d3",
+      "tasks/returns-validated-error-accumulation/tests/test.sh": "f89501a3d1145d80c7d5bb79aea3638296f1c379f8e305801e90500bc33dceab"
+    },
+    "scc-bounded-memory-spilling": {
+      "tasks/scc-bounded-memory-spilling/environment/Dockerfile": "5003fa7a006fb18f4f563edc6f0ca514a0b141497cb2c1c0ae750a2f199c32ef",
+      "tasks/scc-bounded-memory-spilling/instruction.md": "fc99a21974fa57940e3ff7e9eb81c31b06728cbc39177faf5500667cd51a816e",
+      "tasks/scc-bounded-memory-spilling/task.toml": "40df2d49f62c899ba5dd08a99ba9ee3de09cea150f6bb69aac76f48b5c0f33b5",
+      "tasks/scc-bounded-memory-spilling/tests/config.json": "b8db15513d3a79790bc28c1a8ffc76e713162613d242deddf87d9c53970495e3",
+      "tasks/scc-bounded-memory-spilling/tests/Dockerfile": "3d4c1fba85e1bc64d3a412f20eb4534cb47854d892b6786c48fd0ff63bbffeb8",
+      "tasks/scc-bounded-memory-spilling/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/scc-bounded-memory-spilling/tests/test.patch": "4c945a497090002daadb33c6ceca8b5e0cdee41ec5fe93a991e172dad5cc560a",
+      "tasks/scc-bounded-memory-spilling/tests/test.sh": "ec3e9327826cbf84ac01c69dee5f0dbc4e622e5a3c948b92bac569da753cf723"
+    },
+    "scriggo-method-declarations": {
+      "tasks/scriggo-method-declarations/environment/Dockerfile": "2b872df8e9596c79da1bfddf133ea2cbd674dde0a9a12319fcc7e0faee2679a9",
+      "tasks/scriggo-method-declarations/instruction.md": "51072c9c1bb463702c7612d1acc9a98083a72dfd82a8277fe72aa7bcbe991940",
+      "tasks/scriggo-method-declarations/task.toml": "7f71f38eb753f72a55b6c3d89d4b0ba6612fbc3873f936009276248f2c53766e",
+      "tasks/scriggo-method-declarations/tests/config.json": "145eb9f2c3bc16a12c7eaf1bbc2a8276a9e99ae7f6baebe43803a33f313930c4",
+      "tasks/scriggo-method-declarations/tests/Dockerfile": "1a2e7fc76b02399513755f41ff26fa069bc6d7eea4b8c25685fb93ed1640d2a8",
+      "tasks/scriggo-method-declarations/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/scriggo-method-declarations/tests/test.patch": "ded94ecfa857188e8ca375e3793c0f9912a84fad02028e794a6fc8d97a95022e",
+      "tasks/scriggo-method-declarations/tests/test.sh": "0801c26bd141348e95185c7c19cfc576e3cc8825ff584934e658724bb4ec91f7"
+    },
+    "skrub-duration-encoding": {
+      "tasks/skrub-duration-encoding/environment/Dockerfile": "99ed12d708eda5f6c6d991772f373929193a5baf41fea5a9e022bd410fd9af18",
+      "tasks/skrub-duration-encoding/instruction.md": "aecc575c2253564382af8fcb9afb0af11b47b8fda94c7625100a18148919e95d",
+      "tasks/skrub-duration-encoding/task.toml": "34e4539b4a1dad2374e5b4f1292295224b7e1002ce0754f5d7b47c69d8e1dc2e",
+      "tasks/skrub-duration-encoding/tests/config.json": "1047edcb6c6af650cafbba6d015b0db12e33a0ebcedb1f3c720b95b2b8fc7469",
+      "tasks/skrub-duration-encoding/tests/Dockerfile": "702a66e37c5ea5d7a0eaf4510ea5927502b19add30ca20e32a87bfa7c588cae3",
+      "tasks/skrub-duration-encoding/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/skrub-duration-encoding/tests/test.patch": "e59bf620b171ab8ead1f288c5cb24e85df61d5ba254028290a4ea3a0dbcdab8f",
+      "tasks/skrub-duration-encoding/tests/test.sh": "c46dfa388313f5ef8f95310906ef30ed68d53a255d381eaf9ba7a79c073b87bc"
+    },
+    "sql-formatter-bigquery-pipe-formatting": {
+      "tasks/sql-formatter-bigquery-pipe-formatting/environment/Dockerfile": "ed457014dec5d1af7514110e9f54a1d4c41a1d2ca8e9912be65e0dfe7341ca22",
+      "tasks/sql-formatter-bigquery-pipe-formatting/instruction.md": "e896fa230df237b89356673017c48a620c0cbc40d48cc624dbf0840d5b72aadc",
+      "tasks/sql-formatter-bigquery-pipe-formatting/task.toml": "5aa151a7f56927d3c69f3bd03cb874330352ba3ae4eaa84f3df2da968602e774",
+      "tasks/sql-formatter-bigquery-pipe-formatting/tests/config.json": "0af646b326f51c6a1fc45820b4ac0b50aba223378d2debdf2129a653a8d82dcc",
+      "tasks/sql-formatter-bigquery-pipe-formatting/tests/Dockerfile": "1fc125877eb33433562050e31698287133e2a2e7a0e77cf93f01c89c068c32f5",
+      "tasks/sql-formatter-bigquery-pipe-formatting/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/sql-formatter-bigquery-pipe-formatting/tests/test.patch": "aaec334430305f12ae1d0fa410a010724169f44dc5dc5600acdef5fb49766e7b",
+      "tasks/sql-formatter-bigquery-pipe-formatting/tests/test.sh": "4130d8f51e26e56b3641cbbe0fdfdbb101a50dec57f803b0229f7893858e2899"
+    },
+    "sqlfmt-create-table-ddl-formatting": {
+      "tasks/sqlfmt-create-table-ddl-formatting/environment/Dockerfile": "0ff1f2ae90503de9bda205318e4358997a61a8376f31fb9ccf3963761e085b6c",
+      "tasks/sqlfmt-create-table-ddl-formatting/instruction.md": "9e445e5be9287df6e9843c4d630fc4ddd268775b4511a04f8e6560933064693c",
+      "tasks/sqlfmt-create-table-ddl-formatting/task.toml": "e915832661a266670f82bf9a3b3f0c589525ab822d6252acecdd0da0c8c98df3",
+      "tasks/sqlfmt-create-table-ddl-formatting/tests/config.json": "9e7cbc59d12769f766cd04fc580972d214ee3772fd92b13398c41494c78ec8b9",
+      "tasks/sqlfmt-create-table-ddl-formatting/tests/Dockerfile": "cb23eee8568d6e157cd0fa3faa2400ae7171506aef6e4caec92bd68e19a5e50d",
+      "tasks/sqlfmt-create-table-ddl-formatting/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/sqlfmt-create-table-ddl-formatting/tests/test.patch": "2c4e74afb5bd957ff90a043c2fe8e8313382b64106dd839322068e77b37a1b6e",
+      "tasks/sqlfmt-create-table-ddl-formatting/tests/test.sh": "5f8d66ffade496f1af12f8864e4a515a5d537ecc2cb2ca7bfa2ade9adb729054"
+    },
+    "sqlite-utils-safe-import-checkpoints": {
+      "tasks/sqlite-utils-safe-import-checkpoints/environment/Dockerfile": "5b8486e51c1796f1a5a5383bdf7b89a13c0f502077c3544763f9f42d58400284",
+      "tasks/sqlite-utils-safe-import-checkpoints/instruction.md": "dcdf0f34992ce86f4ef516fbc4cac6daaf159ae4542a6bbebe055e37851ff7a6",
+      "tasks/sqlite-utils-safe-import-checkpoints/task.toml": "8ec600f3b0672064e193591775650336329f4473f8a87ea6d4ef697ded79a949",
+      "tasks/sqlite-utils-safe-import-checkpoints/tests/config.json": "9cb7058245254dd8c3fb916eed363476781ab79f00f2a1cb3c46a435a160073e",
+      "tasks/sqlite-utils-safe-import-checkpoints/tests/Dockerfile": "48ed060ab52ec8391dc7c0fb00f85495677490d8bf36e00a2e42dff6ca4934e2",
+      "tasks/sqlite-utils-safe-import-checkpoints/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/sqlite-utils-safe-import-checkpoints/tests/test.patch": "a36f34c653177d27a0ba19264576fd5cc823ce0b01f5b67164a413ef4342352a",
+      "tasks/sqlite-utils-safe-import-checkpoints/tests/test.sh": "5407a6184819faf7884b8974a0b05edf0c04dfe28f3d103893704ab75a6de02f"
+    },
+    "superjson-error-stack-serialization": {
+      "tasks/superjson-error-stack-serialization/environment/Dockerfile": "08ae763c0ca5b337d0286b88b84e24c34ad329d3a53e9eb22ff9206e1f2ea480",
+      "tasks/superjson-error-stack-serialization/instruction.md": "cb5e04f0f6c01180a47f1205b6d86126a8a7f9e7d5662e4f9477daa862826e30",
+      "tasks/superjson-error-stack-serialization/task.toml": "c808502b1f72060e23e3ac7885b6edd8fa49ad68f2e175f017d560222145cd33",
+      "tasks/superjson-error-stack-serialization/tests/config.json": "a41f9692b871c6e515e4215f8a2531df9fb0c0e65a482796230acb209040a52d",
+      "tasks/superjson-error-stack-serialization/tests/Dockerfile": "7790db88edd471c9581c2c2625a687eae80aa97b61bf859c6197156090dd10b0",
+      "tasks/superjson-error-stack-serialization/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/superjson-error-stack-serialization/tests/test.patch": "1107931e0442dc35b9bf9d2c647b35ac93d44c52607eb5733511faae99f78398",
+      "tasks/superjson-error-stack-serialization/tests/test.sh": "a49e97fe46c86e5137ac6bbad00bcbfea2fde0bdbfe9023c35745ff2c7f95f42"
+    },
+    "task-task-graph-export": {
+      "tasks/task-task-graph-export/environment/Dockerfile": "90894cf6fa2e64e85bd565af0673a78d6609fb80ffb2c74d064c25675a03c08a",
+      "tasks/task-task-graph-export/instruction.md": "7ad0183d34b7271fd4e7e31a60133e97715e8e23c2620c9516d878dea4a48c8c",
+      "tasks/task-task-graph-export/task.toml": "3106648b50c675cb687294f72254ffe8d29e14be0db12b2e19a331aa1a219fc4",
+      "tasks/task-task-graph-export/tests/config.json": "33f778b6aec9552d34ff67dfd91fe7625e8250810a7350a5c3f15ad0cb98104e",
+      "tasks/task-task-graph-export/tests/Dockerfile": "a22e752994dea258a9420b27db38821f54fba60ae4fdec58dda31fac503787d9",
+      "tasks/task-task-graph-export/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/task-task-graph-export/tests/test.patch": "9ef1a056726c9fa0e540e4ed4d98d8fafdd5f2915a498218bef496cb53fe502a",
+      "tasks/task-task-graph-export/tests/test.sh": "b20c3efff6caeee00d75011c67889fb9941707cdf635d50623b11ac4dfc949e7"
+    },
+    "tengo-callable-instance-isolation": {
+      "tasks/tengo-callable-instance-isolation/environment/Dockerfile": "6287821adfc100159513264822b2ffcf35d49193250ded716225b6a5f308b61d",
+      "tasks/tengo-callable-instance-isolation/instruction.md": "ea2d12e6c683a868e29d90973d13da585a15f69c633a56570bf4492fb5091ec5",
+      "tasks/tengo-callable-instance-isolation/task.toml": "5d9da4f19acad54ac5262742ecc6856ccc763e6902717a858e8379bfc5a0ed90",
+      "tasks/tengo-callable-instance-isolation/tests/config.json": "555805aac306dcae154b97905baee38156877a5d72950ebcef44fd2bbe1235bc",
+      "tasks/tengo-callable-instance-isolation/tests/Dockerfile": "e5eb6bada74eb09fee8c3ef141cf1324a80d550cda06a38de8878c00e1f88630",
+      "tasks/tengo-callable-instance-isolation/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/tengo-callable-instance-isolation/tests/test.patch": "d29c3c01914689b8d561a10fa4d7651ab81a828daae8eae95f04aee0daa91d2a",
+      "tasks/tengo-callable-instance-isolation/tests/test.sh": "073ed41aa02013196ba50adf68ffe830d1ceef33e2d72d53115f5bebea9c1be7"
+    },
+    "tengo-destructuring-bindings": {
+      "tasks/tengo-destructuring-bindings/environment/Dockerfile": "3cb14fd6136bbab47504b8367478a14652243841783f31e2989ec787db8f06fb",
+      "tasks/tengo-destructuring-bindings/instruction.md": "66ced56f884faf74366007249bf85d4c4a510347aac5697621dcc6a626c274ce",
+      "tasks/tengo-destructuring-bindings/task.toml": "7f2cd31f296268cbee91c276abf048b6ec6bfc730549cb9ca361d391d9fecf21",
+      "tasks/tengo-destructuring-bindings/tests/config.json": "89e5ddcc41b9426e7b352afe90f2ddee33af390f61a6d80f6ab3b39e8ced4e46",
+      "tasks/tengo-destructuring-bindings/tests/Dockerfile": "e62428f4147a28ca812d27bf0732ca094b4f8a3f1acff5dfea85ea2046f69a5d",
+      "tasks/tengo-destructuring-bindings/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/tengo-destructuring-bindings/tests/test.patch": "f04b5cbd01ed5065bae760ad4d411e048003ecb9f3898558edd1061ff8a193a0",
+      "tasks/tengo-destructuring-bindings/tests/test.sh": "06fccdf3e04f6e5aa5f1adc27b59d37a12b2382868bfcae06f78fd23eff47c93"
+    },
+    "termenv-preserve-ansi-resets": {
+      "tasks/termenv-preserve-ansi-resets/environment/Dockerfile": "13277d4a5b83536c38f388cac3904f6fcadb2d0985f44133ca925519adde4407",
+      "tasks/termenv-preserve-ansi-resets/instruction.md": "a48484e41aedb6ab3ad0bc6deff51983b4ed47302ceea642e03d9137ae9ee421",
+      "tasks/termenv-preserve-ansi-resets/task.toml": "8e0ca91dabb5a1b8fc4ce62bdc3c1ac9f1711aea6e327d80d859361f67382533",
+      "tasks/termenv-preserve-ansi-resets/tests/config.json": "3620a08de2d43a7e9ec4bf1f8fe95fe942edbadaa0d858dd896e34ad1e71acc4",
+      "tasks/termenv-preserve-ansi-resets/tests/Dockerfile": "18c4b47718a3a7b37c4b94b669dc6a9fab5d2762982b80bde69bdede57163e7b",
+      "tasks/termenv-preserve-ansi-resets/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/termenv-preserve-ansi-resets/tests/test.patch": "f91b88ccf484320e612cc8f46827f5db261669bc9307de5b2c5954309a843913",
+      "tasks/termenv-preserve-ansi-resets/tests/test.sh": "bbf57c30b394173f6ae521434b1aa7d42212d44dfad1094d14b46a3cb0df125b"
+    },
+    "testem-bail-on-test-failure": {
+      "tasks/testem-bail-on-test-failure/environment/Dockerfile": "0fa245ea457b0d73a1455b1536e55987060ff5c87ba0c55bf173edb77e0a7e30",
+      "tasks/testem-bail-on-test-failure/instruction.md": "58a959e6c0b7a5db029b9958a940b3d66e66d4a3520acfaadc1171375451a1c4",
+      "tasks/testem-bail-on-test-failure/task.toml": "9db9b51eb7966062c7f069ba8bb78128da8efe6070dc6a57301fe6e54e10a690",
+      "tasks/testem-bail-on-test-failure/tests/config.json": "677c14ab7f6b21f3653d96b53c4c07191ceac31c9f783ada9bfd779ddf73a33f",
+      "tasks/testem-bail-on-test-failure/tests/Dockerfile": "0d614cdbffafdbc35f54ed7a38775c03ebc58514954e8f4f0a356e4173e1fdc5",
+      "tasks/testem-bail-on-test-failure/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/testem-bail-on-test-failure/tests/test.patch": "26ba87a5221ce6351f768bf5252731725e07fc8bf0d5634f0bf7d319cb0ec2bb",
+      "tasks/testem-bail-on-test-failure/tests/test.sh": "026c9d98acd81d93b415c990e6b23cc640b43f88187cddcb45958361749cac7c"
+    },
+    "testem-per-launcher-reports": {
+      "tasks/testem-per-launcher-reports/environment/Dockerfile": "5baf0e49c465ece46a61ab21b22840164fa4ceb7165459026307bf99823a358a",
+      "tasks/testem-per-launcher-reports/instruction.md": "f99cf0b15e79d005972f28c6c95c8eb5b5d623701afe21d348245f38ce6b9970",
+      "tasks/testem-per-launcher-reports/task.toml": "a6b02788a9c6a10bc79e582b193e2455952c12ffe435444c893e7efb0cc62ac5",
+      "tasks/testem-per-launcher-reports/tests/config.json": "ffc9c2f4dbc4f8b99774d02fab377bd9eb32235e3580ab29ccdf28a7a23a8070",
+      "tasks/testem-per-launcher-reports/tests/Dockerfile": "2b2710f9ac35bd9082954523cc172ea593bb9f50feec715f2d50a50351b9fb43",
+      "tasks/testem-per-launcher-reports/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/testem-per-launcher-reports/tests/test.patch": "2f6be8bdd6d0f17b800c9213bd52d0cfcd780944fec4d8ed8164cb4d87980a9f",
+      "tasks/testem-per-launcher-reports/tests/test.sh": "73dbcea8bd8e73c82c8e395015b2c99969f3e75c06a664c89da6753fdfaeb242"
+    },
+    "textual-kitty-key-phases": {
+      "tasks/textual-kitty-key-phases/environment/Dockerfile": "b79d9ead0a67ad9fd94e4d8847cdbb4526159ef7a5ea0674712bc0ec897abb01",
+      "tasks/textual-kitty-key-phases/instruction.md": "88a48b1028f82a815f135e122e9b57cc0e942c677cf0dfe49cbc93318e1c5093",
+      "tasks/textual-kitty-key-phases/task.toml": "0470d205fd7feb2177ad8a2b1741c35c3ed179cdef9430c781f33aba141f98bd",
+      "tasks/textual-kitty-key-phases/tests/config.json": "517ffbb446b43e3dbf215967d7020ee5202de87572e5fc9c3126e3e9d8880587",
+      "tasks/textual-kitty-key-phases/tests/Dockerfile": "8d5c7ea1d70a5b66f813ab0c930e530a988f1f1123ae39cd3203d2585812c697",
+      "tasks/textual-kitty-key-phases/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/textual-kitty-key-phases/tests/test.patch": "501bd72f9f02628b15fb011592b47b647f3c129f098cb946b43434863d386a5d",
+      "tasks/textual-kitty-key-phases/tests/test.sh": "7f743b0f8719ee9f305ba8ba09bab768fb4df03d6ec75fab6912e8c02f03dca1"
+    },
+    "textual-richlog-follow-state": {
+      "tasks/textual-richlog-follow-state/environment/Dockerfile": "bf624aeac7958ed0d3815d8cf79cee1aaff22e6a6b65c1b3a29d954971e7f27e",
+      "tasks/textual-richlog-follow-state/instruction.md": "bdfdf82ddd71a833695c99e1320b1ad564f8678711a9d5744c5f4666c80e5565",
+      "tasks/textual-richlog-follow-state/task.toml": "0a313201a28e646b10a066e0f109ec8ca08f01f676650366c41f336644c57139",
+      "tasks/textual-richlog-follow-state/tests/config.json": "9831d9684d4ccb0546f9d38ea5154b4a9515c925a25ede57717ccb59e4ce636b",
+      "tasks/textual-richlog-follow-state/tests/Dockerfile": "00fbb36ecc17dbb199a86f8d1a4fb73028098caf0214dd7f87f40032e2cf1958",
+      "tasks/textual-richlog-follow-state/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/textual-richlog-follow-state/tests/test.patch": "9d04aa13fca9e60c306f5127e911da237d2e153b0afc88da12e6004c35d404e8",
+      "tasks/textual-richlog-follow-state/tests/test.sh": "5a331b0c2049e33bbf5b80709bfa693114421fff5a5dca3c909850dd6bbf0484"
+    },
+    "tomlkit-toml-table-converters": {
+      "tasks/tomlkit-toml-table-converters/environment/Dockerfile": "3e8ab16d93b9b822098c4c98f8eafda5ba3b870464e1d3e8030bf6473237806a",
+      "tasks/tomlkit-toml-table-converters/instruction.md": "f2cad77bd81747e1b66917791cb0dfb1ed349c9f19ebcf2b8c0724151c9c73e8",
+      "tasks/tomlkit-toml-table-converters/task.toml": "32faea943936aa014220ae1c98144cc0a88b29c45a9a1b53c02345b10b783c41",
+      "tasks/tomlkit-toml-table-converters/tests/config.json": "4d87f2da8504baf7fcbbc5b2859560df0c56e4596026ff2767361732f6f8a7b5",
+      "tasks/tomlkit-toml-table-converters/tests/Dockerfile": "1a004252c203ce62f4e83350d946013d3238ab8201fc59db56c82237dbb45c05",
+      "tasks/tomlkit-toml-table-converters/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/tomlkit-toml-table-converters/tests/test.patch": "a587bd8a6bc35b9ec149a8f097ca2f06cee1aac53d20ac1a3576e79993a3fef5",
+      "tasks/tomlkit-toml-table-converters/tests/test.sh": "eeab3b4d7463a2a3df9874a7dbd77af3b37d064c67b7bc313359655615e090b7"
+    },
+    "true-myth-iterable-collection-combinators": {
+      "tasks/true-myth-iterable-collection-combinators/environment/Dockerfile": "0f1c940fb6a4f385a705f6c8cc790f9c3a9ca631e8cf00caa7785128329ec565",
+      "tasks/true-myth-iterable-collection-combinators/instruction.md": "4537369d3e74272603e11c51da43243e687aeededb170b90cccfac85a7157b8e",
+      "tasks/true-myth-iterable-collection-combinators/task.toml": "6f14fd46d024f75ce87f34e91bbdf3cfede2fb96c4dce8948f5ab72698342b8e",
+      "tasks/true-myth-iterable-collection-combinators/tests/config.json": "28cc30c11b2a289095eb2c6d329f40a02fe951fc86098b60c0d3813516f93c4e",
+      "tasks/true-myth-iterable-collection-combinators/tests/Dockerfile": "aa8e7604ae3551ae75b7d285f66e5ca27a49bbf3a08cb120ffccf396abd01791",
+      "tasks/true-myth-iterable-collection-combinators/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/true-myth-iterable-collection-combinators/tests/test.patch": "96b47f6196525ec384812c7a4d4eddfe1f09ea71871c308f1f9b1e27f9abfac3",
+      "tasks/true-myth-iterable-collection-combinators/tests/test.sh": "530d1c10199b0289c561c0aa74057f7cff020a73a925ad05a3523153879719bb"
+    },
+    "ts-pattern-match-each": {
+      "tasks/ts-pattern-match-each/environment/Dockerfile": "e8c45c553cdc0e91f36a515723d222ecce0c17ed0be72f7b725a9f82728ba2da",
+      "tasks/ts-pattern-match-each/instruction.md": "fb3807619644dcb10abd97166980d79d69148729df24f97c41d40bd1b879a65f",
+      "tasks/ts-pattern-match-each/task.toml": "3a18942908d8e2441ebb9fc13da6ad6d8ea10cf4ecc9258689fd0a1f22a7bed2",
+      "tasks/ts-pattern-match-each/tests/config.json": "babb0b7ab6db73e1fef3a813b3e59c948d3c678f4498bb2d50c33ae9b078cf31",
+      "tasks/ts-pattern-match-each/tests/Dockerfile": "83b81c9c226619bdf9de0c768a7725ba16f7743d86e797c04880049c7b082f42",
+      "tasks/ts-pattern-match-each/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/ts-pattern-match-each/tests/test.patch": "6638df983f8d1dd49b0c38afe0a8026a778151931889e9fc5253c5fb1f6b319c",
+      "tasks/ts-pattern-match-each/tests/test.sh": "5c41ab58c7428a1161edf18d840692d40a169bac6b2eee3ea10fedb72340904c"
+    },
+    "updo-policy-alerting": {
+      "tasks/updo-policy-alerting/environment/Dockerfile": "92a613b7a171c985e7d7be90b531f83d365bb38d354d2b03cb1c8d5f8430c822",
+      "tasks/updo-policy-alerting/instruction.md": "5f57493c1865cf900c66f0b505499e2e58c3cfe2da297d43ce3b89b95ec47ff5",
+      "tasks/updo-policy-alerting/task.toml": "f584a697621fbaf7bd8b2e8244eb1be70cb151030b005fd4ea89e4e8a68ce9ad",
+      "tasks/updo-policy-alerting/tests/config.json": "477822e563e7144141830e38b2d21f4ac890c74a2d0b43a2bf9cbb1e6c5d1b4d",
+      "tasks/updo-policy-alerting/tests/Dockerfile": "0e5290930c51446fd0801201d01ef8ed12e03287c36bdfbb77f067cfa81d07c7",
+      "tasks/updo-policy-alerting/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/updo-policy-alerting/tests/test.patch": "5fee2393269dd12bd48cd0392a0a59bfd55a1a197a88a15dcb39356c717d6ceb",
+      "tasks/updo-policy-alerting/tests/test.sh": "2fa30ace14e1d5a7fda8a75a68bb610f7341e864f16bf80aea616cb801b50ef0"
+    },
+    "valibot-recursive-schema-composition": {
+      "tasks/valibot-recursive-schema-composition/environment/Dockerfile": "a13cf7b817a5a5f751a4648a688edc900a08b28b5c1ba548fed26f354fe41754",
+      "tasks/valibot-recursive-schema-composition/instruction.md": "1ab478c1031bbb0614bfdce94ca7cdab3268df9938d3e8a342392e94ee86bd4f",
+      "tasks/valibot-recursive-schema-composition/task.toml": "27352c4acdc59454a2f791e5c46c063d6a75195bb7bfd0f999883adb38c5fe4f",
+      "tasks/valibot-recursive-schema-composition/tests/config.json": "d527d41666f9aa46167728d83ee77484a4b795613a3f0035593750e3cc9c7a7e",
+      "tasks/valibot-recursive-schema-composition/tests/Dockerfile": "b1297d45fc2a641cba7425c814192ada4e9bbe8a1e0f8344eeecb4c66dcf99fd",
+      "tasks/valibot-recursive-schema-composition/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/valibot-recursive-schema-composition/tests/test.patch": "a72a56cc06aee332199e463df66507357db4351610d8ef4bf33a17768c1b2707",
+      "tasks/valibot-recursive-schema-composition/tests/test.sh": "6c461a60770b7518cec591b7948fbcf1af187e4c50cc7cbb1d6753d865bf3df9"
+    },
+    "vitest-duration-sharding": {
+      "tasks/vitest-duration-sharding/environment/Dockerfile": "69096a000aafeb35b3bf3f9eebec32f43056a129a678b0c1cf51908f407121ab",
+      "tasks/vitest-duration-sharding/instruction.md": "da582652f90e9c717d07c0bd2008e404e009eb7843d0910b59c04bb66db13c1d",
+      "tasks/vitest-duration-sharding/task.toml": "5fc34417ca050a8592929791877f0b44c99a1a99fcd6cbd52d93260761acdc8b",
+      "tasks/vitest-duration-sharding/tests/config.json": "935ff5e8f343de370f10612ad284f9931b611d08429d373c4d89fe8516ae28cb",
+      "tasks/vitest-duration-sharding/tests/Dockerfile": "33264bd71710301314bb56b59036733c7c38ea6174f9d0a48f09797e84778eee",
+      "tasks/vitest-duration-sharding/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/vitest-duration-sharding/tests/test.patch": "96479d5febcfa6d74499fe5da3abc8c6e861f557f26237acf8b51fe4fc8fc406",
+      "tasks/vitest-duration-sharding/tests/test.sh": "7ee80ff1292ddf69f4f143cc362fe8aa8d8d28b9179db7f6d36dc20ebd6d5b74"
+    },
+    "vulture-persistent-analysis-cache": {
+      "tasks/vulture-persistent-analysis-cache/environment/Dockerfile": "772800ad39c6111e5353a06cd104a84faf2a8b11c3946b820eac6ae390c62ebf",
+      "tasks/vulture-persistent-analysis-cache/instruction.md": "2045f33db77e27456c3f64e3e5dc0e30b3822e1198ea4209fefe522485ae1b36",
+      "tasks/vulture-persistent-analysis-cache/task.toml": "490b3c93f86185a690e6fa5c4ec4b08e64f193971b76d2bbec0947955234a9e5",
+      "tasks/vulture-persistent-analysis-cache/tests/config.json": "a8de4104eceee2e7fed42f08556fe1e72cda7f2fc251f848cd3e17142a85e733",
+      "tasks/vulture-persistent-analysis-cache/tests/Dockerfile": "ed73f3a43bc843117a9a4cd5523f4ae05ffb9dd7070349508cb87b02178ec678",
+      "tasks/vulture-persistent-analysis-cache/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/vulture-persistent-analysis-cache/tests/test.patch": "a81a7404ea92b40a82c6f4d79f153635db21cf7e385a258af5fc527927b82259",
+      "tasks/vulture-persistent-analysis-cache/tests/test.sh": "c17975272116a783de29b4b1c87e5b55e2ff788337113459ad5fe1f345764db8"
+    },
+    "wasmi-trap-coredumps": {
+      "tasks/wasmi-trap-coredumps/environment/Dockerfile": "e8669e408ec0fb444e9268f04257c2303d9e04ce53e1285d6446590fe0595cbd",
+      "tasks/wasmi-trap-coredumps/instruction.md": "119346d012f769e6a69d46ce176610fbf42a181122c2e85379d17abe56672888",
+      "tasks/wasmi-trap-coredumps/task.toml": "1e18db2a466b62290bb4fbf1b6653bed8302b7ae345a8db8c1b7d9770092c7ce",
+      "tasks/wasmi-trap-coredumps/tests/config.json": "54b18f54af4c9bc0fcc0a124182ab37e16a12271bd4a6d82089e959761c0351d",
+      "tasks/wasmi-trap-coredumps/tests/Dockerfile": "018f0a33b68ad28abdb3fb2264a6364ded157d37bbbfe830bedd02def70a8c38",
+      "tasks/wasmi-trap-coredumps/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/wasmi-trap-coredumps/tests/test.patch": "502f598d21ecafb81f1e749c8c2a24c4be3ece4ff49881ee0049a850da8b9be1",
+      "tasks/wasmi-trap-coredumps/tests/test.sh": "8f16e87ebcad4af24cc913c00470150a8fac1142255e830395b8b2898ae601f3"
+    },
+    "wazero-multi-module-snapshots": {
+      "tasks/wazero-multi-module-snapshots/environment/Dockerfile": "9f124296a3b5397f912460c6dbf579519a6cf2def43d7aba6a20ebacbbe36214",
+      "tasks/wazero-multi-module-snapshots/instruction.md": "4021eec5ac2702f5bfd1059a949c57dde6fededb7a19bc68bd1f4bf050b95a07",
+      "tasks/wazero-multi-module-snapshots/task.toml": "6cce5c857fcb7df5fa1dd86a3075c87d361542dfe718bf84629bfd2b758b116d",
+      "tasks/wazero-multi-module-snapshots/tests/config.json": "2489f929fc90f0c9ab4340cc315bf2637a747c429bca1cb90b2bb8db81e64549",
+      "tasks/wazero-multi-module-snapshots/tests/Dockerfile": "ee82e346414dc000824cdd1d41b42684c337072c45052c1147b3560886cc61c8",
+      "tasks/wazero-multi-module-snapshots/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/wazero-multi-module-snapshots/tests/test.patch": "ca9656498ee6c78134e03dffb514110054597072eb52169fe73e7740b9def142",
+      "tasks/wazero-multi-module-snapshots/tests/test.sh": "5114fac25e724cb98be000373a10f22c3ce5e2d72ad562b6583c7708849c494a"
+    },
+    "yaegi-go-embed-directives": {
+      "tasks/yaegi-go-embed-directives/environment/Dockerfile": "6d7daa25186d06df9b8b6226ff861f10b281241efbac86987891f3eec6bcf461",
+      "tasks/yaegi-go-embed-directives/instruction.md": "a7248965ebcbad521029058afede998631fc7ced02114c285687662a7fe862b4",
+      "tasks/yaegi-go-embed-directives/task.toml": "86cb84cb6954f1816674cb7d206cb3b68a43eadc3a45c2eb5e8cfd07f5b431b5",
+      "tasks/yaegi-go-embed-directives/tests/config.json": "6a24c056855a219b09dd75677bdb20279e9fb1c94792b31576b26ae7305dbf8d",
+      "tasks/yaegi-go-embed-directives/tests/Dockerfile": "c72cc9244636dae14225d6ff2e99476b7ebf38c92bcc4a73958630fadca1fdd5",
+      "tasks/yaegi-go-embed-directives/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/yaegi-go-embed-directives/tests/test.patch": "917fb54b0ce49fb922fb95f69c4f24ef58e2b45ba7a583964ff52dff9877d545",
+      "tasks/yaegi-go-embed-directives/tests/test.sh": "9063136dd0f9d4f4aabc4cd7693cf53bae99ff3b97fe2fa2580cb787802aff0e"
+    },
+    "yjs-map-conflict-detection": {
+      "tasks/yjs-map-conflict-detection/environment/Dockerfile": "d360c4e38fb5dd548029cd15511ab97a3c180c8ae1c3f420c5ab091711d42b2c",
+      "tasks/yjs-map-conflict-detection/instruction.md": "ec6f54e53154aca614ead29fe45f2a85f876c4fe38aec5f3a0f20425e2611935",
+      "tasks/yjs-map-conflict-detection/task.toml": "efc0167671f665a71cbc94a9951fc1e85402e3a1efd20c285449606766a65428",
+      "tasks/yjs-map-conflict-detection/tests/config.json": "13dc8b9683de0a41ca6ba76239f69a4aeff09b50bea9899ffb65ef2df677a4a4",
+      "tasks/yjs-map-conflict-detection/tests/Dockerfile": "9d41f12270bf5b53d2bfe5aa13909a1a82abb6c9e6fdfd1c978dea32dc4840d7",
+      "tasks/yjs-map-conflict-detection/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/yjs-map-conflict-detection/tests/test.patch": "fc133287f93c4073bd26d6d8648ccad14561c5a57812f4ab452a4225dc7774a7",
+      "tasks/yjs-map-conflict-detection/tests/test.sh": "1c23ca5323c12c4cde313203f771700ff19c994778db7cf0d43ead43ce69e5a3"
+    },
+    "ytt-jsonpath-query-api": {
+      "tasks/ytt-jsonpath-query-api/environment/Dockerfile": "bf24c3bae738eeabe9619d3338a3dff3075cad1b12819a59ba963c0e1d7c3549",
+      "tasks/ytt-jsonpath-query-api/instruction.md": "249d64cf61565a515484993844adce0d9c16355c025edc10975d430bc8966286",
+      "tasks/ytt-jsonpath-query-api/task.toml": "8981b45dd5fe0cf1c310b4c020217fccda32510c12d8193d334b1b3528cdb581",
+      "tasks/ytt-jsonpath-query-api/tests/config.json": "ad9199408d809ddda548dfce7878a6229123e19b8a212be89d0c2894f318220d",
+      "tasks/ytt-jsonpath-query-api/tests/Dockerfile": "bf1cd2f81e3e198199240d31327dab5a40a238d847b422304295e10b2c98a6d0",
+      "tasks/ytt-jsonpath-query-api/tests/grader.py": "47cc9eaadf21e636323c360ec4fa786f0733ec9fd1d21ea5a5717ff9f8c4077c",
+      "tasks/ytt-jsonpath-query-api/tests/test.patch": "c78cbd11e4aff499b92f8feadebf4b1dafc9907ca8393b75685588335369ff9b",
+      "tasks/ytt-jsonpath-query-api/tests/test.sh": "e8521b22031231c0792e0297b3affdf3bba8920a325f7cc7b5c48e26e341b16e"
+    }
+  }
+}
