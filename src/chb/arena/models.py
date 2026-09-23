@@ -25,12 +25,16 @@ def capabilities():
         if provider!='openai' and not custom and name!=doc.get('model'):continue
         levels=row.get('supported_reasoning_levels',[])
         efforts=list(dict.fromkeys(r.get('effort') for r in levels if isinstance(r,dict) and isinstance(r.get('effort'),str) and r['effort'] in EFFORTS)) if isinstance(levels,list) else []
+        tiers=row.get('service_tiers',[])
+        speed_tiers=row.get('additional_speed_tiers',[])
+        fast=any(isinstance(t,dict) and t.get('id') in {'fast','priority'} for t in tiers) if isinstance(tiers,list) else False
+        fast=fast or (isinstance(speed_tiers,list) and 'fast' in speed_tiers)
         result.append({'id':name,'name':row.get('display_name',name),'source':'当前提供商模型目录' if custom else '本机 Codex 模型缓存',
                        'reasoningLevels':efforts,'defaultReasoning':row.get('default_reasoning_level'),
-                       'capabilitiesKnown':bool(efforts)})
+                       'capabilitiesKnown':bool(efforts),'fastAvailable':fast})
     current=doc.get('model')
     if isinstance(current,str) and current and not any(m['id']==current for m in result):
-        result.append({'id':current,'name':current,'source':'当前 Codex 配置，档位能力未知','reasoningLevels':[],'capabilitiesKnown':False})
+        result.append({'id':current,'name':current,'source':'当前 Codex 配置，档位能力未知','reasoningLevels':[],'capabilitiesKnown':False,'fastAvailable':False})
     return result
 
 
@@ -43,3 +47,10 @@ def validate_effort(model,effort,require_known=False):
     if require_known and not entry:
         raise ValueError('本机尚无该模型的档位能力记录。请先在 Codex 刷新模型列表，再应用；未写入配置。')
     return entry
+
+
+def validate_service_tier(model,tier):
+    if tier not in {'','standard','fast'}:raise ValueError('速度档位无效。')
+    if tier=='fast' and not any(m['id']==model and m.get('fastAvailable') for m in capabilities()):
+        raise ValueError(f'{model} 的本机模型目录未声明 Fast 能力；未写入或启动。')
+    return tier

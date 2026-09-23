@@ -26,7 +26,8 @@ def validate_machine(value, packet, commands):
         # normalize line terminators, never punctuation, whitespace or meaning.
         return quote.replace('\r\n','\n').replace('\r','\n') in output.replace('\r\n','\n').replace('\r','\n')
     def evidence(items):
-        if not isinstance(items,list) or len(items)>20:raise ValueError('评分引用格式无效。')
+        if not isinstance(items,list):raise ValueError('评分引用格式无效。')
+        if len(items)>50:raise EvidenceError('此项引用超过50条，无法可靠复核。')
         verified=[]
         for item in items:
             if not isinstance(item,dict):raise ValueError('评分引用格式无效。')

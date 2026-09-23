@@ -7,7 +7,7 @@ import uuid
 import tomlkit
 from .files import hash_bytes, inventory, now, safe_path, verify_snapshot
 from .skills import codex_home, checked_directory, invocation
-from .models import validate_effort
+from .models import validate_effort, validate_service_tier
 
 OPTIONS = {'web_search':['disabled','cached','live'],
            'model_verbosity':['low','medium','high'],
@@ -61,8 +61,10 @@ def status(app):
             receipts.append(item)
     override=safe_path(home,'AGENTS.override.md')
     has_override=override.is_file() and bool(override.read_text(encoding='utf-8-sig').strip())
+    features=doc.get('features',{})
+    tier='fast' if doc.get('service_tier') in {'fast','priority'} and features.get('fast_mode',True) is True else 'standard' if doc.get('service_tier')=='default' else None
     return {'home':str(home),'instructionsFile':'AGENTS.override.md' if has_override else 'AGENTS.md',
-            'settings':{k:doc[k] for k in OPTIONS if k in doc},'model':doc.get('model'),'reasoning':doc.get('model_reasoning_effort'),'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
+            'settings':{k:doc[k] for k in OPTIONS if k in doc},'model':doc.get('model'),'reasoning':doc.get('model_reasoning_effort'),'serviceTier':tier,'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
 
 def public(r):
     return {k:r[k] for k in ['id','configId','configName','configRevision','at','status','home','message']}
@@ -79,6 +81,14 @@ def set_model(doc,config):
     doc['model']=config['baseModel']
     if config['reasoning']:doc['model_reasoning_effort']=config['reasoning']
     else:doc.pop('model_reasoning_effort',None)
+    tier=config.get('serviceTier','')
+    validate_service_tier(config['baseModel'],tier)
+    if tier=='fast':
+        doc['service_tier']='fast'
+        if 'features' not in doc:doc['features']=tomlkit.table()
+        doc['features']['fast_mode']=True
+    elif tier=='standard':
+        doc['service_tier']='default'
 
 
 def project_settings(config,raw=b''):

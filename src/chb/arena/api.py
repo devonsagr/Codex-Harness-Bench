@@ -74,6 +74,9 @@ def post(app,route,data):
             if action=='judge-progress':
                 from .judge_progress import read_progress
                 return read_progress(app,rid,tid)
+            if action=='judge-revalidate':
+                from .jobs import revalidate_saved_review
+                return revalidate_saved_review(app,rid,tid)
             if action=='apply-config':
                 run,trial=app.trial(rid,tid)
                 if run.get('archived') or trial['state']!='prepared':raise ValueError('仅在本题开始前应用冻结配置。')
