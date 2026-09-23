@@ -12,6 +12,7 @@ import uuid
 from contextlib import contextmanager
 
 from .skills import codex_home
+from .review_options import ReviewBudgetExceeded
 
 
 def codex_executable():
@@ -101,23 +102,28 @@ class ProcessTree:
 
 
 def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='max',runtime_root=None):
+    from .review_connection import connection
+    route=connection()
     executable=codex_executable()
     if not executable:raise ValueError('本机未安装 Codex CLI。请安装并登录后使用本机裁判，或选择 Docker 裁判。')
     auth=codex_home()/'auth.json'
-    if not auth.is_file():raise ValueError('本机裁判需要 Codex CLI 登录凭据，请先运行 codex login。')
+    if not auth.is_file() and not (route['envKey'] and os.environ.get(route['envKey'])):raise ValueError('本机裁判需要有效的 Codex CLI 登录或已配置提供商环境变量。')
+    if route['envKey'] and not os.environ.get(route['envKey']):raise ValueError('当前提供商的凭据环境变量未设置；未切换账号或提供商。')
     version=subprocess.run([executable,'--version'],capture_output=True,text=True,timeout=10,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)).stdout.strip()
     log=folder/'events.jsonl'
     # A short scratch path also avoids native Windows shell path-length/cwd issues.
     if runtime_root is not None:Path(runtime_root).mkdir(parents=True,exist_ok=True)
     with review_workspace(runtime_root) as work, tempfile.TemporaryDirectory(prefix='chb-review-home-',dir=runtime_root) as temp_home:
         work=str(Path(work).resolve());temp_home=str(Path(temp_home).resolve())
+        (folder/'runtime.json').write_text(json.dumps({'workspace':work,'temporaryHome':temp_home,'cleanup':'退出后自动清理；服务强制结束时可能残留'}),encoding='utf-8')
         source=Path(work)/'task'
         shutil.copytree(folder/'task',source)
         schema=Path(work)/'output-schema.json';schema.write_text(json.dumps(output_schema(packet),ensure_ascii=False),encoding='utf-8')
         answer=Path(work)/'answer.json'
-        shutil.copyfile(auth,Path(temp_home)/'auth.json')
+        if not route['envKey']:shutil.copyfile(auth,Path(temp_home)/'auth.json')
         allowed={'path','systemroot','windir','comspec','pathext','temp','tmp','userprofile','home','localappdata','appdata','programfiles','programfiles(x86)','programdata','number_of_processors','os'}
         env={k:v for k,v in os.environ.items() if k.lower() in allowed}
+        if route['envKey']:env[route['envKey']]=os.environ[route['envKey']]
         runtime_temp=source/'tmp';runtime_temp.mkdir()
         env.update(CODEX_HOME=temp_home,NO_COLOR='1',TEMP=str(runtime_temp),TMP=str(runtime_temp),TMPDIR=str(runtime_temp))
         # Do not inherit personal npm proxy, auth tokens or install hooks/config.
@@ -126,10 +132,16 @@ def execute_local(folder,source,instruction,model,packet,control,timeout,reasoni
         env.update(NPM_CONFIG_USERCONFIG=str(npmrc),NPM_CONFIG_GLOBALCONFIG=str(global_npmrc),NPM_CONFIG_CACHE=str(source/'npm-cache'))
         args=[executable,'exec','--ignore-user-config','--ignore-rules','--ephemeral','--skip-git-repo-check','--json',
               '-C',str(source),'-s','workspace-write','-m',model,'-c','approval_policy="never"',
-              '-c','project_doc_max_bytes=0','-c',f'model_reasoning_effort="{reasoning}"','-c','web_search="disabled"',
+              '-c','project_doc_max_bytes=0','-c','web_search="disabled"',
               '-c','sandbox_workspace_write.exclude_tmpdir_env_var=true','-c','sandbox_workspace_write.exclude_slash_tmp=true',
               '-c','sandbox_workspace_write.network_access=true','--output-schema',str(schema),'-o',str(answer),'-']
         if os.name=='nt':args[2:2]=['-c','windows.sandbox="unelevated"']
+        if reasoning:args[2:2]=['-c',f'model_reasoning_effort="{reasoning}"']
+        if route['custom']:
+            import tomlkit
+            table=tomlkit.inline_table();table.update(route['options'])
+            args[2:2]=['-c','model_provider='+json.dumps(route['providerId']),'-c','model_providers.'+route['providerId']+'='+table.as_string()]
+        (folder/'connection.json').write_text(json.dumps(route['public'],ensure_ascii=False),encoding='utf-8')
         with (source/'instruction.md').open('rb') as stdin,log.open('wb') as stdout,(folder/'stderr.log').open('wb') as stderr:
             process=subprocess.Popen(args,stdin=stdin,stdout=stdout,stderr=stderr,env=env,cwd=source,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0),start_new_session=os.name!='nt')
@@ -138,7 +150,7 @@ def execute_local(folder,source,instruction,model,packet,control,timeout,reasoni
                 deadline=time.monotonic()+timeout
                 while process.poll() is None:
                     if control['stop'].wait(.2):raise ValueError('已取消本机机器评分。')
-                    if time.monotonic()>deadline:raise ValueError('本机裁判超过时限；已停止本次进程，未生成评分。')
+                    if time.monotonic()>deadline:raise ReviewBudgetExceeded(f'审查时间预算已用完（{timeout//60} 分钟）；本次检查未完成，不能据此判断产物失败。日志已保留，可增加预算重新审查。')
                 if process.returncode:raise ValueError(failure_reason(log))
             finally:
                 tree.close()

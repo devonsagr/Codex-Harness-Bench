@@ -11,6 +11,7 @@ import uuid
 from .files import now, verify_snapshot, inventory, snapshot
 from .service import shell, applicable_checks
 from .models import validate_effort
+from .review_options import timeout_seconds, ReviewBudgetExceeded
 
 JUDGE_DEFAULT_REASONING='max'
 JUDGE_REASONING_LEVELS={'none','minimal','low','medium','high','xhigh','max','ultra'}
@@ -20,6 +21,7 @@ def start_job(app,rid,tid,kind,data):
     with app.lock:
         run,trial=app.trial(rid,tid)
         if run.get('archived'):raise ValueError('请先恢复已归档评测。')
+        if run.get('deletionPending'):raise ValueError('本次评测正在删除，请在数据页完成删除，不再启动检查。')
         if trial.get('ownedContainers'):raise ValueError('上次检查容器尚未确认清理，请恢复 Docker 并重启工作台后重试。')
         if trial['state'] in {'checking','judging'}:raise ValueError('该项已有后台操作，不能重复启动。')
         if not trial['captures']:raise ValueError('请先回收产物。')
@@ -33,13 +35,20 @@ def start_job(app,rid,tid,kind,data):
             raise ValueError('请选择裁判模型。')
         if kind=='check' and not applicable_checks(task,capture['stageIndex']):raise ValueError('当前阶段没有可执行检查；可人工复审或在题目新版本声明检查。')
         if kind=='judge' and data.get('environment','docker') not in {'local','docker'}:raise ValueError('未知裁判环境。')
-        if kind=='judge' and data.get('reasoningEffort',JUDGE_DEFAULT_REASONING) not in JUDGE_REASONING_LEVELS:raise ValueError('裁判推理档位无效。')
-        if kind=='judge':validate_effort(data['model'],data.get('reasoningEffort',JUDGE_DEFAULT_REASONING))
+        if kind=='judge' and data.get('reasoningEffort',JUDGE_DEFAULT_REASONING) not in JUDGE_REASONING_LEVELS|{''}:raise ValueError('裁判推理档位无效。')
+        if kind=='judge':
+            timeout_seconds(data)
+            if data.get('environment','docker')=='docker' and data.get('reasoningEffort')=='ultra':raise ValueError('当前 Harbor 裁判适配器尚不支持 ultra；请选择本机裁判或其他已支持档位。')
+            if data.get('reasoningEffort',JUDGE_DEFAULT_REASONING):validate_effort(data['model'],data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),require_known=True)
+            from .review_connection import connection
+            route=connection()
+            if data.get('environment','docker')=='docker' and route['custom']:raise ValueError('第三方模型连接目前仅支持本机裁判；不会静默切换为官方账号。')
         state=trial['state'];trial['state']='checking' if kind in {'check','native'} else 'judging'
         if kind=='native':trial['nativeExecution']={'status':'running','phase':'准备本机测试验收','startedAt':now(),'captureId':capture['id'],'jobId':uuid.uuid4().hex[:12]}
         trial.pop('lastJobError',None)
         if kind=='judge':trial['judgeExecution']={'status':'preparing','startedAt':now(),'captureId':capture['id'],
-            'model':data['model'],'reasoning':data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),'environment':data.get('environment','docker')}
+            'model':data['model'],'reasoning':data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),'environment':data.get('environment','docker'),
+            'timeoutSeconds':timeout_seconds(data),'connection':route['public']}
         if kind=='check' or (kind=='judge' and data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex'])):
             capture.setdefault('checkAttempts',[]).append({'at':now(),'results':capture['checks']})
             capture['checks']=[]
@@ -99,7 +108,7 @@ def start_job(app,rid,tid,kind,data):
                     cause='已取消' if stop.is_set() else message if isinstance(exc,ValueError) and len(message)<250 and any('\u4e00'<=c<='\u9fff' for c in message) else '本机测试环境异常；请查看测试输出并重新准备环境。' if kind=='native' else '执行环境异常；请核对 Docker、镜像和本机日志。'
                     app.event(fresh,cause,tid)
                     t['lastJobError']={'kind':kind,'message':cause,'at':now()}
-                    if kind=='judge':t['judgeExecution'].update(status='cancelled' if stop.is_set() else 'failed',endedAt=now())
+                    if kind=='judge':t['judgeExecution'].update(status='cancelled' if stop.is_set() else 'budget_exhausted' if isinstance(exc,ReviewBudgetExceeded) else 'failed',endedAt=now())
                     if kind=='native':t['nativeExecution'].update(status='cancelled' if stop.is_set() else 'failed',phase=cause,endedAt=now())
                     app.db.save('run',fresh,fresh['revision'])
             finally:
@@ -248,7 +257,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
     model=data.get('model')
     if not isinstance(model,str) or not model or len(model)>100:raise ValueError('请选择审查模型。')
     reasoning=data.get('reasoningEffort',JUDGE_DEFAULT_REASONING)
-    validate_effort(model,reasoning)
+    if reasoning:validate_effort(model,reasoning)
     local=data.get('environment','docker')=='local'
     try:image='native-sandbox' if local else pin_image('chb-reviewer:machine-v1' if machine else 'chb-reviewer:codex-0.154.0')
     except (ValueError,OSError,subprocess.SubprocessError) as exc:
@@ -307,7 +316,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
                 '此Windows本机沙箱尚不支持浏览器取证：不得启动Edge、Chrome、Chromium或其他浏览器，也不得通过其他进程或关闭沙箱绕过。不要重试已知会因IPC权限失败的浏览器路径。UX与浏览器性能维度须为null，说明环境未验证；可以继续源码、构建和非浏览器测试。')
         instruction+='\n仅在当前审查目录内取证。不要进入父目录、个人目录或其他任务。原始快照不在可写目录内。'
     (source/'instruction.md').write_text(instruction,encoding='utf-8')
-    timeout=480 if machine else 180
+    timeout=timeout_seconds(data)
     if local:
         from .local_review import execute_local
         event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout,reasoning,runtime_root=app.local/'reviewer-runtime')
@@ -319,26 +328,44 @@ def run_judge(app,rid,tid,capture,task,data,control):
         (source/'task.toml').write_text(toml.dumps(definition),encoding='utf-8')
         (source/'tests').mkdir();(source/'tests/test.sh').write_text('#!/bin/sh\nmkdir -p /logs/verifier\nprintf "0\\n" > /logs/verifier/reward.txt\n',encoding='utf-8')
         # Reward is irrelevant to this reviewer. Never publish it as task acceptance.
-        auth=Path.home()/'.codex/auth.json'
+        from .skills import codex_home
+        from .review_connection import connection
+        route=connection()
+        if route['custom']:raise ValueError('模型连接已变化，当前 Docker 裁判不支持该提供商；请改用本机裁判。')
+        (folder/'connection.json').write_text(json.dumps(route['public'],ensure_ascii=False),encoding='utf-8')
+        auth=codex_home()/'auth.json'
         # This reviewer uses the signed-in account directly. Never inherit the desktop
         # tool process's loopback gateway: inside Docker it addresses the container.
         review_env={'OPENAI_BASE_URL':''}
         if auth.is_file():review_env['CODEX_AUTH_JSON_PATH']=str(auth)
         cfg=JobConfig.model_validate({'job_name':'review','jobs_dir':str(folder/'harbor'),'quiet':True,'n_concurrent_trials':1,'n_attempts':1,
               'retry':{'max_retries':0},'agents':[{'name':'codex','model_name':model if '/' in model else 'openai/'+model,
-              'kwargs':{'version':CODEX_VERSION,'reasoning_effort':reasoning,'web_search':'disabled'},'env':review_env,'override_timeout_sec':timeout}],
+              'kwargs':{'version':CODEX_VERSION,**({'reasoning_effort':reasoning} if reasoning else {}),'web_search':'disabled'},'env':review_env,'override_timeout_sec':timeout}],
               'tasks':[{'path':str(source)}],'environment':{'type':'docker','delete':True}})
         async def execute():
             job=await Job.create(cfg)
             future=asyncio.create_task(job.run())
+            # Harbor owns cleanup; wait for cancellation to finish rather than
+            # leaving a still-running reviewer after the UI reports a timeout.
+            deadline=time.monotonic()+timeout
+            exhausted=False
             try:
                 while not future.done():
                     if control['stop'].is_set():future.cancel();break
+                    if time.monotonic()>deadline:exhausted=True;future.cancel();break
                     await asyncio.sleep(.25)
                 await future
             except asyncio.CancelledError:
+                if exhausted:raise ReviewBudgetExceeded(f'审查时间预算已用完（{timeout//60} 分钟）；检查未完成，不判产物失败。可增加预算重新审查。')
                 raise ValueError('已取消 AI 审查；Harbor 正在释放本次环境。')
         asyncio.run(execute())
+        for result_file in (folder/'harbor').glob('**/result.json'):
+            if result_file.stat().st_size>2_000_000:continue
+            try:result_value=json.loads(result_file.read_text(encoding='utf-8'))
+            except ValueError:continue
+            exception=result_value.get('exception_info') or {}
+            if isinstance(exception,dict) and exception.get('exception_type') in {'AgentTimeoutError','AgentTimeoutException'}:
+                raise ReviewBudgetExceeded(f'裁判执行达到时间预算（{timeout//60} 分钟）；检查未完成，未生成分数。')
         logs=list((folder/'harbor').glob('**/agent/codex.txt'))
     outputs=[];diagnostics=[];commands=[]
     for file in logs:
@@ -359,7 +386,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
         if any(word in detail for word in ('usage_limit','quota','insufficient_quota')):reason='模型额度不足'
         elif any(word in detail for word in ('unauthorized','authentication','401')):reason='模型认证失败'
         elif any(word in detail for word in ('connect','network','stream disconnect')):reason='审查环境无法连接模型服务'
-        else:reason='超时或未返回有效结果'
+        else:reason='未返回有效结果（没有足够证据认定为超时）'
         raise ValueError(f'AI 审查{reason}；未生成评分。诊断记录：{folder.name}。')
     answer=outputs[-1].strip()
     if answer.startswith('```'):answer='\n'.join(answer.splitlines()[1:-1])
@@ -374,4 +401,6 @@ def run_judge(app,rid,tid,capture,task,data,control):
         reason='裁判返回的 JSON 无法解析。' if isinstance(exc,json.JSONDecodeError) else str(exc) if isinstance(exc,ValueError) and any('\u4e00'<=c<='\u9fff' for c in str(exc)) else '裁判返回的字段结构不正确。'
         (folder/'validation-error.json').write_text(json.dumps({'reason':reason,'captureId':capture['id']},ensure_ascii=False),encoding='utf-8')
         raise ValueError(f'评分报告未通过校验：{reason[:150]} 原始报告已保留；本次未生成分数。') from exc
-    return {**result,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}
+    route_file=folder/'connection.json'
+    connection_info=json.loads(route_file.read_text(encoding='utf-8')) if route_file.is_file() else {}
+    return {**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}

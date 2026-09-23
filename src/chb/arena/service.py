@@ -53,6 +53,8 @@ class Arena:
         self.jobs={}
         self._last_trace_sync=0.0
         self._seed()
+        from .initial_config import status as initial_status
+        self.initial_config=initial_status(self)
         for job in self.db.list('preparation_job'):
             if job['status']=='running':
                 existing=next((r for r in self.db.list('run')+self.db.list('run',True) if r.get('requestId')==job['id']),None)
@@ -101,11 +103,13 @@ class Arena:
         import_originals(self)
 
     def save_config(self, value, import_source=None):
+        if str(value.get('id','')).startswith('initial-') and value.get('revision'):
+            raise ValueError('最初配置副本受保护，请另存副本后修改；原文件备份不会被覆盖。')
         value=copy.deepcopy(value)
         for key,limit in [('name',100),('agentsPrompt',200000),('baseModel',100)]:
             text(value.get(key),limit,required=key!='agentsPrompt')
         if not re.fullmatch(r'[a-zA-Z0-9._/-]+',value['baseModel']): raise ValueError('模型标识格式无效。')
-        if value.get('reasoning') not in {'none','minimal','low','medium','high','xhigh','max','ultra'}: raise ValueError('推理档位无效。')
+        if value.get('reasoning') not in {'','none','minimal','low','medium','high','xhigh','max','ultra'}: raise ValueError('推理档位无效。')
         validate_effort(value['baseModel'],value['reasoning'])
         if value.get('interactiveMode') not in {'one-shot-direct','step-by-step-confirm','adaptive'}: raise ValueError('交互模式无效。')
         skills=value.get('skills',[])
@@ -191,9 +195,10 @@ class Arena:
         return list({m['id']:m for m in models}.values())
 
     def state(self):
+        from .review_connection import public_connection
         self.sync_desktop_traces()
         runs=[self.present_run(r) for r in self.db.list('run')]
-        return {'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
+        return {'initialConfig':self.initial_config,'reviewConnection':public_connection(),'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
                 'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
                 'preparationJobs':self.db.list('preparation_job'),'sourceJobs':self.db.list('source_job'),'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
@@ -382,6 +387,7 @@ class Arena:
     def mutate(self,rid,tid,action,data):
         with self.lock:
             run,t=self.trial(rid,tid)
+            if run.get('deletionPending'):raise ValueError('本次评测删除未完成，请在数据页继续删除，不能再修改记录。')
             task=next(x for x in run['tasks'] if x['id']==t['taskId'])
             config=next(x for x in run['configs'] if x['id']==t['configId'])
             folder=self.local/'runs'/rid/tid

@@ -19,6 +19,7 @@ class MachineScoringTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
         (self.root/'catalog').mkdir();(self.root/'catalog/arena-tasks.json').write_text('[]')
         (self.root/'home').mkdir();self.env=patch.dict(os.environ,{'CODEX_HOME':str(self.root/'home')});self.env.start()
+        (self.root/'home/models_cache.json').write_text(json.dumps({'models':[{'slug':'fixture','supported_reasoning_levels':[{'effort':'low'},{'effort':'max'}]}]}))
         self.app=Arena(self.root)
         c=self.app.save_config({'name':'Fixture','agentsPrompt':'','baseModel':'fixture','reasoning':'low','interactiveMode':'adaptive','skills':[]})
         self.task=self.app.save_task({'title':'No-script fixture','inputPrompt':'Print hello','schemaVersion':2,'hasFrontendUI':False,
@@ -183,7 +184,7 @@ class MachineScoringTests(unittest.TestCase):
             definition=tomllib.loads((source/'task.toml').read_text(encoding='utf-8'))
             test.assertEqual(definition['environment']['docker_image'],'sha256:fixture')
             test.assertEqual(definition['environment']['workdir'],'/app')
-            test.assertEqual(definition['agent']['timeout_sec'],480)
+            test.assertEqual(definition['agent']['timeout_sec'],3600)
             test.assertEqual((source/'environment/candidate/main.py').read_text(),'print("hello")\n')
             test.assertFalse((source/'environment/Dockerfile').exists())
             test.assertIn('ratings',(source/'instruction.md').read_text(encoding='utf-8'))

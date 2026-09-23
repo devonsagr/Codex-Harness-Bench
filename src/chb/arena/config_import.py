@@ -27,10 +27,10 @@ def preview(app,data):
     if not files:raise ValueError('该来源没有规则或可读取的设置文件。')
     warnings=[]
     if not native.get('model'):warnings.append('来源未指定模型，暂用默认值；请在配置页与桌面核对。')
-    if not native.get('model_reasoning_effort'):warnings.append('来源未指定推理档位，暂用 medium。')
+    if not native.get('model_reasoning_effort'):warnings.append('来源未指定推理档位；保留宿主默认，不添加档位覆盖。')
     return {'name':('全局规则' if scope=='global' else root.name)+' · 导入副本',
             'agentsPrompt':rules,'baseModel':native.get('model','gpt-6-astra'),
-            'reasoning':native.get('model_reasoning_effort','medium'),'interactiveMode':'adaptive',
+            'reasoning':native.get('model_reasoning_effort',''),'interactiveMode':'adaptive',
             'skills':[],'skillMode':'auto','customConstraints':[],
             'nativeSettings':{k:v for k,v in native.items() if k in OPTIONS and v in OPTIONS[k]},
             'integrations':{g:{k:v.get('enabled',True) for k,v in native.get(g,{}).items() if isinstance(v,dict) and type(v.get('enabled',True))==bool} for g in ['mcp_servers','plugins']},

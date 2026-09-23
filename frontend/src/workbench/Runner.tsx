@@ -1,4 +1,6 @@
 import {NativeVerification} from './NativeVerification';
+import {HumanInspection} from './HumanInspection';
+import {EvaluationTrack} from './EvaluationTrack';
 import {UsageChart} from './AssessmentCharts';
 import {MachineScore} from './MachineScore';
 import {CodexApply} from './Codex';
@@ -51,7 +53,9 @@ function TrialView({run,trial:t,task,config,state,act,onError,archived}:{run:Run
       </Panel>
     </section>
     <section role="tabpanel" id={tabId+'score-panel'} aria-labelledby={tabId+'score'} hidden={tab!=='score'} className="run-tab-panel space-y-5">
+      <EvaluationTrack task={task} trial={t} disabled={archived} action={action}/>
       {latest&&<NativeVerification task={task} trial={t} route={`/runs/${run.id}/trials/${t.id}`} disabled={archived} action={action}/>}
+      {latest&&<HumanInspection key={t.id+'-'+latest.id} run={run} trial={t} disabled={archived} act={act}/>}
       {latest?<>{run.policy.version==='arena-machine-v1'?<MachineScore key={latest.id} run={run} trial={t} state={state} act={(name,data)=>act(`/runs/${run.id}/trials/${t.id}/${name}`,data)} disabled={archived}/>:<><Panel title={`验收与评分 · 最近回收为第 ${latest.stageIndex+1} 轮`}><p className="score-notice">此记录保留创建时的旧评分算法。新建评测已默认使用机器评分与人工修正。</p><div className="metric-grid"><Metric label="客观检查" value={num(t.score.objective)}/><Metric label="人工复审" value={num(t.score.human)}/><Metric label="综合分" value={num(t.score.overall)}/></div><p className="muted">评分策略：{run.policy.objectiveWeight===0?'纯人工':run.policy.humanWeight===0?'仅客观检查':'客观检查 + 人工复审'}（客观 {run.policy.objectiveWeight}% / 人工 {run.policy.humanWeight}%）。</p><p className="muted">综合分需完成交付并补齐策略要求的证据。各分项有各自依据，个人约束另列；空值不是零分。</p>
     {(!latest.harnessUnchanged||!latest.hostUnchanged)&&<p className="alert-error">规则文件或宿主配置指纹发生变化，需核对；本结果不能视作条件保持一致。</p>}
     {t.lastJobError&&t.lastJobError.kind!=='native'&&<p role="alert" className="alert-error">{t.lastJobError.message}</p>}
