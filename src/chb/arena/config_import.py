@@ -28,13 +28,15 @@ def preview(app,data):
     warnings=[]
     if not native.get('model'):warnings.append('来源未指定模型，暂用默认值；请在配置页与桌面核对。')
     if not native.get('model_reasoning_effort'):warnings.append('来源未指定推理档位；保留宿主默认，不添加档位覆盖。')
+    features=native.get('features',{})
+    tier='fast' if native.get('service_tier') in {'fast','priority'} and isinstance(features,dict) and features.get('fast_mode',True) is True else 'standard' if native.get('service_tier')=='default' else ''
     return {'name':('全局规则' if scope=='global' else root.name)+' · 导入副本',
             'agentsPrompt':rules,'baseModel':native.get('model','gpt-6-astra'),
-            'reasoning':native.get('model_reasoning_effort',''),'interactiveMode':'adaptive',
+            'reasoning':native.get('model_reasoning_effort',''),'serviceTier':tier,'interactiveMode':'adaptive',
             'skills':[],'skillMode':'auto','customConstraints':[],
             'nativeSettings':{k:v for k,v in native.items() if k in OPTIONS and v in OPTIONS[k]},
             'integrations':{g:{k:v.get('enabled',True) for k,v in native.get(g,{}).items() if isinstance(v,dict) and type(v.get('enabled',True))==bool} for g in ['mcp_servers','plugins']},
-            'tagline':'只导入规则、模型和推理档位；Skills 在面板选择。',
+            'tagline':'只导入规则、模型、推理与速度档位；Skills 在面板选择。',
             'importSource':{'scope':scope,'root':str(root),'files':files,'at':now(),'warnings':warnings,
                             'note':'只读本层规则/设置与已配置工具开关，不是完整有效配置；未迁移认证、工具命令或插件安装文件。'}}
 

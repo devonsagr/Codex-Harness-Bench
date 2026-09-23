@@ -251,6 +251,12 @@ input[type=range]:focus-visible { outline:2px solid #71717a;outline-offset:2px;b
 .run-tab-panel>.panel { box-shadow:none; }
 .run-tab-panel details.panel-subtle { border:0;border-radius:0;background:transparent;padding:.75rem 0;border-top:1px solid #e2e8f0; }
 .run-tab-panel details>summary { min-height:1.5rem; }
+.run-tab-panel details.panel-subtle>summary { font-size:.82rem;line-height:1.55;font-weight:500; }
+.run-tab-panel details.panel-subtle .source { font-size:.78rem;line-height:1.55;max-height:26rem;overflow:auto; }
+.judge-command-list { max-height:22rem;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:0 .75rem; }
+.judge-command-list>details { padding:.6rem 0;border-bottom:1px solid var(--line); }
+.judge-command-list>details:last-child { border-bottom:0; }
+.judge-command-list summary { cursor:pointer;font-size:.85rem; }
 .judge-toolbar { display:flex;align-items:end;gap:.75rem;flex-wrap:wrap; }
 .judge-toolbar>.field { flex:1;min-width:min(100%,14rem); }
 .judge-toolbar>button { min-height:2.5rem; }

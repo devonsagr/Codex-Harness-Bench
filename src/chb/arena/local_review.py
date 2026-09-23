@@ -101,7 +101,7 @@ class ProcessTree:
         self.process.wait(timeout=10)
 
 
-def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='max',runtime_root=None):
+def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='max',runtime_root=None,service_tier='standard'):
     from .review_connection import connection
     route=connection()
     executable=codex_executable()
@@ -137,6 +137,8 @@ def execute_local(folder,source,instruction,model,packet,control,timeout,reasoni
               '-c','sandbox_workspace_write.network_access=true','--output-schema',str(schema),'-o',str(answer),'-']
         if os.name=='nt':args[2:2]=['-c','windows.sandbox="unelevated"']
         if reasoning:args[2:2]=['-c',f'model_reasoning_effort="{reasoning}"']
+        if service_tier=='fast':args[2:2]=['-c','service_tier="fast"','-c','features.fast_mode=true']
+        elif service_tier=='standard':args[2:2]=['-c','service_tier="default"']
         if route['custom']:
             import tomlkit
             table=tomlkit.inline_table();table.update(route['options'])

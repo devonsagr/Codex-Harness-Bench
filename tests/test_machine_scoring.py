@@ -50,6 +50,52 @@ class MachineScoringTests(unittest.TestCase):
         self.assertEqual(self.current()['state'],before)
         self.assertFalse(self.app.jobs)
 
+    def test_fast_judge_rejected_when_model_unknown_or_docker(self):
+        data={'captureId':self.capture['id'],'model':'fixture','reasoningEffort':'max','serviceTier':'fast','environment':'local'}
+        with self.assertRaisesRegex(ValueError,'未声明 Fast'):start_job(self.app,self.rid,self.tid,'judge',data)
+        self.assertFalse(self.app.jobs)
+        (self.root/'home/models_cache.json').write_text(json.dumps({'models':[{'slug':'fixture',
+            'supported_reasoning_levels':[{'effort':'max'}],'additional_speed_tiers':['fast']}]}))
+        with self.assertRaisesRegex(ValueError,'Harbor'):
+            start_job(self.app,self.rid,self.tid,'judge',{**data,'environment':'docker'})
+        self.assertFalse(self.app.jobs)
+
+    def test_many_valid_citations_preserved_and_excess_isolated(self):
+        value=copy.deepcopy(self.value)
+        value['ratings']['intent']['evidence']=[{'command':'python3 main.py','quote':'hello'} for _ in range(24)]
+        result=validate_machine(value,self.packet,self.commands)
+        self.assertEqual(result['ratings']['intent']['score'],80)
+        self.assertEqual(len(result['ratings']['intent']['evidence']),24)
+        value['ratings']['intent']['evidence']*=3
+        result=validate_machine(value,self.packet,self.commands)
+        self.assertIsNone(result['ratings']['intent']['score'])
+        self.assertEqual(result['ratings']['handoff']['score'],80)
+        self.assertEqual(result['validationWarnings'][0]['key'],'intent')
+
+    def test_saved_failed_local_report_can_be_revalidated_without_model_call(self):
+        from chb.arena.api import post
+        job='job-fixture'
+        folder=self.app.local/'runs'/self.rid/self.tid/'reviews'/job
+        folder.mkdir(parents=True)
+        value=copy.deepcopy(self.value)
+        value['ratings']['intent']['evidence']=[{'command':'python3 main.py','quote':'hello'} for _ in range(24)]
+        (folder/'answer.json').write_text(json.dumps(value))
+        (folder/'validation-error.json').write_text(json.dumps({'captureId':self.capture['id']}))
+        (folder/'events.jsonl').write_text(json.dumps({'type':'item.completed','item':{'id':'cmd1',
+            'type':'command_execution','command':'python3 main.py','aggregated_output':'hello\n','exit_code':0}}))
+        run=self.app.db.get('run',self.rid)
+        trial=run['trials'][0]
+        trial['judgeExecution']={'status':'failed','environment':'local','jobId':job,'captureId':self.capture['id'],'model':'fixture','reasoning':'max',
+                                 'startedAt':'2026-09-23T00:00:00+00:00','endedAt':'2026-09-23T00:05:00+00:00'}
+        trial['lastJobError']={'kind':'judge','message':'评分报告未通过校验：评分引用格式无效。'}
+        self.app.db.save('run',run,run['revision'])
+        with patch('chb.arena.local_review.execute_local',side_effect=AssertionError('must not call model')):
+            result=post(self.app,f'/api/arena/runs/{self.rid}/trials/{self.tid}/judge-revalidate',{})
+        self.assertIsNone(result['trials'][0].get('lastJobError'))
+        self.assertEqual(result['trials'][0]['reviews'][-1]['ratings']['intent']['score'],80)
+        self.assertEqual(result['trials'][0]['reviews'][-1]['revalidatedFrom'],job)
+        self.assertEqual(self.app.db.get('run',self.rid)['trials'][0]['judgeExecution']['endedAt'],'2026-09-23T00:05:00+00:00')
+
     def test_progress_tracks_commands_not_reasoning_and_redacts_credentials(self):
         from chb.arena.api import post
         folder=self.app.local/'runs'/self.rid/self.tid/'reviews/job-fixture'

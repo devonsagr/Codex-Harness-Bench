@@ -40,6 +40,38 @@ class CodexApplyTests(unittest.TestCase):
         self.undo(r);self.assertEqual((self.home/'config.toml').read_bytes(),self.original)
         self.assertFalse((self.home/'AGENTS.override.md').exists());self.assertEqual(self.undo(r)['status'],'restored')
 
+    def test_fast_requires_catalog_capability_and_writes_reversible_native_flags(self):
+        with self.assertRaisesRegex(ValueError,'未声明 Fast'):
+            self.app.save_config({**self.config,'serviceTier':'fast'})
+        (self.home/'models_cache.json').write_text(json.dumps({'models':[{'slug':'test-model',
+            'supported_reasoning_levels':[{'effort':'high'}],
+            'service_tiers':[{'id':'priority','name':'Fast'}]}]}))
+        self.config=self.app.save_config({**self.config,'serviceTier':'fast'})
+        project=tomllib.loads(codex_apply.project_settings(self.config).decode())
+        self.assertEqual(project['service_tier'],'fast')
+        self.assertTrue(project['features']['fast_mode'])
+        receipt=self.apply()
+        status=codex_apply.status(self.app)
+        self.assertEqual(status['serviceTier'],'fast')
+        self.assertTrue(tomllib.loads((self.home/'config.toml').read_text())['features']['fast_mode'])
+        self.undo(receipt)
+        self.assertEqual((self.home/'config.toml').read_bytes(),self.original)
+
+    def test_standard_overrides_inherited_fast_with_native_default_sentinel(self):
+        self.config=self.app.save_config({**self.config,'serviceTier':'standard'})
+        source=self.original.replace(b'approval_policy',b'service_tier="fast"\napproval_policy')+b'\n[features]\nfast_mode=true\n'
+        project=tomllib.loads(codex_apply.project_settings(self.config,source).decode())
+        self.assertEqual(project['service_tier'],'default')
+        self.assertTrue(project['features']['fast_mode'])
+        (self.home/'config.toml').write_bytes(source)
+        receipt=self.apply()
+        applied=tomllib.loads((self.home/'config.toml').read_text())
+        self.assertEqual(applied['service_tier'],'default')
+        self.assertTrue(applied['features']['fast_mode'])
+        self.assertEqual(codex_apply.status(self.app)['serviceTier'],'standard')
+        self.undo(receipt)
+        self.assertEqual((self.home/'config.toml').read_bytes(),source)
+
     def test_stale_unknown_settings_and_external_edit_conflicts(self):
         with self.assertRaises(ValueError):post(self.app,'/api/arena/codex/apply',{'configId':self.config['id'],'revision':0})
         with self.assertRaises(ValueError):self.app.save_config({**self.config,'nativeSettings':{'sandbox_mode':'danger-full-access'}})

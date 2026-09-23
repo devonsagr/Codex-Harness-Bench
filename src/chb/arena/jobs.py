@@ -8,9 +8,9 @@ import threading
 import time
 import tempfile
 import uuid
-from .files import now, verify_snapshot, inventory, snapshot
+from .files import now, verify_snapshot, inventory, snapshot, safe_path
 from .service import shell, applicable_checks
-from .models import validate_effort
+from .models import validate_effort, validate_service_tier
 from .review_options import timeout_seconds, ReviewBudgetExceeded
 
 JUDGE_DEFAULT_REASONING='max'
@@ -38,6 +38,9 @@ def start_job(app,rid,tid,kind,data):
         if kind=='judge' and data.get('reasoningEffort',JUDGE_DEFAULT_REASONING) not in JUDGE_REASONING_LEVELS|{''}:raise ValueError('裁判推理档位无效。')
         if kind=='judge':
             timeout_seconds(data)
+            tier=validate_service_tier(data['model'],data.get('serviceTier','standard'))
+            if tier=='fast' and data.get('environment','docker')!='local':
+                raise ValueError('Docker/Harbor 裁判尚未验证 Fast 透传；请选择本机裁判。')
             if data.get('environment','docker')=='docker' and data.get('reasoningEffort')=='ultra':raise ValueError('当前 Harbor 裁判适配器尚不支持 ultra；请选择本机裁判或其他已支持档位。')
             if data.get('reasoningEffort',JUDGE_DEFAULT_REASONING):validate_effort(data['model'],data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),require_known=True)
             from .review_connection import connection
@@ -47,7 +50,7 @@ def start_job(app,rid,tid,kind,data):
         if kind=='native':trial['nativeExecution']={'status':'running','phase':'准备本机测试验收','startedAt':now(),'captureId':capture['id'],'jobId':uuid.uuid4().hex[:12]}
         trial.pop('lastJobError',None)
         if kind=='judge':trial['judgeExecution']={'status':'preparing','startedAt':now(),'captureId':capture['id'],
-            'model':data['model'],'reasoning':data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),'environment':data.get('environment','docker'),
+            'model':data['model'],'reasoning':data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),'serviceTier':tier,'environment':data.get('environment','docker'),
             'timeoutSeconds':timeout_seconds(data),'connection':route['public']}
         if kind=='check' or (kind=='judge' and data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex'])):
             capture.setdefault('checkAttempts',[]).append({'at':now(),'results':capture['checks']})
@@ -125,6 +128,70 @@ def stop_job(app,rid,tid):
         control['stop'].set()
         for name in tuple(control['containers']):shell(['docker','stop','--time','1',name],timeout=8)
     return {'stopping':True,'desktopStopped':False}
+
+
+def revalidate_saved_review(app,rid,tid):
+    """Recheck a saved local judge answer against the original frozen capture, without a model call."""
+    with app.lock:
+        run,trial=app.trial(rid,tid)
+        execution=trial.get('judgeExecution') or {}
+        if run.get('archived') or run.get('deletionPending') or (rid,tid) in app.jobs:
+            raise ValueError('评测已归档、正在删除或审查仍在运行，不能重新校验。')
+        if run['policy']['version']!='arena-machine-v1' or execution.get('environment')!='local' or execution.get('status')!='failed':
+            raise ValueError('只有本机裁判的校验失败报告可重新校验。')
+        if '评分报告未通过校验' not in (trial.get('lastJobError') or {}).get('message',''):
+            raise ValueError('此审查不是报告校验失败，不能复用旧报告。')
+        from .service import identifier
+        job_id=identifier(execution.get('jobId'))
+        capture_id=identifier(execution.get('captureId'))
+        capture=next((c for c in trial['captures'] if c['id']==capture_id),None)
+        if not capture:raise ValueError('冻结回收版本已不存在。')
+        if capture is not trial['captures'][-1]:raise ValueError('已有更新的回收版本；旧报告不能作为当前产物评分。')
+        folder=safe_path(app.local,f'runs/{rid}/{tid}/reviews/{job_id}')
+        answer_file=safe_path(folder,'answer.json');error_file=safe_path(folder,'validation-error.json')
+        if not answer_file.is_file() or not error_file.is_file() or answer_file.stat().st_size>2_000_000 or error_file.stat().st_size>2_000_000:
+            raise ValueError('保存的原始报告或校验记录不存在。')
+        error=json.loads(error_file.read_text(encoding='utf-8'))
+        if error.get('captureId')!=capture_id:raise ValueError('校验记录与冻结版本不一致。')
+        task=next(t for t in run['tasks'] if t['id']==trial['taskId'])
+        packet=review_packet(app,rid,tid,capture,task)
+        from .machine import evidence_key, validate_machine
+        packet.update(policy=run['policy'],evidenceKey=evidence_key(capture))
+        frozen=safe_path(app.local,f'runs/{rid}/{tid}/captures/{capture_id}/files')
+        for name,body in inventory(frozen)[0].items():
+            try:packet['files'][name]=body.decode('utf-8')
+            except UnicodeError:pass
+        commands=[]
+        log=safe_path(folder,'events.jsonl')
+        if log.is_file():
+            if log.stat().st_size>50_000_000:raise ValueError('原始审查日志超过 50 MB，无法安全重新校验。')
+            for line in log.read_text(encoding='utf-8',errors='replace').splitlines():
+                try:event=json.loads(line)
+                except ValueError:continue
+                if not isinstance(event,dict):continue
+                item=event.get('item',{})
+                if not isinstance(item,dict) or event.get('type')!='item.completed' or item.get('type')!='command_execution':continue
+                commands.append({'id':str(item.get('id',len(commands))),'command':str(item.get('command',''))[:16000],
+                                 'output':str(item.get('aggregated_output',''))[:60000],'exitCode':item.get('exit_code')})
+        value=json.loads(answer_file.read_text(encoding='utf-8'))
+        result=validate_judge(value,packet)
+        result.update(validate_machine(value,packet,commands))
+        verify_snapshot(frozen,capture['manifest'])
+        route_file=safe_path(folder,'connection.json')
+        if route_file.is_file() and route_file.stat().st_size>2_000_000:raise ValueError('审查连接记录超过 2 MB。')
+        connection_info=json.loads(route_file.read_text(encoding='utf-8')) if route_file.is_file() else {}
+        report={**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],
+                'model':execution.get('model'),'reasoningEffort':execution.get('reasoning'),
+                'serviceTier':execution.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME',
+                'executionMode':'cli-review-only','reviewEnvironment':'local','jobPath':str(folder),
+                'imageId':'native-sandbox:revalidated','captureHash':capture['manifest']['sha256'],
+                'revalidatedFrom':job_id}
+        trial['reviews'].append({'id':'ai-'+uuid.uuid4().hex[:12],'kind':'ai','captureId':capture_id,'at':now(),**report})
+        execution.update(status='completed',revalidatedAt=now())
+        trial.pop('lastJobError',None)
+        app.event(run,'已从保存的原始报告重新核对引用，无新模型调用。',tid)
+        app.db.save('run',run,run['revision'])
+        return app.present_run(app.db.get('run',rid))
 
 
 def run_checks(app,rid,tid,capture,task,control):
@@ -300,6 +367,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
             '每个维度给0–100或null。0–39核心失败；40–59重大缺口；60–79主流程成立但有问题；80–94主要要求有验证；95–100全面且有复现证据。'
             '静态阅读标static，真实运行标runtime，缺证据标unverified并score:null。UX/性能必须runtime。'
             '每个非空分数、每个已判定需求必须引用文件的原文行，或实际执行命令及其输出原文，或已有checkId及其输出原文。'
+            '每个维度、每条需求的证据引用最多20条；优先选择直接证明结论的引用。'
             '命令引用command必须是你实际发出的命令原文，quote必须来自其真实输出；不能用自己打印的评价充当功能证据。'
             'findings只列文件问题。最终只输出JSON：'
             '{"summary":"结论与局限","findings":[],"ratings":{"维度ID":{"score":80,"method":"runtime","reason":"依据与缺口","evidence":[{"command":"实际命令","quote":"实际输出子串"}]}},'
@@ -319,7 +387,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
     timeout=timeout_seconds(data)
     if local:
         from .local_review import execute_local
-        event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout,reasoning,runtime_root=app.local/'reviewer-runtime')
+        event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout,reasoning,runtime_root=app.local/'reviewer-runtime',service_tier=data.get('serviceTier','standard'))
         image='native-sandbox:'+CODEX_VERSION
         logs=[event_file]
     else:
@@ -403,4 +471,4 @@ def run_judge(app,rid,tid,capture,task,data,control):
         raise ValueError(f'评分报告未通过校验：{reason[:150]} 原始报告已保留；本次未生成分数。') from exc
     route_file=folder/'connection.json'
     connection_info=json.loads(route_file.read_text(encoding='utf-8')) if route_file.is_file() else {}
-    return {**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}
+    return {**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'serviceTier':data.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}

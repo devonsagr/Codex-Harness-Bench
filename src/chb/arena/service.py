@@ -111,6 +111,8 @@ class Arena:
         if not re.fullmatch(r'[a-zA-Z0-9._/-]+',value['baseModel']): raise ValueError('模型标识格式无效。')
         if value.get('reasoning') not in {'','none','minimal','low','medium','high','xhigh','max','ultra'}: raise ValueError('推理档位无效。')
         validate_effort(value['baseModel'],value['reasoning'])
+        from .models import validate_service_tier
+        if 'serviceTier' in value:validate_service_tier(value['baseModel'],value['serviceTier'])
         if value.get('interactiveMode') not in {'one-shot-direct','step-by-step-confirm','adaptive'}: raise ValueError('交互模式无效。')
         skills=value.get('skills',[])
         if not isinstance(skills,list) or len(skills)>30 or len(set(skills))!=len(skills): raise ValueError('技能列表无效或重复。')
@@ -125,7 +127,7 @@ class Arena:
             identifier(c.get('id'));text(c.get('title'),200);text(c.get('ruleDesc',''),3000,False)
             c['isActive']=bool(c.get('isActive'))
         if len({c['id'] for c in constraints})!=len(constraints): raise ValueError('个人约束编号重复。')
-        allowed=['id','name','agentsPrompt','baseModel','reasoning','interactiveMode','skills','customConstraints','tagline','author','specialFeatures']
+        allowed=['id','name','agentsPrompt','baseModel','reasoning','serviceTier','interactiveMode','skills','customConstraints','tagline','author','specialFeatures']
         body={k:value[k] for k in allowed if k in value}
         body['skillMode']=mode
         body['nativeSettings']=settings(value.get('nativeSettings',{}))

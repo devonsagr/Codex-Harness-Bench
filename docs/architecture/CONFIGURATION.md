@@ -119,14 +119,14 @@
 |模型、推理、联网搜索、输出详略、推理摘要|写入CODEX_HOME/config.toml；保留注释、未知键和认证|
 |AGENTS、交互约定、个人规则|所选内容写全局AGENTS.override.md，原文件私有备份；原AGENTS.md不改|
 |Skills|冻结文件放到CODEX_HOME/skills；同名同内容复用，不同内容拒绝；撤销只处理本次写入文件|
-|MCP、插件（含Superpowers）|按本机config.toml已有ID选择继承/启用/停用；不复制工具命令、密钥，不把启用标志当安装完成|
+|MCP、插件|按本机config.toml已有ID选择继承/启用/停用；不复制工具命令、密钥，不把启用标志当安装完成|
 |权限/沙箱、Hooks、记忆、子代理、其他项目层|属于环境条件，本轮不迁移；保持宿主值，不宣称整个Harness已完整导出|
 
 私有codex-applications目录保存应用前字节和写入后摘要；多文件写入失败尝试回滚，进程中断留下可恢复记录。撤销前核对所有相关文件，普通撤销遇外部修改即拒绝覆盖。记录/接口不返回备份正文或凭据。一个宿主同时只保留一份活动应用；工作台记录正在执行时不允许切换。
 
 新工作区另生成.codex/config.toml，让模型/推理/原生设置随试次冻结。受信任项目才加载项目层；已有任务覆盖、重载/重启、组织策略仍可影响有效配置。UI状态为“文件已写入”，正式执行前仍核对桌面实际值。对准备态试次的显式应用保留原hostFingerprint，并记录appliedHostFingerprint及应用ID，后续回收按应用后的预期值检查；不改旧回收。
 
-依据：[OpenAI配置层](https://learn.chatgpt.com/docs/config-file/config-basic)、[配置字段](https://learn.chatgpt.com/docs/config-file/config-reference)、[Superpowers安装入口](https://github.com/obra/superpowers#codex-app)。
+依据：[OpenAI配置层](https://learn.chatgpt.com/docs/config-file/config-basic)、[配置字段](https://learn.chatgpt.com/docs/config-file/config-reference)。
 
 
 应用状态同时区分历史回执与当前文件：/codex/status对活动应用返回fileChecks、filesMatch及当前全局instructionsFile，仅读取；不输出文件正文、认证或备份。文件变化不自动推断某个设置失效，也不强制覆盖。页面可手动“核对当前文件”，显示匹配/变化的相对路径；已写入不等于桌面当前任务已采用。
@@ -153,3 +153,9 @@ U19增加“保留其他修改并撤销”：只对config.toml做应用前/应�
 首次启用读取并保存三份原文件config.toml、AGENTS.md、AGENTS.override.md及hash，目录.local/arena/initial-config/{homeHash}；配置库增加只读初始副本，编辑只能另存。已有用户无法追溯到功能启用前；Skills和其他profile不在原文件恢复范围。恢复需无工作台任务/当前应用，保存before供撤销，缺失文件也按原状态恢复。
 
 模型读取当前model_catalog_json或models_cache，附加当前配置模型，第三方无目录不套用官方全表。原生active profile可读；未知能力不强填档位。本机裁判仅继承指定连接字段和指定env_key，或启动时复制auth.json到临时home；不复制个人规则、历史、插件。ChatGPT和API/反代按各自账户规则，服务启动环境必须能访问指定变量。密钥链独占登录、自定义OAuth转发/任意头不支持；不保证桌面与CLI登录相同、不保证池子额度。
+
+## U35 Fast 速度与插件清单
+
+配置新增可选 `serviceTier`：缺失/空串沿用起点或宿主原设置，`standard` 写 Codex 原生的 `service_tier="default"` 明确选择标准速度，`fast` 写 `service_tier="fast"` 与 `features.fast_mode=true`。`features.fast_mode` 控制档位选择功能，并非标准速度本身。只对本机模型目录 `service_tiers` 或 `additional_speed_tiers` 声明 Fast 的模型开放；切换到不支持的模型时前端回到标准，后端保存/应用仍独立拒绝无效组合。工作区在创建时冻结该配置，全局设置只在显式应用时变更并备份、可撤销。已运行桌面任务不会因此自动改速，实际服务端档位无法单凭 TOML 读回证明。参考[官方速度档位](https://learn.chatgpt.com/docs/agent-configuration/speed)、[配置字段](https://learn.chatgpt.com/docs/config-file/config-reference)和[Codex 默认档位哨兵值源码](https://github.com/openai/codex/blob/main/codex-rs/protocol/src/config_types.rs)。
+
+配置页插件和MCP清单每次进入时读取本机 `config.toml` 的已配置项，可手动刷新；不是产品固定清单，不扫描所有已安装插件，也不执行插件更新。曾被写进标题的私人插件示例已移除；历史来源记录仍按需求保真保留。
