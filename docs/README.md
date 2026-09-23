@@ -51,3 +51,5 @@
 4. 两套配置只差一条规则：要看实际条件、任务版本和重复结果，单次高两分不构成可靠收益。见用量合同 M-AC4。
 
 [公开来源与DRadar研究](research/landscape.md)说明可借鉴的任务/环境/评分方式；[Gemini来源审计](architecture/GEMINI_ALIGNMENT.md)仅保留历史来源，不作为当前需求。
+
+- [八项榜单评分方法与本项目两类评价](research/benchmark-scoring-20260923.md)：标准、裁判、证据、公开程度及开源框架借鉴。

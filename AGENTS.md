@@ -28,3 +28,6 @@
 - U30：Tengo支持Windows固定Go工具链及原测试适配，题库一键准备、快照验收与日志/历史分存；不是官方Linux排行榜。工具链/环境检查/native-runtime/native-homes均在.local/arena；命令沙箱限制写入并禁网，但允许宿主读取，不宣称虚拟机隔离。参考解只用于.local/qa负例/正例验证，不进入开发起点、提示词或Git。
 
 - U31：DeepSWE工作台直接选题，创建时仅准备所选定义与固定源码；同仓库同提交校验复用，每次独立run/trial/workspace。Tengo两题与Yaegi Embed支持Windows原测试适配；ABS改进题仅源码验证。preparation_job持久化进度、请求幂等与中断恢复，不宣称113套环境已就绪。
+
+- U33–U34：裁判思考档位读取原生模型能力，未知档位使用模型默认；本机裁判预算默认1小时、上限8小时，预算耗尽是未完成。首次保护config.toml/AGENTS.md/AGENTS.override.md，不含认证；恢复必须显式且可撤销。工作区清理与整评测永久删除分开；删除测试仅隔离夹具。
+- 两类评分解释：公开基准优先原题验收，开放真实项目按需求/质量/体验；程序、AI、人工参考评价分存。人工审查副本在run/trial/human-inspections，页面仅展示文件/图片和已声明启动说明，不自动执行项目。不得将AI质量分冒充官方榜单；所有分数仅供参考。来源研究见docs/research/benchmark-scoring-20260923.md。

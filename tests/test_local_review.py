@@ -13,7 +13,8 @@ class LocalReviewTests(unittest.TestCase):
     def test_only_fixed_sandboxed_invocation_and_auth_cleanup(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);home=root/'home';home.mkdir();(home/'auth.json').write_text('{"fixture":true}')
-            for name in ('AGENTS.md','config.toml','history.jsonl','memory.md'):(home/name).write_text('previous context')
+            for name in ('AGENTS.md','history.jsonl','memory.md'):(home/name).write_text('previous context')
+            (home/'config.toml').write_text('model="fixture"')
             folder=root/'review';source=folder/'task';source.mkdir(parents=True);(source/'instruction.md').write_text('fixture')
             copied_home=[]
             def launch(args,**kwargs):

@@ -239,3 +239,12 @@ native-runtime/native-homes为每次临时副本和空CODEX_HOME，正常完成�
 - POST `/runs/prepare-async`：沿用prepare字段，必须提供requestId。立即返回preparation_job（id/status/phase/taskIds/runId/error/时间）；state.preparationJobs供轮询。running/completed同内容请求幂等，不同内容同编号拒绝；failed/interrupted可重试。单实例一次准备，网络不占主API锁；完成前核对配置和题目版本，改变则不创建Run。源码按固定索引获取，适配题自动准备环境，最后调用原prepare冻结。
 - POST `/sources/preview`：taskId仅固定索引id，只下载并校验instruction.md，返回text。不能指定URL、路径或命令。
 - 服务重启将未完成准备标为interrupted；若同requestId的Run已写入则恢复completed。保留缓存，不自动重复执行。下载文件重试一次后给出可重试错误。原同步prepare和sources/prepare保留兼容，主UI不再要求预下载。
+
+## U33–U34 补充接口
+
+- storage/delete-run：runId/revision/desktopStopped/确认短语；拒绝后台任务和活动状态。先保存deletionPending，再删除owned运行与trash目录、凭回执确认的裁判残留，最后事务删除records/revisions与准备任务、截断WAL。共享缓存/配置/宿主日志/手工导出不在范围；中断可按可见记录重试。
+- state.initialConfig、codex/restore-initial：一次三文件备份与显式恢复，完整性校验，当前文件另存撤销回执；认证不进入初始配置备份。
+- runs/{rid}/trials/{tid}/inspection-status|file|prepare|open|save：均受既有本机令牌/Origin保护。data.captureId必填；file.path必须在快照清单，文本只作为文本，PNG/JPEG/WebP惰性显示。prepare生成human-inspections/{id}/workspace，不执行命令；open只打开本次记录目录。save追加版本绑定参考评价，不改原评分。
+- judge-progress新增实际instruction、公开agent messages、命令、elapsed与runtime目录；不返回reasoning事件。
+
+人工副本位于run内，整评测删除包含它；仅workspace清理保留它。人工预览链接只接纳明确端口的本机HTTP地址，工作台不代理获取该URL、不自动运行项目脚本。

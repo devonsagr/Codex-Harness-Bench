@@ -48,7 +48,7 @@ def status(app):
                 for name,entry in r['files'].items():
                     try:
                         target=safe_path(home,name)
-                        matches=target.is_file() and hash_bytes(target.read_bytes())==entry['afterHash']
+                        matches=(target.is_file() and hash_bytes(target.read_bytes())==entry['afterHash']) if entry['afterHash'] is not None else not target.exists()
                     except (OSError,ValueError):matches=False
                     checks.append({'path':name,'matches':matches})
                 item['fileChecks']=checks
@@ -75,10 +75,16 @@ def write_file(path,data):
     finally:
         if tmp.exists():tmp.unlink()
 
+def set_model(doc,config):
+    doc['model']=config['baseModel']
+    if config['reasoning']:doc['model_reasoning_effort']=config['reasoning']
+    else:doc.pop('model_reasoning_effort',None)
+
+
 def project_settings(config,raw=b''):
     try:doc=tomlkit.parse(raw.decode('utf-8-sig'))
     except Exception as exc:raise ValueError('题目起点的 .codex/config.toml 格式无效。') from exc
-    doc['model']=config['baseModel'];doc['model_reasoning_effort']=config['reasoning']
+    set_model(doc,config)
     for key,value in settings(config.get('nativeSettings',{})).items():doc[key]=value
     for group,items in connections(config.get('integrations',{})).items():
         if not items:continue
@@ -104,6 +110,8 @@ def switch(app,data,frozen=None):
         raise
 
 def apply(app,data,frozen=None):
+    from .initial_config import ensure
+    app.initial_config=ensure(app)
     from .service import identifier
     config=frozen or app.db.get('config',identifier(data.get('configId')))
     validate_effort(config['baseModel'],config['reasoning'],require_known=True)
@@ -120,7 +128,7 @@ def apply(app,data,frozen=None):
             if key not in doc.get(group,{}) or not isinstance(doc[group][key],dict):
                 raise ValueError('所需 MCP 或插件尚未在本机配置，请先在 Codex 安装/连接。')
             doc[group][key]['enabled']=enabled
-    doc['model']=config['baseModel'];doc['model_reasoning_effort']=config['reasoning']
+    set_model(doc,config)
     for key,value in settings(config.get('nativeSettings',{})).items():doc[key]=value
     changes={'config.toml':tomlkit.dumps(doc).encode()}
     skills=[app.db.get('skill',sid) for sid in config['skills']]
@@ -174,7 +182,7 @@ def applied_toml(app,r,item):
         doc=tomlkit.parse(before.decode('utf-8-sig'))
         for group,items in config.get('integrations',{}).items():
             for key,enabled in items.items():doc[group][key]['enabled']=enabled
-        doc['model']=config['baseModel'];doc['model_reasoning_effort']=config['reasoning']
+        set_model(doc,config)
         for key,value in config.get('nativeSettings',{}).items():doc[key]=value
         raw=tomlkit.dumps(doc).encode()
     if hash_bytes(raw)!=item['afterHash']:raise ValueError('不能核实原应用内容，请手动核对冲突文件。')
@@ -208,7 +216,8 @@ def restore_plan(app,r,home,preserve=False):
         p=safe_path(home,name);current=p.read_bytes() if p.is_file() else None
         before=base64.b64decode(item['before']) if item['before'] is not None else None
         target=before
-        if current!=before and (current is None or hash_bytes(current)!=item['afterHash']):
+        matches_after=(hash_bytes(current) if current is not None else None)==item['afterHash']
+        if current!=before and not matches_after:
             if preserve and name=='config.toml' and current is not None:
                 target=merge_restore(before,applied_toml(app,r,item),current)
             else:raise ValueError('应用后的文件已被其他操作修改：'+name+'；为保留你的修改，未执行撤销。')

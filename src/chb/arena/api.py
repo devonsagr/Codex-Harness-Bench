@@ -31,11 +31,17 @@ def post(app,route,data):
     if parts==['storage','workspace']:
         from .storage import workspace
         return workspace(app,data)
+    if parts==['storage','delete-run']:
+        from .delete_run import delete
+        return delete(app,data)
     if parts==['baselines','import-github']:
         from .repository_source import import_repository
         return import_repository(app,data)
     with app.lock:
         if parts==['configs','save']:return app.save_config(data)
+        if parts==['codex','restore-initial']:
+            from .initial_config import restore
+            return restore(app,data)
         if parts==['codex','status']:return codex_apply.status(app)
         if parts==['codex','apply']:return codex_apply.apply(app,data)
         if parts==['codex','switch']:return codex_apply.switch(app,data)
@@ -62,6 +68,9 @@ def post(app,route,data):
         if len(parts)==3 and parts[0]=='runs' and parts[2]=='restore-config':return app.restore_config(identifier(parts[1]),identifier(data.get('configId')))
         if len(parts)==5 and parts[0]=='runs' and parts[2]=='trials':
             rid,tid,action=identifier(parts[1]),identifier(parts[3]),parts[4]
+            if action in {'inspection-status','inspection-file','inspection-prepare','inspection-open','inspection-save'}:
+                from .human_inspection import operate
+                return operate(app,rid,tid,action,data)
             if action=='judge-progress':
                 from .judge_progress import read_progress
                 return read_progress(app,rid,tid)
