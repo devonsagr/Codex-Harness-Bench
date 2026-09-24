@@ -141,6 +141,15 @@ class WebappTests(unittest.TestCase):
                 self.assertEqual(request('GET', '/.local/profiles/current/auth.json')[0],404)
                 self.assertEqual(request('GET', '/app.js')[0],200)
                 self.assertEqual(request('GET', '/app.css')[0],200)
+                dist=app.root/'frontend'/'dist'
+                (dist/'fonts').mkdir(parents=True)
+                (dist/'visuals').mkdir()
+                (dist/'fonts'/'display.ttf').write_bytes(b'font-fixture')
+                (dist/'visuals'/'wireframe.svg').write_text('<svg/>',encoding='utf-8')
+                self.assertEqual(request('GET','/fonts/display.ttf')[0],200)
+                self.assertEqual(request('GET','/visuals/wireframe.svg')[0],200)
+                self.assertEqual(request('GET','/fonts/%2e%2e/%2e%2e/.local/secret.ttf')[0],400)
+                self.assertEqual(request('GET','/.local/secret.ttf')[0],404)
             finally:
                 server.shutdown()
                 server.server_close()
