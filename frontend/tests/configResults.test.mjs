@@ -7,10 +7,10 @@ const source=readFileSync(new URL('../src/workbench/configResults.ts',import.met
 const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const {configResults}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 const cfg=(revision=1,extra={})=>({id:'config-a',revision,name:'Focused',baseModel:'model-a',reasoning:'low',skills:[],...extra});
-const task=(id)=>({id,revision:1,title:id});
+const task=(id,sourceKind)=>({id,revision:1,title:id,sourceKind});
 const policy=(version='machine')=>({version,objectiveWeight:0,humanWeight:100,dimensions:{quality:100}});
-const run=(id,taskId,score,{revision=1,mode='machine',override=false,changed=false,state='completed'}={})=>({
-  id,createdAt:`2026-09-${id.padStart(2,'0')}T12:00:00Z`,policy:policy(mode),configs:[cfg(revision,override?{preparationOverride:{}}:{})],tasks:[task(taskId)],
+const run=(id,taskId,score,{revision=1,mode='machine',override=false,changed=false,state='completed',sourceKind}={})=>({
+  id,createdAt:`2026-09-${id.padStart(2,'0')}T12:00:00Z`,policy:policy(mode),configs:[cfg(revision,override?{preparationOverride:{}}:{})],tasks:[task(taskId,sourceKind)],
   trials:[{id:`trial-${id}`,configId:'config-a',taskId,state,captures:[{harnessUnchanged:!changed,hostUnchanged:true}],score:{overall:score}}]
 });
 
@@ -47,4 +47,28 @@ test('untested current and archived configurations still appear as empty scoreca
   const state={configs:[cfg()],archivedConfigs:[{...cfg(),id:'archived'}],runs:[],archivedRuns:[]};
   const results=configResults(state);
   assert.deepEqual(results.map(g=>[g.config.id,g.score,g.archivedConfig]),[['config-a',null,false],['archived',null,true]]);
+});
+
+test('archiving both the configuration and its run keeps the score and makes the archive explicit',()=>{
+  const state={configs:[],archivedConfigs:[cfg()],runs:[],archivedRuns:[run('01','task-a',86)]};
+  const [result]=configResults(state);
+  assert.equal(result.archivedConfig,true);
+  assert.equal(result.current,false);
+  assert.equal(result.archivedRuns,1);
+  assert.equal(result.score,86);
+  assert.equal(result.tasks[0].entries[0].archived,true);
+});
+
+test('source breakdown is visible but the overall score still weights distinct tasks equally',()=>{
+  const state={configs:[cfg()],archivedConfigs:[],runs:[
+    run('01','bug-a',20,{sourceKind:'deepswe'}),
+    run('02','bug-a',40,{sourceKind:'deepswe'}),
+    run('03','bug-b',60,{sourceKind:'deepswe'}),
+    run('04','idea-a',90,{sourceKind:'prototype-prompt'})
+  ],archivedRuns:[]};
+  const [result]=configResults(state);
+  assert.equal(result.score,60); // (30 + 60 + 90) / 3, not the mean of two source means
+  assert.deepEqual(result.collections.map(c=>[c.label,c.tasks.length,c.trials,c.mean]),[
+    ['DeepSWE',2,3,45],['开放需求题',1,1,90]
+  ]);
 });
