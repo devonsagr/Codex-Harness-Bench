@@ -41,7 +41,7 @@
 
 本机模式不依赖Docker，固定执行Codex CLI。CLI不是仓库内置文件：按系统 `PATH` 查找 `codex`，也可用 `CHB_CODEX_BIN` 指定非标准安装路径；使用前必须由运行者自行安装并登录。工作台不会复制作者机器的绝对路径、自动安装 CLI 或自动登录。开启workspace-write原生沙箱，使用临时CODEX_HOME及凭据副本，不加载用户配置/规则，凭据目录与产物目录分离。Windows使用受限令牌并绑定本次进程树，停止/超时只结束自己启动的程序。裁判在临时项目副本工作，原始快照不开放写入；网络允许下载依赖。既有容器检查在本机模式跳过，其必要证据仍保持未知，不能伪造通过。本机CLI合成题已实跑；环境指纹尚不完整，本机结果暂不进入严格同条件比较。
 
-机器评分默认使用 `gpt-5.6-luna`、推理档位 `max`；页面允许选择其他账户可用模型，账户没有默认模型时回退到可见列表并保留实际模型标识。裁判额度属于执行本机 CLI 的登录账户；ChatGPT 登录和 API Key 登录的额度/计费由各自账户渠道决定，不能把仓库或桌面评测记录当作独立额度来源。每次点击评分都会创建新的 `codex exec` 进程，不调用 `resume`，使用 `--ephemeral` 和新的临时 CODEX_HOME；不读取上一次裁判的会话、提示词、评分或内存。Docker/Harbor 同样为每次新 Job 创建新环境并在结束后删除。报告保存 `model`、`reasoningEffort`、`codexVersion`、`reviewEnvironment`、`judgeIsolation` 和 `jobPath`，可追溯到完整提示词和事件日志。
+机器评分页面首选 `gpt-6-luna`、推理档位 `max`；页面允许选择其他账户可用模型，账户没有首选模型时回退到可见列表并保留实际模型标识。裁判额度属于执行本机 CLI 的登录账户；ChatGPT 登录和 API Key 登录的额度/计费由各自账户渠道决定，不能把仓库或桌面评测记录当作独立额度来源。每次点击评分都会创建新的 `codex exec` 进程，不调用 `resume`，使用 `--ephemeral` 和新的临时 CODEX_HOME；不读取上一次裁判的会话、提示词、评分或内存。Docker/Harbor 同样为每次新 Job 创建新环境并在结束后删除。报告保存 `model`、`reasoningEffort`、`judgePromptVersion`、`codexVersion`、`reviewEnvironment`、`judgeIsolation` 和 `jobPath`，可追溯到完整提示词和事件日志。本站 AI 质量提示词由本项目制定并标记版本，不是 DeepSWE 官方程序验证器的判分提示词。
 
 Docker裁判镜像 `chb-reviewer:machine-v1` 包含 Codex CLI、Node、Python、pnpm、Playwright Chromium。用 `scripts/prepare_arena_review.py` 显式构建。已有Harbor负责环境、执行和清理，未另建通用Agent runner；本轮没有安装独立Rewardkit包。
 
@@ -88,7 +88,7 @@ U20复用Harbor，U22依用户无需Docker要求增加固定本机审查入口�
 
 ### U25 裁判默认、独立上下文与监控
 
-评分默认 gpt-5.6-luna / max。模型不可用或未确认支持 max 时显示原因并阻止按钮，不回退成另一模型。请求携带 reasoningEffort，后台再查本机已知模型能力；报告保留实际模型/档位/CLI版本/环境。
+评分页面首选 gpt-6-luna / max。首选模型在本机目录不可用时显示实际可选模型，不静默伪装成 Luna；选择的模型不可用或档位不受支持时阻止按钮。请求携带 reasoningEffort，后台再查本机已知模型能力；报告保留实际模型/档位/CLI版本/环境。跨次质量参考分按裁判模型、档位、提示词版本与评分方案核对，不同协议不可直接合算。
 
 本机每次创建新的 codex exec --ephemeral 进程、临时 CODEX_HOME 和独立产物副本，只临时复制登录凭据；不 resume、不继承宿主规则/用户配置或旧评分会话。原快照保持不变。它是 CLI 独立审查，正式被测执行仍在桌面。这里隔离的是会话/配置/副本，不是全新操作系统：宿主工具、网络、依赖和模型本身仍影响结果；不承诺完全免疫产物中的提示注入。
 

@@ -14,6 +14,7 @@ from .models import validate_effort, validate_service_tier
 from .review_options import timeout_seconds, ReviewBudgetExceeded
 
 JUDGE_DEFAULT_REASONING='max'
+JUDGE_PROMPT_VERSION='arena-judge-2026-09-24'
 JUDGE_REASONING_LEVELS={'none','minimal','low','medium','high','xhigh','max','ultra'}
 
 
@@ -471,4 +472,4 @@ def run_judge(app,rid,tid,capture,task,data,control):
         raise ValueError(f'评分报告未通过校验：{reason[:150]} 原始报告已保留；本次未生成分数。') from exc
     route_file=folder/'connection.json'
     connection_info=json.loads(route_file.read_text(encoding='utf-8')) if route_file.is_file() else {}
-    return {**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'serviceTier':data.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}
+    return {**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgePromptVersion':JUDGE_PROMPT_VERSION,'serviceTier':data.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION,'captureHash':capture['manifest']['sha256']}

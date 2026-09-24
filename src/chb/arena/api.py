@@ -39,6 +39,10 @@ def post(app,route,data):
         return import_repository(app,data)
     with app.lock:
         if parts==['configs','save']:return app.save_config(data)
+        if len(parts)==3 and parts[0]=='configs' and parts[2]=='delete':
+            config_id=identifier(parts[1])
+            if config_id.startswith('initial-'):raise ValueError('最初配置副本受保护，不能删除。')
+            return app.db.delete_archived_config(config_id,data.get('revision'))
         if parts==['codex','restore-initial']:
             from .initial_config import restore
             return restore(app,data)

@@ -30,7 +30,7 @@ export function App(){
   const run=state?.runs.find(r=>r.id===runId)||state?.archivedRuns.find(r=>r.id===runId);
   return <div className="app-shell"><a className="skip-link" href="#workspace-content">跳到主要内容</a><ArenaHeader activeTab={tab} onTabChange={navigate}/>
     <main id="workspace-content" className="arena-main" tabIndex={-1}>
-      <div className="workspace-topbar"><div className="breadcrumb"><span>工作空间</span><ChevronRight size={14}/><strong>{arenaPages[tab].label}</strong></div><div className="workspace-tools"><button className="icon-button" aria-label={theme==='light'?'切换到暗色模式':'切换到白天模式'} title={theme==='light'?'切换到暗色模式':'切换到白天模式'} onClick={()=>setTheme(theme==='light'?'dark':'light')}>{theme==='light'?<Sun size={18}/>:<Moon size={18}/>}</button><span className={'connection-indicator '+(connectionError?'offline':'')}><Radio size={14}/>{connectionError?'连接中断':'本地工作区'}</span><button className="icon-button" title="刷新记录" aria-label="刷新记录" onClick={()=>refresh().then(()=>{setError('');setNotice('');}).catch(()=>{})}><RefreshCw size={16}/></button></div></div>
+      <div className="workspace-topbar"><div className="breadcrumb"><button type="button" onClick={()=>navigate('workbench')}>工作空间</button><ChevronRight size={14}/>{run&&tab==='workbench'?<><button type="button" onClick={()=>setRunId(null)}>评测工作台</button><ChevronRight size={14}/><strong>本次评测</strong></>:<strong>{arenaPages[tab].label}</strong>}</div><div className="workspace-tools"><button className="icon-button" aria-label={theme==='light'?'切换到暗色模式':'切换到白天模式'} title={theme==='light'?'切换到暗色模式':'切换到白天模式'} onClick={()=>setTheme(theme==='light'?'dark':'light')}>{theme==='light'?<Sun size={18}/>:<Moon size={18}/>}</button><span className={'connection-indicator '+(connectionError?'offline':'')}><Radio size={14}/>{connectionError?'连接中断':'本地工作区'}</span><button className="icon-button" title="刷新记录" aria-label="刷新记录" onClick={()=>refresh().then(()=>{setError('');setNotice('');}).catch(()=>{})}><RefreshCw size={16}/></button></div></div>
       <div className="workspace-body">
       {connectionError&&<div role="alert" className="alert-error">{connectionError}<button className="ml-4 underline" onClick={()=>window.location.reload()}>重新加载页面</button></div>}
       {error&&<div role="alert" className="alert-error">{error}<button className="ml-4 underline" onClick={()=>setError('')}>关闭</button></div>}
@@ -40,7 +40,7 @@ export function App(){
         {tab==='configs'&&<ConfigManager state={state} act={act} initialConfigId={selectedConfigId} onUse={id=>{setSelectedConfigId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='tasks'&&<TaskManager state={state} act={act} onUse={id=>{setSelectedTaskId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='history'&&<History state={state} act={act} onOpen={go} onError={setError}/>}
-        {tab==='leaderboard'&&<Comparison state={state} onOpen={go}/>}
+        {tab==='leaderboard'&&<Comparison state={state} act={act} onOpen={go}/>}
         {tab==='spec'&&<Guide state={state}/>}
         {tab==='storage'&&<Storage act={act} onOpen={go}/>}
 

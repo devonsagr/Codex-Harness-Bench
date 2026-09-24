@@ -84,6 +84,18 @@ class ArenaTests(unittest.TestCase):
         self.assertEqual(len(self.app.state()['archivedRuns']),1)
         with self.assertRaises(ValueError):self.mutate(r,'capture')
         self.app.db.archive('run',r['id'],False,r['revision']+1);self.assertEqual(len(self.app.state()['runs']),1)
+    def test_delete_archived_config_keeps_frozen_run(self):
+        r=self.prepare()
+        c=self.app.db.get('config','minimal')
+        with self.assertRaisesRegex(ValueError,'先归档'):
+            post(self.app,'/api/arena/configs/minimal/delete',{'revision':c['revision']})
+        archived=post(self.app,'/api/arena/configs/minimal/archive',{'revision':c['revision'],'archived':True})
+        with self.assertRaisesRegex(ValueError,'版本已变化'):
+            post(self.app,'/api/arena/configs/minimal/delete',{'revision':c['revision']})
+        post(self.app,'/api/arena/configs/minimal/delete',{'revision':archived['revision']})
+        self.assertEqual(r['configs'][0]['id'],self.app.db.get('run',r['id'])['configs'][0]['id'])
+        self.assertFalse(any(c['id']=='minimal' for c in self.app.state()['archivedConfigs']))
+        with self.assertRaises(ValueError):self.app.db.get('config','minimal')
     def test_stage_gates_complete_and_capture_immutability(self):
         r=self.prepare();w=Path(r['trials'][0]['workspacePath'])
         with self.assertRaises(ValueError):self.mutate(r,'continue')

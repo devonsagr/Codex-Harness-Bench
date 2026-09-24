@@ -8,6 +8,7 @@ import {Field,Panel,Details,Empty,ModelSelect,Dialog} from './ui';
 import {TaskEnvironment,canStartTask,needsBaseline} from './TaskEnvironment';
 import {ContractEditor,ContractView,TaskFilters,TaskImport,matchTask} from './Contracts';
 import {configResults} from './configResults';
+import {DeleteConfig} from './DeleteConfig';
 
 const newConfig=():Config=>({id:'',revision:0,name:'',agentsPrompt:'',baseModel:'gpt-6-astra',reasoning:'medium',serviceTier:'standard',interactiveMode:'adaptive',skills:[],customConstraints:[]});
 export function ConfigManager({state,act,onUse,initialConfigId}:{state:State;act:Act;onUse:(id:string)=>void;initialConfigId?:string|null}){
@@ -39,7 +40,7 @@ export function ConfigManager({state,act,onUse,initialConfigId}:{state:State;act
       <div hidden={section!=='apply'} className="editor-section"><CodexApply config={draft} act={act} save={async()=>{const c=await act<Config>('/configs/save',draft);setDraft(c);return c;}}/></div>
     </div><footer className="editor-footer"><span>{draft.skills.length} 个 Skills · {draft.customConstraints.filter(c=>c.isActive).length} 条个人约束</span><div className="editor-actions">{draft.id&&<button className="btn-secondary" onClick={()=>void save(true)}>另存副本</button>}<button className="btn-secondary" onClick={async()=>{const c=dirty?await save():draft;if(c)onUse(c.id);}}>用于评测</button></div></footer></section>
     <Dialog title="导入配置" open={dialog==='import'} onClose={()=>setDialog(null)}><button className="btn-primary" onClick={()=>act<Config>('/configs/import-current',{}).then(c=>{choose(c);setDialog(null);}).catch(()=>{})}>读取当前 Codex 配置</button><ProjectConfigImport act={act} onImported={c=>{choose(c);setDialog(null);}}/><p className="muted">导入保存到工作台；“应用到 Codex”才会写入宿主配置。</p></Dialog>
-    <Dialog title="配置回收站" open={dialog==='trash'} onClose={()=>setDialog(null)}>{state.archivedConfigs.length?state.archivedConfigs.map(c=><div className="recycle-row" key={c.id}><span>{c.name}</span><button className="btn-secondary" onClick={()=>act<Config>(`/configs/${c.id}/archive`,{revision:c.revision,archived:false}).then(c=>{choose(c);setDialog(null);}).catch(()=>{})}>恢复配置</button></div>):<p>回收站为空。</p>}</Dialog>
+    <Dialog title="配置回收站" open={dialog==='trash'} onClose={()=>setDialog(null)}>{state.archivedConfigs.length?state.archivedConfigs.map(c=><div className="recycle-row" key={c.id}><span>{c.name}</span><div className="source-actions"><button className="btn-secondary" onClick={()=>act<Config>(`/configs/${c.id}/archive`,{revision:c.revision,archived:false}).then(c=>{choose(c);setDialog(null);}).catch(()=>{})}>恢复配置</button><DeleteConfig config={c} act={act}/></div></div>):<p>回收站为空。</p>}</Dialog>
     <Dialog title="删除配置" open={dialog==='delete'} onClose={()=>setDialog(null)}><p>将“{draft.name}”移到回收站？可随时恢复，历史评测和已应用的 Codex 设置保留。</p><div className="editor-actions"><button className="btn-secondary" onClick={()=>setDialog(null)}>取消</button><button className="btn-danger" onClick={()=>void remove()}>移到回收站</button></div></Dialog>
   </div>;
 }
