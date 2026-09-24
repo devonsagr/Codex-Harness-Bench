@@ -10,6 +10,7 @@
   --warning:#93621e;--warning-soft:#fff4e5;
   --danger:#b63434;--danger-soft:#fff0ec;
   --rail:248px;--ui-font:"Noto Sans SC","Microsoft YaHei",sans-serif;
+  --reading-font:"Noto Sans SC","Microsoft YaHei",sans-serif;
   --font-editorial:"Noto Serif SC","Source Han Serif SC","SimSun",serif;
 }
 html.dark{
@@ -21,7 +22,7 @@ html.dark{
   --warning:#eac485;--warning-soft:#3c321f;
   --danger:#ffaaa2;--danger-soft:#3b2322;
 }
-html[data-reading-font="noto"]{--reading-font:"Noto Sans SC","Microsoft YaHei",sans-serif}
+html{font-size:18px}
 body,.dark body{background:var(--canvas);color:var(--ink);font-family:var(--reading-font,var(--ui-font))}
 .app-sidebar{padding:17px 14px 22px;border-right:1px solid var(--line);box-shadow:none}
 .brand{width:100%;padding:0 10px;min-height:58px;gap:18px;color:var(--ink)}
@@ -43,7 +44,6 @@ body,.dark body{background:var(--canvas);color:var(--ink);font-family:var(--read
 .editorial-motto{padding-top:20px;position:relative;font-size:12px;line-height:1.65;letter-spacing:.28em;color:var(--muted)}
 .editorial-motto:before{content:"";position:absolute;width:38px;height:1px;background:var(--ink);top:0;left:0}
 .sidebar-controls{border:0;margin-top:23px;padding:0}
-.reading-settings summary{font-size:11px;color:var(--muted)}
 .workspace-topbar{height:57px;border-bottom:0;padding:0 34px}
 .breadcrumb{font-size:14px;color:var(--muted)}
 .breadcrumb strong{font-weight:500;color:var(--ink)}
@@ -246,7 +246,6 @@ body,.dark body{background:var(--canvas);color:var(--ink);font-family:var(--read
 .history-task button,.studio-list strong,.storage-record strong{font-family:var(--font-editorial);font-weight:700}
 .guide-heading h1{font-size:clamp(32px,3.6vw,52px)}
 .score-overview,.usage-chart,.storage-summary{border-radius:3px}
-.reading-settings>div{z-index:60}
 @media(max-width:1500px){
   .editorial-hero-copy h1.page-title{font-size:clamp(42px,4.15vw,62px)}
   .editorial-hero-art{opacity:.55}

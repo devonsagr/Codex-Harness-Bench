@@ -63,6 +63,16 @@ def post(app,route,data):
         if parts==['configs','import-current']:
             return config_import.commit(app,{**data,'scope':'global'})
         if parts==['runs','prepare']:return app.prepare(data)
+        if len(parts)==3 and parts[0]=='runs' and parts[2]=='history-visibility':
+            rid=identifier(parts[1]);run=app.db.get('run',rid)
+            if data.get('revision')!=run['revision']:raise ValueError('评测记录已更新，请刷新后重试。')
+            hidden=data.get('hidden')
+            if type(hidden) is not bool:raise ValueError('历史显示状态无效。')
+            if hidden and data.get('confirmation')!='移出历史 '+rid:raise ValueError('请按提示确认移出历史。')
+            run['historyHidden']=hidden
+            run['historyHiddenAt']=now() if hidden else None
+            app.event(run,'已从历史列表移出；文件与内部索引保留，配置汇总不计入。' if hidden else '已恢复历史列表显示。')
+            return app.db.save('run',run,run['revision'])
         if len(parts)==3 and parts[2]=='archive' and parts[0] in {'configs','tasks','runs'}:
             kind={'configs':'config','tasks':'task','runs':'run'}[parts[0]]
             if kind=='run' and any(k[0]==parts[1] for k in app.jobs):raise ValueError('请先结束后台检查再归档。')
