@@ -65,6 +65,17 @@ class Database:
             db.execute('INSERT INTO revisions VALUES(?,?,?,?,?)',(kind,identifier,expected+1,encoded,now()))
         return self.get(kind,identifier)
 
+    def delete_archived_config(self, identifier, expected):
+        """Forget a library config; frozen copies in runs remain untouched."""
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute("SELECT revision,archived FROM records WHERE kind='config' AND id=?",(identifier,)).fetchone()
+            if not row or row['revision']!=expected:raise ValueError('配置版本已变化，请刷新后重试。')
+            if not row['archived']:raise ValueError('请先归档配置，再永久删除。')
+            db.execute("DELETE FROM revisions WHERE kind='config' AND id=?",(identifier,))
+            db.execute("DELETE FROM records WHERE kind='config' AND id=?",(identifier,))
+        return {'deleted':True,'configId':identifier}
+
     def import_tasks(self, receipt, tasks):
         """New copies and their idempotency receipt commit or roll back together."""
         with self.connect() as db:

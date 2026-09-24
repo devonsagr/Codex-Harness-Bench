@@ -35,6 +35,11 @@ test('cache is included in input; unknown writes produce a bounded standard-rate
   const known=apiEquivalent({...usage(),cacheWriteTokens:50000});
   assert.equal(known.low,known.high);assert.ok(Math.abs(known.low-1.01)<1e-10);
 });
+test('GPT-6 Luna uses its current standard API equivalent rates',()=>{
+  const value=apiEquivalent({...usage(),models:['gpt-6-luna']});
+  assert.ok(Math.abs(value.low-.024)<1e-10);
+  assert.ok(Math.abs(value.high-.0265)<1e-10);
+});
 test('mixed models, missing tokens and invalid write counts cannot be silently priced',()=>{
   for(const patch of [{models:['gpt-5.6-sol','gpt-5.6-luna']},{models:['unknown']},{cacheReadTokens:null},{cacheReadTokens:2e6},{cacheWriteTokens:2e5},{inputTokens:NaN}]){
     const v=apiEquivalent({...usage(),...patch});assert.ok(v.reason);assert.equal(v.low,undefined);

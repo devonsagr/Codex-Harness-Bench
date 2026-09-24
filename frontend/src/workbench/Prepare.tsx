@@ -32,7 +32,7 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
   const [showFullPrompt,setShowFullPrompt]=useState(false);
   const [jobId,setJobId]=useState<string|null>(null);const delivered=useRef<string|null>(null);
   const [deliveryMode,setDeliveryMode]=useState('single-delivery');
-  const [openDraft,setOpenDraft]=useState(true);const [batch,setBatch]=useState(false);
+  const [batch,setBatch]=useState(false);
   const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
   const [policy,setPolicy]=useState(percentPolicy(structuredClone(state.defaultPolicy)));const [notes,setNotes]=useState('');
   const config=state.configs.find(c=>c.id===configId);
@@ -67,11 +67,9 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
   useEffect(()=>{
     if(job?.status!=='completed'||!job.runId||!jobId||delivered.current===job.id)return;
     delivered.current=job.id;pending.current=null;onCreated(job.runId);
-    const run=state.runs.find(r=>r.id===job.runId);
-    if(openDraft&&run?.trials.length===1)void act(`/runs/${run.id}/trials/${run.trials[0].id}/open`,{draft:true}).catch(()=>{});
-  },[job,jobId,onCreated,state.runs,openDraft,act]);
+  },[job,jobId,onCreated]);
   return <><section className="editorial-hero"><div className="editorial-hero-copy"><h1 className="page-title">{pane==='tasks'?'让每次评测，都有证据。':pane==='config'?'选好这次的工作方式。':'核对评分，再创建工作区。'}</h1><p>{pane==='tasks'?'从真实任务出发，在可复现的条件下，验证模型与个人配置的交付能力。':pane==='config'?'选择已保存配置；模型、规则与 Skills 按该版本冻结。':'评分依据与运行条件会随评测保存，交付后仍可复查。'}</p></div><div className="editorial-hero-art" aria-hidden="true"><span>REAL<br/>TASKS<br/>REAL<br/>PROGRESS</span></div>
-    <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选题','从任务库选择合适的任务'],['config','配置','选择模型与运行参数'],['scoring','创建工作区','核对评分并准备环境']] as const).map(([id,label,hint],index)=><span aria-current={pane===id?'step':undefined} className={pane===id?'selected':index<['tasks','config','scoring'].indexOf(pane)?'is-complete':''} key={id}><i>{index<['tasks','config','scoring'].indexOf(pane)?<Check size={16}/>:index+1}</i><span><strong>{label}</strong><small>{hint}</small></span></span>)}</nav></section>
+    <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选题','从任务库选择合适的任务'],['config','配置','选择模型与运行参数'],['scoring','创建工作区','核对评分并准备环境']] as const).map(([id,label,hint],index)=><button type="button" aria-current={pane===id?'step':undefined} disabled={preparing||(id==='config'&&!taskIds.length)||(id==='scoring'&&(!taskIds.length||!config))} className={pane===id?'selected':index<['tasks','config','scoring'].indexOf(pane)?'is-complete':''} key={id} onClick={()=>setPane(id)}><i>{index<['tasks','config','scoring'].indexOf(pane)?<Check size={16}/>:index+1}</i><span><strong>{label}</strong><small>{hint}</small></span></button>)}</nav></section>
     <fieldset className="prepare-grid" disabled={preparing}>
       <div className="prepare-tasks" hidden={pane!=='tasks'}><div className="task-board">
         <section className="task-library" aria-label="任务库"><header className="task-library-heading"><h2>任务库</h2><label className="task-search"><Search size={17}/><input aria-label="搜索评测题目" placeholder="搜索任务关键词…" value={query} onChange={e=>setQuery(e.target.value)}/></label></header>
@@ -95,9 +93,9 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
         </div>
       </section>
       <footer className="prepare-action" hidden={pane==='tasks'}>
-        {job&&<div className="preparation-status" role="status"><strong>{job.phase}</strong>{job.error&&<p className="alert-error">{job.error}</p>}<p className="muted">只准备本次所选题目。已有缓存会复用，每次评测的工作区独立。</p>{job.runId&&<button className="btn-secondary" onClick={()=>onCreated(job.runId!)}>进入已创建的评测</button>}{job.status==='interrupted'&&<p>重新选择题目后创建即可；已下载文件会校验复用。</p>}</div>}
+        {job&&<div className="preparation-status" role="status"><strong>{job.phase}</strong>{job.totalTasks!=null&&<><progress aria-label="题目源码准备进度" max={job.totalTasks+1} value={job.status==='completed'?job.totalTasks+1:job.completedTasks||0}/><p>{job.stage==='workspace'?'源码与环境已准备，正在复制独立工作区':`已准备 ${job.completedTasks||0}/${job.totalTasks} 道题；当前题目可能正在下载或配置环境`}</p></>}{job.error&&<p className="alert-error">{job.error}</p>}<p className="muted">只下载缺失的固定源码与必要环境，校验缓存后复制到每题独立目录。这个进度按题计数，不代表当前下载的字节百分比。</p>{job.runId&&<button className="btn-secondary" onClick={()=>onCreated(job.runId!)}>进入已创建的评测</button>}{job.status==='interrupted'&&<p>重新选择题目后创建即可；已下载文件会校验复用。</p>}</div>}
 
-        {pane==='scoring'&&<div className="space-y-2">{taskIds.length===1&&<label className="check-row"><input type="checkbox" checked={openDraft} onChange={e=>setOpenDraft(e.target.checked)}/>创建后打开 Codex 新对话并预填提示词</label>}
+        {pane==='scoring'&&<div className="space-y-2"><p className="score-notice">创建完成后，先在评测详情点击“应用到 Codex”，再打开新对话。所选模型、思考档位、速度、规则与 Skills 会一次写入并留备份。</p>
           {taskIds.length>1&&<p className="score-notice">将创建 {taskIds.length} 个独立工作区，列成待办队列。准备过程会顺序处理源码；不会自动启动桌面任务。每题分别评分，配置成绩页按题汇总。各工作区文件分开，但同机共享 Codex 全局设置；请逐项核对配置并依次执行，同时手动运行无法保证条件互不影响。</p>}
           {policy.objectiveWeight>0&&selected.some(t=>!t.checks.length)&&<p className="score-notice">所选题目缺少脚本检查，可新建机器评分方案。</p>}
           {!validPercentPolicy(policy)&&<p role="alert" className="alert-error">人工内部占比须合计100%。</p>}

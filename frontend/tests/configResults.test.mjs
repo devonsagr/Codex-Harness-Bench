@@ -5,7 +5,7 @@ import ts from 'typescript';
 
 const source=readFileSync(new URL('../src/workbench/configResults.ts',import.meta.url),'utf8');
 const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const {configResults}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const {configResults,matchedComparison}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 const cfg=(revision=1,extra={})=>({id:'config-a',revision,name:'Focused',baseModel:'model-a',reasoning:'low',skills:[],...extra});
 const task=(id,sourceKind)=>({id,revision:1,title:id,sourceKind});
 const policy=(version='machine')=>({version,objectiveWeight:0,humanWeight:100,dimensions:{quality:100}});
@@ -71,4 +71,31 @@ test('source breakdown is visible but the overall score still weights distinct t
   assert.deepEqual(result.collections.map(c=>[c.label,c.tasks.length,c.trials,c.mean]),[
     ['DeepSWE',2,3,45],['开放需求题',1,1,90]
   ]);
+});
+
+test('permanently deleted library config disappears from scorecards but historical runs are independent',()=>{
+  const state={configs:[],archivedConfigs:[],runs:[run('01','task-a',80)],archivedRuns:[]};
+  assert.deepEqual(configResults(state),[]);
+  assert.equal(state.runs.length,1);
+});
+
+test('different judge versions do not create a misleading combined score',()=>{
+  const a=run('01','task-a',80),b=run('02','task-b',90);
+  a.trials[0].score.machineReviewId='review-a';b.trials[0].score.machineReviewId='review-b';
+  a.trials[0].reviews=[{id:'review-a',model:'gpt-6-luna',reasoningEffort:'max',scoreSchema:'v1'}];
+  b.trials[0].reviews=[{id:'review-b',model:'gpt-5.6-luna',reasoningEffort:'max',scoreSchema:'v1'}];
+  const [result]=configResults({configs:[cfg()],archivedConfigs:[],runs:[a,b],archivedRuns:[]});
+  assert.equal(result.score,null);
+  assert.equal(result.judgeCount,2);
+});
+
+test('matched comparison uses only shared task versions, cancelling coverage differences',()=>{
+  const other={...cfg(),id:'config-b',name:'Other'};
+  const mapped=(r)=>({...r,configs:[other],trials:r.trials.map(t=>({...t,configId:'config-b'}))});
+  const groups=configResults({configs:[cfg(),other],archivedConfigs:[],runs:[run('01','easy',90),run('02','hard',30),mapped(run('03','hard',50)),mapped(run('04','other',100))],archivedRuns:[]});
+  const result=matchedComparison(groups.find(g=>g.config.id==='config-a'),groups.find(g=>g.config.id==='config-b'));
+  assert.equal(result.tasks.length,1);
+  assert.equal(result.baselineScore,30);
+  assert.equal(result.candidateScore,50);
+  assert.equal(result.delta,20);
 });
