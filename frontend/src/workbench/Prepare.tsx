@@ -1,24 +1,35 @@
-import {ArrowRight,Check,FileCode2,Layers3,SlidersHorizontal} from 'lucide-react';
+import {ArrowRight,BookOpen,Check,Code2,ExternalLink,Filter,Lightbulb,Search,ShieldCheck} from 'lucide-react';
 import {ScoringSettings,percentPolicy,validPercentPolicy} from './Scoring';
 import {useEffect,useRef,useState} from 'react';
 import {availableTasks,PublicPrompt,publicCategories} from './PublicCatalog';
-import type {State,Act,Config,PreparationJob} from './types';
-import {Field,Panel,Details,Empty,Dialog} from './ui';
+import type {State,Act,Config,PreparationJob,Task} from './types';
+import {Field,Details,Empty,Dialog} from './ui';
 import {ContractView,TaskFilters,matchTask} from './Contracts';
 import {TaskEnvironment,canStartTask,needsBaseline} from './TaskEnvironment';
 import {SkillPicker} from './Skills';
+import publicSources from '../../../catalog/public-task-sources.json';
 
 type Selection={revision:number;skills:string[];skillMode:'auto'|'explicit'};
+const publicRepositories=new Map(publicSources.tasks.map(task=>[task.id,task.repositoryUrl]));
+const sourceName=(task:Task)=>{
+  const repository=task.publicSource?publicRepositories.get(task.publicSource.id):task.description;
+  if(repository?.startsWith('https://github.com/')){
+    try{return new URL(repository).pathname.replace(/^\//,'').replace(/\/$/,'');}catch{/* Keep the known source label. */}
+  }
+  return task.sourceKind==='deepswe'?'DeepSWE 固定仓库':task.sourceKind==='repository-original'?'项目内置题包':'自定义需求';
+};
+const taskKind=(task:Task)=>task.publicSource?publicCategories[task.publicSource.category]||'已有工程':task.sourceKind==='repository-original'?'内置题包':needsBaseline(task)?'已有工程':'从零构建';
 
 export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{state:State;act:Act;onCreated:(id:string)=>void;selectedTaskId:string|null;selectedConfigId?:string|null}){
   const [pane,setPane]=useState<'tasks'|'config'|'scoring'>('tasks');
   const [configIds,setConfigs]=useState<string[]>(selectedConfigId&&state.configs.some(c=>c.id===selectedConfigId)?[selectedConfigId]:state.configs.slice(0,1).map(c=>c.id));
   const catalog=availableTasks(state);
   const initial=catalog.find(t=>t.id===selectedTaskId);
-  const [taskIds,setTasks]=useState<string[]>(initial?[initial.id]:[]);
+  const [taskIds,setTasks]=useState<string[]>(initial?[initial.id]:catalog.filter(t=>matchTask(t,'repository','','','')&&canStartTask(t,state.baselines)).slice(0,1).map(t=>t.id));
   const [paradigm,setParadigm]=useState(initial?(needsBaseline(initial)?'repository':'open-ended-project'):'repository');const [query,setQuery]=useState('');
   const [showPending,setShowPending]=useState(false);
   const [sourceFilter,setSourceFilter]=useState('all');const [category,setCategory]=useState('');
+  const [showFullPrompt,setShowFullPrompt]=useState(false);
   const [jobId,setJobId]=useState<string|null>(null);const delivered=useRef<string|null>(null);
   const [deliveryMode,setDeliveryMode]=useState('single-delivery');
   const [openDraft,setOpenDraft]=useState(true);const [compare,setCompare]=useState(false);const [batch,setBatch]=useState(false);
@@ -33,11 +44,20 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
   const [preview,setPreview]=useState<Config|null>(null);
   const stale=configs.some(c=>effective(c).revision!==c.revision);
   const invalid=configs.some(c=>{const ids=effective(c).skills;return ids.length>30||new Set(state.skills.filter(s=>ids.includes(s.id)).map(s=>s.name.toLowerCase())).size!==ids.length;});
-  const candidates=catalog.filter(t=>matchTask(t,paradigm,query,'','')&&(!category||t.publicSource?.category===category)&&(sourceFilter==='all'||(sourceFilter==='deepswe'?!!t.publicSource:!t.publicSource)));
+  const sourceCandidates=catalog.filter(t=>matchTask(t,paradigm,query,'','')&&(sourceFilter==='all'||(sourceFilter==='deepswe'?!!t.publicSource:!t.publicSource)));
+  const candidates=sourceCandidates.filter(t=>!category||t.publicSource?.category===category);
   const matches=candidates.filter(t=>matchTask(t,paradigm,query,channel,difficulty));
   const facetTasks=candidates.filter(t=>showPending?!canStartTask(t,state.baselines):canStartTask(t,state.baselines));
   const pendingTasks=matches.filter(t=>!canStartTask(t,state.baselines));
   const tasks=matches.filter(t=>showPending?!canStartTask(t,state.baselines):canStartTask(t,state.baselines));
+  const visibleTaskIds=tasks.map(t=>t.id).join('|');
+  const selectedIds=taskIds.join('|');
+  useEffect(()=>{
+    if(batch)return;
+    if(!tasks.length){if(taskIds.length)setTasks([]);return;}
+    if(taskIds.length!==1||!tasks.some(t=>t.id===taskIds[0]))setTasks([tasks[0].id]);
+  },[visibleTaskIds,selectedIds,batch]);
+  const categoryOptions=[['','全部任务'],['bugfix','修复 Bug'],['feature_request','增加功能'],['enhancement','工程改进']] as const;
   const selected=catalog.filter(t=>taskIds.includes(t.id));
   const canStage=selected.length>0&&selected.every(t=>t.stages.length>1);
   const effectiveDelivery=canStage?deliveryMode:'single-delivery';
@@ -55,21 +75,20 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
     const run=state.runs.find(r=>r.id===job.runId);
     if(openDraft&&run?.trials.length===1)void act(`/runs/${run.id}/trials/${run.trials[0].id}/open`,{draft:true}).catch(()=>{});
   },[job,jobId,onCreated,state.runs,openDraft,act]);
-  return <><header className="page-heading"><div><span className="eyebrow">评测工作台</span><h1 className="page-title">让配置，用结果说话。</h1><p>选一个真实任务，看看你的 Harness 如何交付。</p></div><div className="workspace-inventory"><div><SlidersHorizontal size={17}/><strong>{state.configs.length}</strong><span>套配置</span></div><div><FileCode2 size={17}/><strong>{catalog.filter(t=>canStartTask(t,state.baselines)).length}</strong><span>可选题目</span></div><div><Layers3 size={17}/><strong>{state.runs.length}</strong><span>评测记录</span></div></div></header>
-    <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选择题目','确定需求与起点'],['config','配置与 Skills','选用本次工作方式'],['scoring','评分方案','确认后创建工作区']] as const).map(([id,label,hint],index)=><span aria-current={pane===id?'step':undefined} className={pane===id?'selected':index<['tasks','config','scoring'].indexOf(pane)?'is-complete':''} key={id}><i>{index<['tasks','config','scoring'].indexOf(pane)?<Check size={16}/>:String(index+1).padStart(2,'0')}</i><span><strong>{label}</strong><small>{hint}</small></span></span>)}</nav>
+  return <><section className="editorial-hero"><div className="editorial-hero-copy"><h1 className="page-title">{pane==='tasks'?'让每次评测，都有证据。':pane==='config'?'选好这次的工作方式。':'核对评分，再创建工作区。'}</h1><p>{pane==='tasks'?'从真实任务出发，在可复现的条件下，验证模型与个人配置的交付能力。':pane==='config'?'选择模型、规则与 Skills；本次使用的版本会冻结保存。':'评分依据与运行条件会随评测保存，交付后仍可复查。'}</p></div><div className="editorial-hero-art" aria-hidden="true"><span>REAL<br/>TASKS<br/>REAL<br/>PROGRESS</span></div>
+    <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选题','从任务库选择合适的任务'],['config','配置','选择模型与运行参数'],['scoring','创建工作区','核对评分并准备环境']] as const).map(([id,label,hint],index)=><span aria-current={pane===id?'step':undefined} className={pane===id?'selected':index<['tasks','config','scoring'].indexOf(pane)?'is-complete':''} key={id}><i>{index<['tasks','config','scoring'].indexOf(pane)?<Check size={16}/>:index+1}</i><span><strong>{label}</strong><small>{hint}</small></span></span>)}</nav></section>
     <fieldset className="prepare-grid" disabled={preparing}>
-      <div className="prepare-tasks" hidden={pane!=='tasks'}><Panel title="选择题目" aside={<label className="check-row"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>批量选择</label>}>
-        <div className="task-filter-bar"><div className="task-primary-filters"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);setShowPending(false);}}><option value="open-ended-project">从零构建</option><option value="repository">已有仓库任务</option><option value="deterministic-bugfix">仅 Bug 修复</option></select><input aria-label="搜索评测题目" placeholder="搜索需求或题目" value={query} onChange={e=>setQuery(e.target.value)}/></div>
-        <div className="task-source-filters"><Field label="题目来源"><select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}><option value="all">全部来源</option><option value="deepswe">DeepSWE · 已有工程</option><option value="local">本地与内置题目</option></select></Field><Field label="DeepSWE 类型"><select value={category} onChange={e=>setCategory(e.target.value)}><option value="">全部类型</option>{Object.entries(publicCategories).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></Field></div><TaskFilters tasks={facetTasks} channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/></div>
-        <div className="catalog-switch"><button type="button" className={!showPending?'active':''} onClick={()=>setShowPending(false)}>可选题目 · {matches.length-pendingTasks.length}</button><button type="button" className={showPending?'active':''} onClick={()=>setShowPending(true)}>待补全题面 · {pendingTasks.length}</button></div>
-        <div className="task-browser"><div><div className="prepare-task-list">{tasks.map(t=><label key={t.id} className={'list-card '+(taskIds.includes(t.id)?'selected':'')}><div className="flex items-start gap-3"><input className="mt-1" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id])}/><strong>{t.title}</strong></div><span>{t.difficulty} · {t.sourceKind==='deepswe'?`DeepSWE · ${publicCategories[t.publicSource?.category||'']||'已有工程'}`:t.sourceKind==='repository-original'?'内置题包':t.hasFrontendUI?'含界面':'工程或文档'}</span><small>{t.baselineId?'复用缓存 · 新工作区':t.publicSource?'创建时自动下载':needsBaseline(t)?'缺少源码 · 暂不可开始':'从零构建'}</small></label>)}</div>
-        {!tasks.length&&<Empty>没有符合筛选的题目。</Empty>}
-        </div><aside className="task-preview">{selected.length?selected.map(t=><section key={t.id}><h3>{t.title}</h3><TaskEnvironment task={t} baselines={state.baselines}/><Details title="完整需求"><PublicPrompt task={t}/>{!t.publicSource&&<ContractView task={t}/>}</Details></section>):<div className="preview-empty"><FileCode2 size={36} strokeWidth={1.2}/><h3>从一个真实问题开始</h3><p>选择左侧题目，预览完整需求、源码起点与环境。</p></div>}</aside></div>
-        <div className="delivery-row">{canStage?<Details title="可选实验：分步提供需求"><Field label="需求提供方式"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="single-delivery">完整需求 · 不限定对话轮数</option><option value="staged">按题目预设步骤分阶段（可选）</option></select></Field>
-        <p className="muted">{deliveryMode==='single-delivery'?'一次提供全部需求。由模型和你的配置决定实施过程，完成后回收评分。':'逐步提供题目预先编写的提示词；同一对话继续。每步可回收版本，最终仍按整题需求评分。区别在提供需求的时机，不是限制模型回复次数。'}</p></Details>:<p className="muted">提供完整需求 → 在 Codex 持续完成 → 回收产物并评分。不限对话次数，无需选择轮数。</p>}
-        </div>
-
-      </Panel></div>
+      <div className="prepare-tasks" hidden={pane!=='tasks'}><div className="task-board">
+        <section className="task-library" aria-label="任务库"><header className="task-library-heading"><h2>任务库</h2><label className="task-search"><Search size={17}/><input aria-label="搜索评测题目" placeholder="搜索任务关键词…" value={query} onChange={e=>setQuery(e.target.value)}/></label></header>
+          <div className="task-library-toolbar"><div className="editorial-category-tabs" role="group" aria-label="任务类型">{categoryOptions.map(([id,label])=><button type="button" key={id} className={category===id?'active':''} aria-pressed={category===id} onClick={()=>setCategory(id)}>{label}<span>（{sourceCandidates.filter(t=>(!id||t.publicSource?.category===id)&&matchTask(t,paradigm,query,channel,difficulty)&&(showPending?!canStartTask(t,state.baselines):canStartTask(t,state.baselines))).length}）</span></button>)}</div><details className="task-filter-details"><summary><Filter size={16}/>筛选</summary><div className="task-filter-bar"><Field label="评测类别"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);setShowPending(false);}}><option value="open-ended-project">从零构建</option><option value="repository">已有仓库任务</option><option value="deterministic-bugfix">仅 Bug 修复</option></select></Field><Field label="题目来源"><select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}><option value="all">全部来源</option><option value="deepswe">DeepSWE · 已有工程</option><option value="local">本地与内置题目</option></select></Field><TaskFilters tasks={facetTasks} channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/><label className="check-row"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>一次选多道题</label></div></details></div>
+          <div className="editorial-list-mode"><button type="button" className={!showPending?'active':''} onClick={()=>setShowPending(false)}>可选题目 · {matches.length-pendingTasks.length}</button><button type="button" className={showPending?'active':''} onClick={()=>setShowPending(true)}>待补全题面 · {pendingTasks.length}</button></div>
+          <div className="prepare-task-list">{tasks.map((t,index)=><label key={t.id} className={'editorial-task-card '+(taskIds.includes(t.id)?'selected':'')}><input className="sr-only" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} onChange={e=>{setShowFullPrompt(false);setTasks(batch?(e.target.checked?[...taskIds,t.id].slice(-10):taskIds.filter(id=>id!==t.id)):[t.id]);}}/><span className="task-card-icon">{needsBaseline(t)?<Code2 size={25} strokeWidth={1.5}/>:<Lightbulb size={25} strokeWidth={1.5}/>}</span><span className="task-card-content"><strong>{t.title}</strong><span className="task-card-description">{t.publicSource?`${t.publicSource.language||'开源'}项目 · 固定源码起点${t.baselineId?'已缓存':'创建时按题准备'}`:t.inputPrompt?.trim().slice(0,100)||'查看完整需求与项目起点'}</span><span className="task-card-meta"><em>{taskKind(t)}</em><em className="task-difficulty">{t.difficulty}</em><span>{sourceName(t)}</span></span></span><span className="task-card-index">#{String(index+1).padStart(3,'0')}</span></label>)}</div>
+          {!tasks.length&&<Empty>没有符合筛选的题目。</Empty>}
+        </section>
+        <aside className="task-preview" aria-label="任务详情"><header className="preview-heading"><h2>任务详情</h2>{selected.length===1&&selected[0].referenceUrl&&<a href={selected[0].referenceUrl} target="_blank" rel="noopener noreferrer">查看题目来源 <ExternalLink size={15}/></a>}</header>{selected.length?selected.map(t=><section key={t.id} className="preview-selected"><div className="preview-title"><h3>{t.title}</h3><small>{sourceName(t)}</small></div><div className="preview-tags"><span>{taskKind(t)}</span><span>{t.difficulty}</span>{t.hasFrontendUI&&<span>包含界面</span>}</div><TaskEnvironment task={t} baselines={state.baselines}/><div className="preview-requirements"><h4>任务要求</h4><div className={'preview-prompt '+(showFullPrompt?'expanded':'')}><PublicPrompt task={t}/>{!t.publicSource&&<ContractView task={t}/>}</div><button type="button" onClick={()=>setShowFullPrompt(!showFullPrompt)}>{showFullPrompt?'收起任务描述':'查看完整任务描述'} ↓</button></div></section>):<div className="preview-empty"><BookOpen size={34} strokeWidth={1.4}/><h3>选择一道真实任务</h3><p>在这里核对题面、源码起点与运行环境。</p></div>}
+          <div className="preview-bottom"><div className="preview-facts"><div><BookOpen size={25}/><strong>{catalog.filter(t=>canStartTask(t,state.baselines)).length} 道题</strong><span>当前可选</span></div><div><ShieldCheck size={25}/><strong>{state.runs.length} 次评测</strong><span>本机记录</span></div></div><button type="button" className="btn-primary preview-continue" disabled={!taskIds.length||selected.some(t=>!canStartTask(t,state.baselines))} onClick={()=>setPane('config')}>继续配置模型与运行参数 <ArrowRight size={19}/></button><p>完成配置后创建独立工作区；源码按题准备。</p></div>
+        </aside>
+      </div><div className="delivery-row">{canStage?<Details title="可选实验：分步提供需求"><Field label="需求提供方式"><select value={deliveryMode} onChange={e=>setDeliveryMode(e.target.value)}><option value="single-delivery">完整需求 · 不限定对话轮数</option><option value="staged">按题目预设步骤分阶段（可选）</option></select></Field><p className="muted">{deliveryMode==='single-delivery'?'一次提供全部需求。由模型和你的配置决定实施过程，完成后回收评分。':'逐步提供题目预先编写的提示词；同一对话继续。每步可回收版本，最终仍按整题需求评分。区别在提供需求的时机，不是限制模型回复次数。'}</p></Details>:<p className="muted">提供完整需求 → 在 Codex 持续完成 → 回收产物并评分。不限对话次数，无需选择轮数。</p>}</div></div>
       <section className="prepare-session panel" aria-label="本次评测设置" hidden={pane==='tasks'}>
         <div className="prepare-session-heading"><h2 className="font-semibold">本次评测</h2><p className="muted prepare-selection" title={selected.map(t=>t.title).join('、')}>{selected.length?selected.map(t=>t.title).join('、'):'先选择一道题目'}</p></div>
         <div className="prepare-controls space-y-4">
@@ -86,7 +105,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
           <div hidden={pane!=='scoring'}><ScoringSettings state={state} tasks={selected} policy={policy} onChange={setPolicy}/><Field label="本次备注"><input value={notes} onChange={e=>setNotes(e.target.value)}/></Field></div>
         </div>
       </section>
-      <footer className="prepare-action">
+      <footer className="prepare-action" hidden={pane==='tasks'}>
         {job&&<div className="preparation-status" role="status"><strong>{job.phase}</strong>{job.error&&<p className="alert-error">{job.error}</p>}<p className="muted">只准备本次所选题目。已有缓存会复用，每次评测的工作区独立。</p>{job.runId&&<button className="btn-secondary" onClick={()=>onCreated(job.runId!)}>进入已创建的评测</button>}{job.status==='interrupted'&&<p>重新选择题目后创建即可；已下载文件会校验复用。</p>}</div>}
 
         {pane==='scoring'&&<div className="space-y-2">{configs.length===1&&taskIds.length===1&&<label className="check-row"><input type="checkbox" checked={openDraft} onChange={e=>setOpenDraft(e.target.checked)}/>创建后打开 Codex 新对话并预填提示词</label>}
