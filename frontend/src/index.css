@@ -301,6 +301,7 @@ input[type=range]:focus-visible { outline:2px solid #71717a;outline-offset:2px;b
 .dark .score-bar { background:#3f3f46; }
 @media(max-width:600px){.usage-headline{grid-template-columns:repeat(2,minmax(0,1fr));}.score-overview{gap:1rem;}.score-ring svg{width:6rem;height:6rem;}.score-ring{gap:.75rem;}}
 
+html[data-reading-font="noto"] { --reading-font: "Noto Sans SC", "Microsoft YaHei", sans-serif; }
 html[data-reading-font="yahei"] { --reading-font: "Microsoft YaHei", "PingFang SC", sans-serif; }
 html[data-reading-font="deng"] { --reading-font: DengXian, "Microsoft YaHei", sans-serif; }
 html[data-reading-font="song"] { --reading-font: SimSun, "Songti SC", "Noto Serif CJK SC", serif; }

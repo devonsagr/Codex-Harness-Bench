@@ -3,14 +3,14 @@ import {ScoringSettings,percentPolicy,validPercentPolicy} from './Scoring';
 import {useEffect,useRef,useState} from 'react';
 import {availableTasks,PublicPrompt,publicCategories} from './PublicCatalog';
 import type {State,Act,Config,PreparationJob} from './types';
-import {Field,Panel,Details,Empty,Dialog} from './ui';
+import {Field,Panel,Details,Empty,Dialog,labels} from './ui';
 import {ContractView,TaskFilters,matchTask} from './Contracts';
 import {TaskEnvironment,canStartTask,needsBaseline} from './TaskEnvironment';
 import {SkillPicker} from './Skills';
 
 type Selection={revision:number;skills:string[];skillMode:'auto'|'explicit'};
 
-export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{state:State;act:Act;onCreated:(id:string)=>void;selectedTaskId:string|null;selectedConfigId?:string|null}){
+export function Prepare({state,act,onCreated,onOpen,selectedTaskId,selectedConfigId}:{state:State;act:Act;onCreated:(id:string)=>void;onOpen:(id:string)=>void;selectedTaskId:string|null;selectedConfigId?:string|null}){
   const [pane,setPane]=useState<'tasks'|'config'|'scoring'>('tasks');
   const [configIds,setConfigs]=useState<string[]>(selectedConfigId&&state.configs.some(c=>c.id===selectedConfigId)?[selectedConfigId]:state.configs.slice(0,1).map(c=>c.id));
   const catalog=availableTasks(state);
@@ -48,6 +48,7 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
     try{const job=await act<PreparationJob>('/runs/prepare-async',{...data,requestId:pending.current.requestId});setJobId(job.id);}catch{/* Reuse the request ID after a connection failure. */}
   };
   const job=state.preparationJobs?.find(j=>j.id===jobId)||(jobId?undefined:state.preparationJobs?.find(j=>j.status==='running'||j.status==='interrupted'));
+  const recentRuns=state.runs.filter(r=>r.trials.length).slice().sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,2);
   const preparing=job?.status==='running';
   useEffect(()=>{
     if(job?.status!=='completed'||!job.runId||!jobId||delivered.current===job.id)return;
@@ -55,8 +56,9 @@ export function Prepare({state,act,onCreated,selectedTaskId,selectedConfigId}:{s
     const run=state.runs.find(r=>r.id===job.runId);
     if(openDraft&&run?.trials.length===1)void act(`/runs/${run.id}/trials/${run.trials[0].id}/open`,{draft:true}).catch(()=>{});
   },[job,jobId,onCreated,state.runs,openDraft,act]);
-  return <><header className="page-heading"><div><span className="eyebrow">评测工作台</span><h1 className="page-title">让配置，用结果说话。</h1><p>选一个真实任务，看看你的 Harness 如何交付。</p></div><div className="workspace-inventory"><div><SlidersHorizontal size={17}/><strong>{state.configs.length}</strong><span>套配置</span></div><div><FileCode2 size={17}/><strong>{catalog.filter(t=>canStartTask(t,state.baselines)).length}</strong><span>可选题目</span></div><div><Layers3 size={17}/><strong>{state.runs.length}</strong><span>评测记录</span></div></div></header>
-    <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选择题目','确定需求与起点'],['config','配置与 Skills','选用本次工作方式'],['scoring','评分方案','确认后创建工作区']] as const).map(([id,label,hint],index)=><span aria-current={pane===id?'step':undefined} className={pane===id?'selected':index<['tasks','config','scoring'].indexOf(pane)?'is-complete':''} key={id}><i>{index<['tasks','config','scoring'].indexOf(pane)?<Check size={16}/>:String(index+1).padStart(2,'0')}</i><span><strong>{label}</strong><small>{hint}</small></span></span>)}</nav>
+  return <><section className="prepare-intro"><header className="page-heading"><div><span className="eyebrow">评测准备 / {pane==='tasks'?'01':pane==='config'?'02':'03'}</span><h1 className="page-title">{pane==='tasks'?'一次评测，从真实任务开始。':pane==='config'?'选定这次的 Codex 配置。':'确认评分，再创建工作区。'}</h1><p>{pane==='tasks'?'先看完整需求与源码起点，再决定是否创建独立工作区。':pane==='config'?'技能和规则将冻结在本次试次里，不改动你保存的配置版本。':'评分依据随本次试次冻结；交付后仍可查看验收与人工复查。'}</p><div className="workspace-inventory"><div><SlidersHorizontal size={17}/><strong>{state.configs.length}</strong><span>套配置</span></div><div><FileCode2 size={17}/><strong>{catalog.filter(t=>canStartTask(t,state.baselines)).length}</strong><span>可选题目</span></div><div><Layers3 size={17}/><strong>{state.runs.length}</strong><span>评测记录</span></div></div></div></header>
+    <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选择题目','确定需求与起点'],['config','配置与 Skills','选用本次工作方式'],['scoring','评分方案','确认后创建工作区']] as const).map(([id,label,hint],index)=><span aria-current={pane===id?'step':undefined} className={pane===id?'selected':index<['tasks','config','scoring'].indexOf(pane)?'is-complete':''} key={id}><i>{index<['tasks','config','scoring'].indexOf(pane)?<Check size={16}/>:String(index+1).padStart(2,'0')}</i><span><strong>{label}</strong><small>{hint}</small></span></span>)}</nav></section>
+    {recentRuns.length>0&&<section className="recent-runs" aria-label="最近的评测"><header><h2>继续已有评测</h2><span>回到当时的工作区和回收记录</span></header><div>{recentRuns.map(r=>{const trial=r.trials.find(t=>!['completed','interrupted'].includes(t.state))||r.trials[0];return <button type="button" key={r.id} onClick={()=>onOpen(r.id)}><strong>{r.tasks.find(t=>t.id===trial.taskId)?.title||'未命名任务'}</strong><span>{labels[trial.state]||trial.state} · {trial.captures.length} 个回收版本</span><ArrowRight size={18}/></button>;})}</div></section>}
     <fieldset className="prepare-grid" disabled={preparing}>
       <div className="prepare-tasks" hidden={pane!=='tasks'}><Panel title="选择题目" aside={<label className="check-row"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>批量选择</label>}>
         <div className="task-filter-bar"><div className="task-primary-filters"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);setTasks([]);setShowPending(false);}}><option value="open-ended-project">从零构建</option><option value="repository">已有仓库任务</option><option value="deterministic-bugfix">仅 Bug 修复</option></select><input aria-label="搜索评测题目" placeholder="搜索需求或题目" value={query} onChange={e=>setQuery(e.target.value)}/></div>
