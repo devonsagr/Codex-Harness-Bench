@@ -300,7 +300,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         for key, value in {"Content-Type": mime, "Content-Length": str(len(body)), "Cache-Control": "no-store",
                            "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
-                           "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}.items():
+                           "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"}.items():
             self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
@@ -328,8 +328,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self.reply(503,'请先执行 pnpm --dir frontend build，再刷新工作台。'.encode(), 'text/plain; charset=utf-8')
                 text = ((dist if (dist/'index.html').exists() else ASSETS) / "index.html").read_text(encoding="utf-8").replace("__CHB_TOKEN__", self.server.token)
                 return self.reply(200, text.encode(), "text/html; charset=utf-8")
-            if route.startswith('/assets/'):
+            if route.startswith(('/assets/', '/fonts/', '/visuals/')):
                 asset=checked_path(self.server.app.root,'frontend','dist',*route[1:].split('/'))
+                group=route.split('/')[1]
+                allowed={'assets':{'.js','.css','.svg','.png','.webp','.woff2','.ttf'},
+                         'fonts':{'.woff2','.ttf','.txt'},'visuals':{'.svg','.png','.webp'}}
+                if asset.suffix.lower() not in allowed[group]:raise ValueError('不支持的静态资源类型。')
                 mime=mimetypes.guess_type(asset.name)[0] or 'application/octet-stream'
                 if asset.suffix=='.js':mime='text/javascript'
                 return self.reply(200,asset.read_bytes(),mime)
