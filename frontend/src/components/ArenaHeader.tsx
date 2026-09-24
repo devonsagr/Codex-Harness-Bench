@@ -1,6 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {ReadingSettings} from '../workbench/ReadingSettings';
-import {Activity, BookOpen, Clock3, Database, FlaskConical, Menu, SlidersHorizontal, X} from 'lucide-react';
+import {Activity, BookOpen, CircleHelp, Clock3, Database, FlaskConical, Menu, SlidersHorizontal, X} from 'lucide-react';
 
 export type ArenaTab = 'workbench' | 'history' | 'tasks' | 'configs' | 'leaderboard' | 'spec' | 'storage';
 export const arenaPages:Record<ArenaTab,{label:string;description:string}>={
@@ -29,7 +28,7 @@ export function ArenaHeader({activeTab,onTabChange}:{activeTab:ArenaTab;onTabCha
     <aside id="app-navigation" className={'app-sidebar '+(open?'is-open':'')} aria-label="主导航">
       <button className="brand" onClick={()=>navigate('workbench')} aria-label="Harness Bench 工作台"><span className="brand-mark" aria-hidden="true"/><span>Codex Harness<small>用真实任务，检验更好的模型</small></span></button>
       <nav>{tabs.map(({id,icon:Icon})=><button key={id} aria-label={arenaPages[id].label} onClick={()=>navigate(id)} aria-current={activeTab===id?'page':undefined} className={'sidebar-link '+(activeTab===id?'active':'')}><Icon size={22} strokeWidth={1.7}/><span><strong>{arenaPages[id].label}</strong><small>{id==='workbench'?'开始新的评测':arenaPages[id].description}</small></span></button>)}</nav>
-      <div className="sidebar-bottom"><div className="editorial-motto" aria-label="Build better with evidence">BUILD<br/>BETTER<br/>WITH EVIDENCE.</div><div className="sidebar-controls"><ReadingSettings/></div></div>
+      <div className="sidebar-bottom"><div className="editorial-motto" aria-label="Build better with evidence">BUILD<br/>BETTER<br/>WITH EVIDENCE.</div><div className="sidebar-controls"><button type="button" className="sidebar-help" onClick={()=>navigate('spec')}><CircleHelp size={17}/>使用与评分说明</button></div></div>
     </aside>
   </>;
 }

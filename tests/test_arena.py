@@ -84,6 +84,19 @@ class ArenaTests(unittest.TestCase):
         self.assertEqual(len(self.app.state()['archivedRuns']),1)
         with self.assertRaises(ValueError):self.mutate(r,'capture')
         self.app.db.archive('run',r['id'],False,r['revision']+1);self.assertEqual(len(self.app.state()['runs']),1)
+
+    def test_history_visibility_preserves_owned_files_and_can_restore(self):
+        run=self.prepare()
+        work=Path(run['trials'][0]['workspacePath'])
+        with self.assertRaisesRegex(ValueError,'确认'):
+            post(self.app,f"/api/arena/runs/{run['id']}/history-visibility",{'revision':run['revision'],'hidden':True})
+        hidden=post(self.app,f"/api/arena/runs/{run['id']}/history-visibility",{'revision':run['revision'],'hidden':True,'confirmation':'移出历史 '+run['id']})
+        self.assertTrue(hidden['historyHidden'])
+        self.assertTrue(work.is_dir())
+        self.assertTrue(self.app.state()['runs'][0]['historyHidden'])
+        restored=post(self.app,f"/api/arena/runs/{run['id']}/history-visibility",{'revision':self.app.db.get('run',run['id'])['revision'],'hidden':False})
+        self.assertFalse(restored['historyHidden'])
+        self.assertTrue(work.is_dir())
     def test_delete_archived_config_keeps_frozen_run(self):
         r=self.prepare()
         c=self.app.db.get('config','minimal')

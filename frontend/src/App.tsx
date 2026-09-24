@@ -24,9 +24,15 @@ export function App(){
   useEffect(()=>{if(!activeJob)return;let live=true;let timer:ReturnType<typeof setTimeout>;
     const poll=async()=>{try{const s=await request<State>('/state');if(live){setState(s);setConnectionError('');}}catch(e){if(live)setConnectionError((e as Error).message);}finally{if(live)timer=setTimeout(poll,1800);}};
     timer=setTimeout(poll,1800);return()=>{live=false;clearTimeout(timer);};},[activeJob]);
+  useEffect(()=>{if(activeJob||!['history','leaderboard'].includes(tab))return;
+    const update=()=>{if(document.visibilityState==='visible')void refresh().catch(()=>{});};
+    window.addEventListener('focus',update);document.addEventListener('visibilitychange',update);
+    const timer=setInterval(update,10000);
+    return()=>{clearInterval(timer);window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
+  },[activeJob,tab,refresh]);
   const act:Act=async<T,>(path:string,data?:unknown)=>{setBusy(true);setError('');setNotice('');try{const {result,refreshed}=await submitAndRefresh<T>(path,data??{},refresh);setNotice(!refreshed?'操作已成功提交，但记录刷新失败。请恢复连接后刷新记录，无需重复提交。':path.endsWith('/open')?'已请求打开 Codex，请在桌面核对目录与提示词。':'已保存。');return result;}catch(e){setError((e as Error).message);throw e;}finally{setBusy(false);}};
   const go=(id:string)=>{setRunId(id);setTab('workbench');};
-  const navigate=(next:ArenaTab)=>{if(next==='workbench')setRunId(null);setTab(next);};
+  const navigate=(next:ArenaTab)=>{if(next==='workbench')setRunId(null);setTab(next);if(next==='history'||next==='leaderboard')void refresh().catch(()=>{});};
   const run=state?.runs.find(r=>r.id===runId)||state?.archivedRuns.find(r=>r.id===runId);
   return <div className="app-shell"><a className="skip-link" href="#workspace-content">跳到主要内容</a><ArenaHeader activeTab={tab} onTabChange={navigate}/>
     <main id="workspace-content" className="arena-main" tabIndex={-1}>

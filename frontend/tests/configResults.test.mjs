@@ -14,10 +14,11 @@ const run=(id,taskId,score,{revision=1,mode='machine',override=false,changed=fal
   trials:[{id:`trial-${id}`,configId:'config-a',taskId,state,captures:[{harnessUnchanged:!changed,hostUnchanged:true}],score:{overall:score}}]
 });
 
-test('repeat trials average within each task, then distinct tasks get equal weight',()=>{
+test('repeat trials average within a task while different tasks do not create a total grade',()=>{
   const state={configs:[cfg()],archivedConfigs:[],runs:[run('01','task-a',20),run('02','task-a',40),run('03','task-b',90)],archivedRuns:[]};
   const [result]=configResults(state);
-  assert.equal(result.score,60); // task-a mean 30, task-b 90
+  assert.equal(result.score,null);
+  assert.deepEqual(result.tasks.map(t=>t.mean),[30,90]);
   assert.equal(result.tasks.length,2);
   assert.equal(result.completed,3);
 });
@@ -59,7 +60,16 @@ test('archiving both the configuration and its run keeps the score and makes the
   assert.equal(result.tasks[0].entries[0].archived,true);
 });
 
-test('source breakdown is visible but the overall score still weights distinct tasks equally',()=>{
+test('archived count names runs rather than trials in a batch',()=>{
+  const batch=run('01','task-a',86);
+  batch.tasks.push(task('task-b'));
+  batch.trials.push({...batch.trials[0],id:'trial-b',taskId:'task-b',score:{overall:72}});
+  const [result]=configResults({configs:[cfg()],archivedConfigs:[],runs:[],archivedRuns:[batch]});
+  assert.equal(result.archivedRuns,1);
+  assert.equal(result.entries.length,2);
+});
+
+test('source breakdown is visible without a misleading cross-task score',()=>{
   const state={configs:[cfg()],archivedConfigs:[],runs:[
     run('01','bug-a',20,{sourceKind:'deepswe'}),
     run('02','bug-a',40,{sourceKind:'deepswe'}),
@@ -67,10 +77,26 @@ test('source breakdown is visible but the overall score still weights distinct t
     run('04','idea-a',90,{sourceKind:'prototype-prompt'})
   ],archivedRuns:[]};
   const [result]=configResults(state);
-  assert.equal(result.score,60); // (30 + 60 + 90) / 3, not the mean of two source means
-  assert.deepEqual(result.collections.map(c=>[c.label,c.tasks.length,c.trials,c.mean]),[
-    ['DeepSWE',2,3,45],['开放需求题',1,1,90]
+  assert.equal(result.score,null);
+  assert.deepEqual(result.collections.map(c=>[c.label,c.tasks.length,c.trials]),[
+    ['DeepSWE',2,3],['开放需求题',1,1]
   ]);
+});
+
+test('finished delivery without final grading remains visible and does not claim a score',()=>{
+  const [result]=configResults({configs:[cfg()],archivedConfigs:[],runs:[run('01','task-a',null)],archivedRuns:[]});
+  assert.equal(result.finished,1);
+  assert.equal(result.scored,0);
+  assert.equal(result.score,null);
+  assert.match(result.reason,/尚无最终评分/);
+});
+
+test('removing a run from history removes its score without deleting its frozen record',()=>{
+  const hidden={...run('01','task-a',88),historyHidden:true};
+  const [result]=configResults({configs:[cfg()],archivedConfigs:[],runs:[hidden],archivedRuns:[]});
+  assert.equal(result.score,null);
+  assert.equal(result.entries.length,0);
+  assert.equal(hidden.trials[0].score.overall,88);
 });
 
 test('permanently deleted library config disappears from scorecards but historical runs are independent',()=>{
