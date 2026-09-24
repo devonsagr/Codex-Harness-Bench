@@ -17,9 +17,10 @@ export {Prepare} from './Prepare';
 export function RunDetail({run,state,act,onBack,onError,archived}:{run:Run;state:State;act:Act;onBack:()=>void;onError:(s:string)=>void;archived:boolean}){
   const [tid,setTid]=useState(run.trials[0].id);const t=run.trials.find(x=>x.id===tid)||run.trials[0];
   const task=run.tasks.find(x=>x.id===t.taskId)!;const config=run.configs.find(c=>c.id===t.configId)!;
+  const completed=run.trials.filter(v=>v.state==='completed').length;
   return <div className="run-detail space-y-5"><div className="run-toolbar"><button className="btn-ghost" onClick={onBack}>返回评测工作台</button><span className="muted">{date(run.createdAt)}{archived?' · 已归档':''}</span><button className="btn-secondary" onClick={()=>downloadRun(run.id).catch(e=>onError(e.message))}>导出 ZIP</button></div>
     {run.comparisonWarnings.map(w=><p className="alert-error" key={w}>{w}</p>)}
-    {run.trials.length>1&&<Field label="切换试次"><select value={t.id} onChange={e=>setTid(e.target.value)}>{run.trials.map(v=><option key={v.id} value={v.id}>{run.tasks.find(x=>x.id===v.taskId)?.title} · {run.configs.find(c=>c.id===v.configId)?.name} · {labels[v.state]} · {num(v.score.overall)}分</option>)}</select></Field>}
+    {run.trials.length>1&&<section className="batch-queue" aria-label="批量评测待办队列"><header><div><span className="eyebrow">独立工作区队列</span><h2>{completed}/{run.trials.length} 项交付结束</h2></div><p>逐项打开、核对配置、手动执行；创建不自动运行。各项有独立目录、回收与评分，但同机共享 Codex 全局设置，同时手动运行可能相互影响。</p></header><div className="batch-queue-list">{run.trials.map((v,index)=><button type="button" key={v.id} className={'batch-queue-item '+(t.id===v.id?'selected':'')} aria-current={t.id===v.id?'true':undefined} onClick={()=>setTid(v.id)}><span className="batch-queue-index">{String(index+1).padStart(2,'0')}</span><span className="batch-queue-name"><strong>{run.tasks.find(x=>x.id===v.taskId)?.title}</strong><small>{run.configs.find(c=>c.id===v.configId)?.name} · {v.id} · {archived?'已归档 · ':''}{labels[v.state]||v.state}</small></span><span className="batch-queue-score">{v.score.overall==null?'待评分':num(v.score.overall,' 分')}</span></button>)}</div></section>}
     <TrialView key={t.id+'-'+t.stageIndex} run={run} trial={t} task={task} config={config} state={state} act={act} onError={onError} archived={archived}/>
   </div>;
 }

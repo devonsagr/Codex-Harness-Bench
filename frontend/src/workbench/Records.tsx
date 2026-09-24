@@ -1,9 +1,10 @@
 import {ArrowUpRight,Archive,Download,Search,RotateCcw} from 'lucide-react';
 import {useState} from 'react';
 import {runProgress} from './presentation';
-import type {State,Act,Run} from './types';
+import type {State,Act} from './types';
 import {Panel,Details,Empty,num,date} from './ui';
 import {downloadRun} from './api';
+import {configResults} from './configResults';
 export function History({state,act,onOpen,onError}:{state:State;act:Act;onOpen:(id:string)=>void;onError:(s:string)=>void}){
   const [archived,setArchived]=useState(false);const [query,setQuery]=useState('');
   const runs=(archived?state.archivedRuns:state.runs).filter(r=>(r.id+r.notes+r.tasks.map(t=>t.title).join()+r.configs.map(c=>c.name).join()).toLowerCase().includes(query.toLowerCase()));
@@ -15,18 +16,17 @@ export function History({state,act,onOpen,onError}:{state:State;act:Act;onOpen:(
 
 }
 export function Comparison({state,onOpen}:{state:State;onOpen:(id:string)=>void}){
-  const groups=new Map<string,{title:string;rows:{run:Run;name:string;score:number;input:number|null;seconds:number|null}[]}>();let incomplete=0;
-  for(const run of state.runs)for(const t of run.trials){
-    const c=run.configs.find(c=>c.id===t.configId)!;const task=run.tasks.find(q=>q.id===t.taskId)!;const last=t.captures[t.captures.length-1];
-    if(t.score.overall==null||!last||t.captures.some(cap=>!cap.harnessUnchanged||!cap.hostUnchanged)||t.usage?.models.join()!==c.baseModel||t.usage?.reasoningLevels.join()!==c.reasoning||t.observations.length){incomplete++;continue;}
-    const machine=run.policy.version==='arena-machine-v1';const judge=t.reviews.find(r=>r.id===t.score.machineReviewId);
-    if(machine&&(!judge||judge.reviewEnvironment==='local'||t.score.machineCoverage!==100||!judge.model||!judge.reasoningEffort||!judge.imageId||!judge.codexVersion||Object.keys(t.score.machineOverrides||{}).length)){incomplete++;continue;}
-    const key=JSON.stringify([machine?[judge?.model,judge?.reasoningEffort,judge?.imageId,judge?.codexVersion]:null,task,run.executionMode,c.baseModel,c.reasoning,run.policy,run.hostFingerprint,[...new Map(t.captures.flatMap(cap=>cap.checks.map(check=>[check.id,check.imageId] as const))).entries()].sort()]);
-    const group=groups.get(key)||{title:task.title+' · '+c.baseModel+' / '+c.reasoning,rows:[]};
-    group.rows.push({run,name:c.name+' v'+c.revision+(c.preparationOverride?' · 本次技能已调整':''),score:t.score.overall,input:t.usage.inputTokens,seconds:t.usage.activeSeconds});groups.set(key,group);
-  }
-  return <><header className="page-heading"><div><span className="eyebrow">同条件比较</span><h1 className="page-title">看清差异，再做选择。</h1><p>只比较题目、模型、评分与已记录环境条件一致的交付。</p></div><div className="history-count"><strong>{groups.size}</strong><span>组可比较结果</span></div></header><Details title={`比较条件 · ${incomplete} 条记录暂未纳入`}><p>机器方案需要相同裁判、完整机器覆盖且未经人工改分；修正成绩在单次结果页显示。本机裁判暂缺完整环境指纹，不纳入严格比较。需有实际日志并补齐评分；证据不足或条件变化的记录保留在评测历史中。</p></Details>
-    {groups.size?[...groups.entries()].map(([key,g])=><Panel key={key} title={g.title}><div className="overflow-x-auto"><table><thead><tr><th>配置版本</th><th>综合分</th><th>输入 Token</th><th>活动秒数</th><th>原始记录</th></tr></thead><tbody>{g.rows.map((r,i)=><tr key={i}><td>{r.name}</td><td>{num(r.score)}</td><td>{num(r.input)}</td><td>{num(r.seconds)}</td><td><button className="btn-ghost" onClick={()=>onOpen(r.run.id)}>查看证据</button></td></tr>)}</tbody></table></div><p className="muted">{g.rows.length} 条记录。无预设排名与误差范围；单次差异不能说明 Harness 改动的可靠收益。</p></Panel>):<Empty>目前没有满足分组条件的已完成结果。不会为示例配置预设成绩。</Empty>}
-    <Details title="比较仍有哪些限制"><p className="text-sm leading-7">桌面版本、其他全局技能、插件、人工介入和任务本身的随机性仍可能影响结果。即使条件记录一致，也不能由一次跑分证明因果。项目构建与 Bug 修复不合成一个总榜；多轮是同一题的连续工作，不能当成多道独立题。当前不计算置信区间或自动宣布胜者。</p></Details></>;
+  const [opened,setOpened]=useState<string|null>(null);
+  const [model,setModel]=useState('');
+  const all=configResults(state);
+  const models=[...new Set(all.map(g=>g.config.baseModel))].sort();
+  const groups=all.filter(g=>!model||g.config.baseModel===model);
+  return <><header className="page-heading"><div><span className="eyebrow">配置成绩</span><h1 className="page-title">一套配置，一份成绩档案。</h1><p>先看配置版本的参考均分，再查看每道题及重复测试的原始记录。</p></div><div className="history-count"><strong>{all.length}</strong><span>个配置版本</span></div></header>
+    <div className="config-results-intro"><p>每次保存后的版本单独统计。先平均同一道题的多次完成成绩，再对不同题等权平均；归档记录仍计入。未完成、临时改动技能或条件变化的记录保留在明细中，不参与均分。不同评分方案不合算。</p><label>按模型查看 <select value={model} onChange={e=>setModel(e.target.value)}><option value="">全部模型</option>{models.map(id=><option key={id} value={id}>{id}</option>)}</select></label></div>
+    {groups.length?<div className="config-results-grid">{groups.map(group=><article key={group.key} className={'config-result-card '+(opened===group.key?'is-open':'')}><button className="config-result-summary" type="button" aria-expanded={opened===group.key} onClick={()=>setOpened(opened===group.key?null:group.key)}><span className="config-result-identity"><small>{group.current?'当前版本':group.archivedConfig?'已归档配置':'历史版本'} · v{group.config.revision}</small><strong>{group.config.name}</strong><em>{group.config.baseModel} · {group.config.reasoning||'默认思考'} · {group.config.serviceTier==='fast'?'Fast':group.config.serviceTier==='standard'?'标准速度':'沿用速度'} · {group.config.skills.length} 个 Skills</em></span><span className="config-result-metric"><strong>{group.score==null?'—':group.score.toFixed(1)}</strong><small>{group.score==null?group.reason:'参考均分 / 100'}</small></span><span className="config-result-count">{group.policyCount>1?'评分方案待统一':`${group.tasks.length} 道计分题`} · {group.completed} 次条件可核对<br/>{group.pending} 次待核对 · {group.archivedRuns} 次已归档</span><span aria-hidden="true" className="config-result-arrow">{opened===group.key?'−':'＋'}</span></button>
+      {opened===group.key&&<div className="config-result-detail"><p className="muted">{group.score==null?group.reason:'各题等权；同题重复测试先取算术平均。'} 分数只供本机条件下参考，不代表模型或 Harness 的普遍能力。</p>{group.tasks.map(task=><section className="config-task-results" key={task.task.id+':'+task.task.revision}><header><h3>{task.task.title} <small>v{task.task.revision}</small></h3><strong>{task.mean.toFixed(1)} 分 · {task.entries.length} 次</strong></header>{task.entries.map(entry=><div className="config-trial-row" key={entry.trial.id}><span>{date(entry.run.createdAt)}{entry.archived?' · 已归档':''}</span><span>{num(entry.trial.score.overall,' 分')}</span><button className="btn-ghost" onClick={()=>onOpen(entry.run.id)}>查看评测与证据</button></div>)}</section>)}
+        {group.entries.filter(e=>!e.eligible||group.policyCount>1).map(entry=><div className="config-trial-row is-excluded" key={entry.trial.id}><span>{entry.task.title} · {date(entry.run.createdAt)}{entry.archived?' · 已归档':''}</span><span>{entry.exclusion||'评分方案不同'}</span><button className="btn-ghost" onClick={()=>onOpen(entry.run.id)}>查看记录</button></div>)}
+        {group.policyCount>1&&<p className="score-notice">这个版本用了不同评分方案；各次原分可查，汇总分保持空白。</p>}</div>}</article>)}</div>:<Empty>还没有该模型的评测记录。完成评测后会按配置版本归档。</Empty>}
+    <Details title="怎样比较两套 Harness"><p>优先筛选同一模型、思考档位、速度、题目、源码、评分方案和桌面环境，再比较配置版本。换模型后的成绩属于另一套组合，不能只归因于规则或 Skills。当前参考均分没有统计置信区间，不自动宣布胜者。</p></Details></>;
 }
 export {Guide} from './Guide';

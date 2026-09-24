@@ -7,12 +7,14 @@ import {SkillPicker,ProjectConfigImport} from './Skills';
 import {Field,Panel,Details,Empty,ModelSelect,Dialog} from './ui';
 import {TaskEnvironment,canStartTask,needsBaseline} from './TaskEnvironment';
 import {ContractEditor,ContractView,TaskFilters,TaskImport,matchTask} from './Contracts';
+import {configResults} from './configResults';
 
 const newConfig=():Config=>({id:'',revision:0,name:'',agentsPrompt:'',baseModel:'gpt-6-astra',reasoning:'medium',serviceTier:'standard',interactiveMode:'adaptive',skills:[],customConstraints:[]});
-export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:string)=>void}){
-  const [draft,setDraft]=useState<Config>(structuredClone(state.configs[0]||newConfig()));
+export function ConfigManager({state,act,onUse,initialConfigId}:{state:State;act:Act;onUse:(id:string)=>void;initialConfigId?:string|null}){
+  const [draft,setDraft]=useState<Config>(structuredClone(state.configs.find(c=>c.id===initialConfigId)||state.configs[0]||newConfig()));
   const [section,setSection]=useState('rules');const [query,setQuery]=useState('');
   const [dialog,setDialog]=useState<'import'|'trash'|'delete'|null>(null);
+  const scores=new Map(configResults(state).map(group=>[group.key,group]));
   const modelInfo=state.models.find(m=>m.id===draft.baseModel);const efforts=modelInfo?.reasoningLevels||[];
   const change=(patch:Partial<Config>)=>setDraft(current=>({...current,...patch}));
   const save=async(copy=false)=>{try{const c=await act<Config>('/configs/save',{...draft,...(copy?{id:undefined,revision:undefined,name:draft.name+' · 副本'}:{})});setDraft(c);return c;}catch{return null;}};
@@ -22,7 +24,7 @@ export function ConfigManager({state,act,onUse}:{state:State;act:Act;onUse:(id:s
   const remove=async()=>{try{await act(`/configs/${draft.id}/archive`,{revision:draft.revision,archived:true});choose(state.configs.find(c=>c.id!==draft.id)||newConfig());setDialog(null);}catch{}};
   return <div className="studio-layout"><aside className="studio-library"><header><div><span className="eyebrow">个人 Harness</span><h1 className="page-title">配置库<span className="count-label">{state.configs.length}</span></h1></div><button className="btn-primary" onClick={()=>{setDraft(newConfig());setSection('rules');}}>新建配置</button></header>
     <InitialConfig state={state} act={act}/><input aria-label="搜索配置" placeholder="搜索名称或模型" value={query} onChange={e=>setQuery(e.target.value)}/>
-    <div className="studio-list">{state.configs.filter(c=>(c.name+' '+c.baseModel).toLowerCase().includes(query.toLowerCase())).map(c=><button key={c.id} className={'list-card '+(draft.id===c.id?'selected':'')} onClick={()=>choose(c)}><strong>{c.name}</strong><span>{c.baseModel} · {c.reasoning}</span><small>v{c.revision} · {c.skills.length} 个 Skills</small></button>)}{!state.configs.length&&<Empty>还没有配置，点击新建或导入。</Empty>}</div>
+    <div className="studio-list">{state.configs.filter(c=>(c.name+' '+c.baseModel).toLowerCase().includes(query.toLowerCase())).map(c=>{const score=scores.get(`${c.id}:${c.revision}`);return <button key={c.id} className={'list-card '+(draft.id===c.id?'selected':'')} onClick={()=>choose(c)}><strong>{c.name}</strong><span>{c.baseModel} · {c.reasoning} · {c.serviceTier==='fast'?'Fast':'标准/默认速度'}</span><small>v{c.revision} · {c.skills.length} 个 Skills · 参考均分 {score?.score==null?'—':score.score.toFixed(1)}{score?.score!=null?` / ${score.tasks.length} 题`:''}</small></button>;})}{!state.configs.length&&<Empty>还没有配置，点击新建或导入。</Empty>}</div>
     <div className="library-actions"><button className="btn-secondary" onClick={()=>setDialog('import')}>导入配置</button><button className="btn-ghost" onClick={()=>setDialog('trash')}>回收站 · {state.archivedConfigs.length}</button></div>
   </aside><section className="studio-editor"><header className="editor-heading"><div><span className="eyebrow">{draft.id?'已保存 v'+draft.revision:'新配置'}{dirty?' · 有未保存修改':''}</span><h2>{draft.name||'命名你的配置'}</h2></div><div className="editor-actions"><button className="btn-primary" disabled={draft.id.startsWith('initial-')} onClick={()=>void save()}>保存配置</button>{draft.id&&<button className="btn-danger" onClick={()=>setDialog('delete')}>删除配置</button>}</div></header>
     <nav className="section-nav" aria-label="配置编辑分区">{[['rules','模型与规则'],['skills',`Skills · ${draft.skills.length}`],['native','工具与原生设置'],['apply','应用到 Codex']].map(([id,label])=><button type="button" key={id} aria-current={section===id?'page':undefined} className={section===id?'active':''} onClick={()=>setSection(id)}>{label}</button>)}</nav>
