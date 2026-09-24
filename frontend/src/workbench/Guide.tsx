@@ -10,12 +10,12 @@ export function Guide({state}:{state:State}){
   const total=dimensions.reduce((sum,[,weight])=>sum+weight,0);
   return <div className="guide-page">
     <header className="guide-heading"><span className="eyebrow">CODEX HARNESS BENCH</span><h1>你的配置，是否让 Codex 更好用？</h1><p>在 Codex 桌面既有底座上，评测模型与个人配置共同产生的真实交付。</p></header>
-    <nav className="section-nav" aria-label="原理说明分区">{[['purpose','项目定位'],['workflow','使用与评分'],['sources','题库与公开来源'],['methods','榜单如何评分']].map(([id,label])=><button key={id} className={section===id?'active':''} aria-current={section===id?'page':undefined} onClick={()=>setSection(id)}>{label}</button>)}</nav>
+    <nav className="section-nav" aria-label="原理说明分区">{[['purpose','项目定位'],['workflow','使用与评分'],['sources','题库与公开来源'],['methods','评分方法']].map(([id,label])=><button key={id} className={section===id?'active':''} aria-current={section===id?'page':undefined} onClick={()=>setSection(id)}>{label}</button>)}</nav>
     {section==='purpose'&&<div className="guide-content">
       <section className="guide-intro reading-copy"><h2>模型榜单回答不了你的全部问题</h2><p>同一个模型，加上不同的规则、Skills、工具和交互约定，可能交付不同的结果。我们想回答的是：你每天使用的这一套配置，是否更能完成你的需求，是否值得保留这次改动。</p><p>编码榜单通常也包含指定的运行框架。本项目进一步固定到 Codex 桌面场景，重点比较你能调整的那一层。</p></section>
       <div className="harness-layers" aria-label="评测对象三层结构"><section><span>01 · 基础条件</span><h2>Codex 桌面底座</h2><p>桌面提供的执行循环、工具、上下文管理与产品行为。记录版本及宿主条件。</p></section><section><span>02 · 模型条件</span><h2>模型与推理档位</h2><p>比较个人配置时尽量保持相同；换模型时，结果解释为组合差异。</p></section><section className="personal-layer"><span>03 · 主要比较变量</span><h2>你的个人配置</h2><p>AGENTS 规则、Skills、交互约定，以及工作台支持的原生设置和工具开关。</p></section></div>
       <section className="guide-two-column"><div><h2>怎样比较一次改动</h2><p>保存配置 A，复制成 B，只改你想验证的部分。同一题目、同一源码起点和评分方案分别执行，查看交付质量、资源使用和具体证据。</p></div><div><h2>结果告诉你什么</h2><p>哪项需求完成得更好、哪里出错、花了多少可核实的用量。重复多题后再判断收益；一次高分只是一条实验记录。</p></div></section>
-      <Details title="哪些条件会影响比较"><p>模型、推理档位、桌面版本、源码和依赖版本、继承的全局规则与工具、人工介入、裁判及评分标准都会影响结果。独立工作区保存起点和产物，但仍可能继承桌面的全局设置。当前严格分组只接纳条件证据齐备的记录，本机裁判结果暂未纳入严格比较。</p></Details>
+      <Details title="哪些条件会影响比较"><p>模型、推理档位、桌面版本、源码和依赖版本、继承的全局规则与工具、人工介入、裁判及评分标准都会影响结果。独立工作区保存起点和产物，但仍可能继承桌面的全局设置。配置成绩按冻结版本分组；同模型同题、相同评分协议下的差异才更适合解释为个人 Harness 改动。</p></Details>
     </div>}
     {section==='methods'&&<BenchmarkMethods/>}
     {section==='workflow'&&<div className="guide-content">

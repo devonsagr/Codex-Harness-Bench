@@ -9,7 +9,7 @@ export const arenaPages:Record<ArenaTab,{label:string;description:string}>={
   history:{label:'评测历史',description:'查看过往结果'},
   tasks:{label:'任务库',description:'精选真实任务集'},
   configs:{label:'配置库',description:'模型与运行配置'},
-  leaderboard:{label:'结果对比',description:'多次评测横向对比'},
+  leaderboard:{label:'配置成绩',description:'按配置版本查看题目与历史'},
   spec:{label:'方法说明',description:'评分来源与边界'},
 };
 const tabs=[{id:'workbench',icon:FlaskConical},{id:'history',icon:Clock3},{id:'leaderboard',icon:Activity},{id:'tasks',icon:BookOpen},{id:'configs',icon:SlidersHorizontal},{id:'storage',icon:Database},{id:'spec',icon:BookOpen}] as const;

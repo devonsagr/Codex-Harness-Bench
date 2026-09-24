@@ -36,8 +36,8 @@ export function App(){
       {error&&<div role="alert" className="alert-error">{error}<button className="ml-4 underline" onClick={()=>setError('')}>关闭</button></div>}
       {notice&&!error&&<p role="status" className="text-xs text-slate-500">{notice}</p>}
       {!state?<div className="panel p-8">{connectionError?'暂时无法连接本地后端，请确认启动命令和端口。':'正在读取本地配置与评测记录…'}</div>:<fieldset disabled={busy} className={"page-content page-"+tab}>
-        {tab==='workbench'&&(run?<RunDetail key={run.id} run={run} state={state} act={act} onBack={()=>setRunId(null)} onError={setError} archived={state.archivedRuns.some(r=>r.id===run.id)}/>:<Prepare state={state} act={act} onCreated={go} selectedTaskId={selectedTaskId} selectedConfigId={selectedConfigId}/>)}
-        {tab==='configs'&&<ConfigManager state={state} act={act} onUse={id=>{setSelectedConfigId(id);setRunId(null);setTab('workbench');}}/>}
+        {tab==='workbench'&&(run?<RunDetail key={run.id} run={run} state={state} act={act} onBack={()=>setRunId(null)} onError={setError} archived={state.archivedRuns.some(r=>r.id===run.id)}/>:<Prepare state={state} act={act} onCreated={go} onEditConfig={id=>{setSelectedConfigId(id);setTab('configs');}} selectedTaskId={selectedTaskId} selectedConfigId={selectedConfigId}/>)}
+        {tab==='configs'&&<ConfigManager state={state} act={act} initialConfigId={selectedConfigId} onUse={id=>{setSelectedConfigId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='tasks'&&<TaskManager state={state} act={act} onUse={id=>{setSelectedTaskId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='history'&&<History state={state} act={act} onOpen={go} onError={setError}/>}
         {tab==='leaderboard'&&<Comparison state={state} onOpen={go}/>}

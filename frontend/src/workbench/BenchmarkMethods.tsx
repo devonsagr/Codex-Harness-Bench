@@ -1,12 +1,7 @@
 import {Details} from './ui';
-const methods=[
-  ['SWE-Atlas-QnA','仓库问答 · 专家量表 + AI 判定','124 道仓库理解题。按专家标准逐项判断，整题全部通过才计入解决率；不是让 AI 凭印象报一个百分数。','借鉴：固定源码、逐条标准、逐条凭证。问答能力不能直接等同项目交付能力。','https://huggingface.co/datasets/ScaleAI/SWE-Atlas-QnA/blob/main/README.md'],
-  ['CursorBench 4.0','真实编码任务 · 自动裁判与线上验证','任务取自真实工程工作，包含实现、重构、调查及意图理解。公开资料描述 agentic graders 和线上验证；完整 4.0 私有题集及逐项评分协议未公开。','借鉴：模糊意图、真实上下文和效率；不能用公开介绍伪造可复现的官方分。','https://cursor.com/cursorbench'],
-  ['DeepSWE v1.1','既有仓库工程 · 程序验收','113 道任务的提交补丁在独立验收环境检查，按通过/失败统计。AA 每题重复三次后取平均 pass@1，不是三次挑最好。','借鉴：源码起点、隐藏测试、回归验证。当前 Windows 少量适配不等同原榜单环境。','https://artificialanalysis.ai/methodology/coding-agents-benchmarking'],
-  ['EEBench','电气工程 · 构建、仿真和成本','电路按测试工况与物料成本检查，明确不使用人或 LLM 评判。技术达标与成本效率分别占 65% / 35%；成本奖励以电路工作为前提。','借鉴：领域专用可执行验收。它不是通用代码评审量表，也不是名字相近的 EEE-Bench。','https://www.eebench.org/methodology.html'],
-  ['AA-Briefcase v1.1','办公交付 · 量表与成对比较','91 道私有业务任务。结合逐条标准、分析质量和呈现质量的成对比较，用 CrowdBT 汇总排名；千分制数字不是通过百分比。','借鉴：比较两个真实交付、同时看内容与呈现。公开 Lite 示例集不等于私有榜单。','https://artificialanalysis.ai/evaluations/aa-briefcase'],
-  ['Terminal-Bench 4.0','终端长任务 · 测试验收','在固定环境完成终端任务，由测试套件验收。4.0 调整算力、任务与时限；执行预算长达八小时，不是固定几分钟的审查。','借鉴：环境、资源、超时协议也属于评分条件；不同版本不能直接拼在一起。','https://www.tbench.ai/news/terminal-bench-4-0'],
-  ['Harvey Legal Agent Benchmark','法律交付 · 专家标准与 AI 裁判','给任务和客户材料，检查交付文件是否满足专家定义的原子标准。AI 参与逐条判定；不同发布方的题目子集与裁判协议须分开看。','借鉴：标准对应具体文件与证据。评测分不等于法律意见质量保证。','https://github.com/harveyai/harvey-labs'],
-  ['HealthBench Professional','专业医疗问答 · 加权专家标准','医生设计正向要求与负向惩罚项，AI 判断是否满足，再按权重汇总；发布分还涉及长度校正。并非医学正确率百分比。','借鉴：漏项与有害行为分开、裁判与专家一致性校准。不能把医疗量表套到软件项目。','https://cdn.openai.com/dd128428-0184-4e25-b155-3a7686c7d744/HealthBench-Professional.pdf'],
-];
-export function BenchmarkMethods(){return <div className="guide-content"><section className="reading-copy"><h2>同样叫分数，衡量的东西不同</h2><p>核对日期：2026-09-23。截图提供研究线索，具体分值和模型排名不作为已验证结论。输入、输出 Token 价格属于成本，不是能力指标。</p><p>权威评测也会使用 AI 裁判。可信度取决于标准、证据、版本、统计协议与人工校准；没有一个不需要任务标准、又能可靠判断所有项目的万能评分器。</p></section>{methods.map(([title,kind,method,borrow,url])=><Details key={title} title={title+' · '+kind}><p>{method}</p><p>{borrow}</p><a href={url} target="_blank" rel="noreferrer">原始方法说明 ↗</a></Details>)}<section className="guide-two-column"><div><h2>复用框架，保留任务标准</h2><p><a href="https://github.com/harbor-framework/harbor" target="_blank" rel="noreferrer">Harbor</a> 提供任务、环境、验收与运行记录格式；<a href="https://inspect.aisi.org.uk/scoring.html" target="_blank" rel="noreferrer">Inspect AI</a> 支持程序和模型评分器、日志及重评分。它们都没有消除每题的验收定义。</p></div><div><h2>我们借鉴到哪里</h2><p>已实现版本冻结、独立审查、程序和质量分分存、人工查阅产物与参考评价。多裁判校准、盲评成对比较、置信区间及全部公开题验收适配仍待实现。</p></div></section></div>;}
+
+export function BenchmarkMethods(){return <div className="guide-content"><section className="reading-copy"><h2>分数必须连同任务和条件一起看</h2><p>模型发布表格常把不同测试列成多行，每行可能有不同题目、环境、裁判和统计单位。它适合用来学习公开条件与证据的方法，不是一张可以直接搬进个人工作台的统一总榜。</p><p>本项目评测 Codex 桌面中的模型与个人 Harness 组合。每次结果连同配置版本、题目起点、评分方案、回收产物和执行条件保存；分数只供相应条件下参考。</p></section>
+    <div className="guide-two-column"><section><h2>固定条件的基准任务</h2><p>先看原题的测试与验收协议。可执行检查记录通过、失败、环境错误和缺失项；AI 的质量意见另列。没有接通原题验收器时，不生成原榜单意义上的通过率。</p></section><section><h2>开放需求的真实交付</h2><p>按任务声明的需求和质量维度评价，保留文件、运行、截图与人工体验证据。AI 可以帮助审阅，但主观判断必须允许人工复核；未实际体验的界面维度不假装已验证。</p></section></div>
+    <Details title="配置成绩怎样汇总"><p>同一配置的每个保存版本单独统计。同一道题做多次，先对已完成且条件可核对的成绩求平均；再让各题等权进入该版本的参考均分。归档仍保留成绩。评分方案不同、配置临时变更、环境变化或未完成时不强行合并。跨模型比较看到的是模型与 Harness 的组合差异。</p></Details>
+    <Details title="哪些信息比单个数字更重要"><p>任务版本、固定源码、运行环境、模型与思考档位、执行速度、评分器版本、人工介入、样本数和原始证据都要与数字一起读。成本与 Token 用量单列，不能作为质量分。样本少时不能宣布胜者；当前不计算统计置信区间。</p></Details>
+    <p className="score-notice">所有评分仅供参考，不代表模型的全面能力或每次真实表现。程序、AI 与人工证据各有适用范围；不同公开榜单的分数和单位不能直接互换。</p></div>;}

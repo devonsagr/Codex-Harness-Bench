@@ -62,7 +62,7 @@ def status(app):
     override=safe_path(home,'AGENTS.override.md')
     has_override=override.is_file() and bool(override.read_text(encoding='utf-8-sig').strip())
     features=doc.get('features',{})
-    tier='fast' if doc.get('service_tier') in {'fast','priority'} and features.get('fast_mode',True) is True else 'standard' if doc.get('service_tier')=='default' else None
+    tier='fast' if doc.get('service_tier') in {'fast','priority'} and features.get('fast_mode',True) is True else 'standard' if doc.get('service_tier')=='default' and features.get('fast_mode',False) is False else None
     return {'home':str(home),'instructionsFile':'AGENTS.override.md' if has_override else 'AGENTS.md',
             'settings':{k:doc[k] for k in OPTIONS if k in doc},'model':doc.get('model'),'reasoning':doc.get('model_reasoning_effort'),'serviceTier':tier,'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
 
@@ -89,6 +89,8 @@ def set_model(doc,config):
         doc['features']['fast_mode']=True
     elif tier=='standard':
         doc['service_tier']='default'
+        if 'features' not in doc:doc['features']=tomlkit.table()
+        doc['features']['fast_mode']=False
 
 
 def project_settings(config,raw=b''):
