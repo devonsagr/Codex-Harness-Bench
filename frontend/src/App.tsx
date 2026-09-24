@@ -26,8 +26,9 @@ export function App(){
     timer=setTimeout(poll,1800);return()=>{live=false;clearTimeout(timer);};},[activeJob]);
   const act:Act=async<T,>(path:string,data?:unknown)=>{setBusy(true);setError('');setNotice('');try{const {result,refreshed}=await submitAndRefresh<T>(path,data??{},refresh);setNotice(!refreshed?'操作已成功提交，但记录刷新失败。请恢复连接后刷新记录，无需重复提交。':path.endsWith('/open')?'已请求打开 Codex，请在桌面核对目录与提示词。':'已保存。');return result;}catch(e){setError((e as Error).message);throw e;}finally{setBusy(false);}};
   const go=(id:string)=>{setRunId(id);setTab('workbench');};
+  const navigate=(next:ArenaTab)=>{if(next==='workbench')setRunId(null);setTab(next);};
   const run=state?.runs.find(r=>r.id===runId)||state?.archivedRuns.find(r=>r.id===runId);
-  return <div className="app-shell"><a className="skip-link" href="#workspace-content">跳到主要内容</a><ArenaHeader activeTab={tab} onTabChange={setTab} theme={theme} onToggleTheme={()=>setTheme(theme==='light'?'dark':'light')}/>
+  return <div className="app-shell"><a className="skip-link" href="#workspace-content">跳到主要内容</a><ArenaHeader activeTab={tab} onTabChange={navigate} theme={theme} onToggleTheme={()=>setTheme(theme==='light'?'dark':'light')}/>
     <main id="workspace-content" className="arena-main" tabIndex={-1}>
       <div className="workspace-topbar"><div className="breadcrumb"><span>工作空间</span><ChevronRight size={14}/><strong>{arenaPages[tab].label}</strong></div><div className="workspace-tools"><span className={'connection-indicator '+(connectionError?'offline':'')}><Radio size={14}/>{connectionError?'连接中断':'本机服务'}</span><button className="icon-button" title="刷新记录" aria-label="刷新记录" onClick={()=>refresh().then(()=>{setError('');setNotice('');}).catch(()=>{})}><RefreshCw size={16}/></button></div></div>
       <div className="workspace-body">
