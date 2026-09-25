@@ -81,6 +81,17 @@ class ReviewControlTests(unittest.TestCase):
         (job/'runtime.json').write_text(json.dumps({'workspace':str(self.home),'temporaryHome':str(self.home)}))
         with self.assertRaises(ValueError):delete(app,data)
         self.assertTrue(Path(t['workspacePath']).exists())
+
+    def test_explicit_delete_can_remove_stopped_unfinished_workspace(self):
+        app,r,t=self.run_fixture()
+        record=app.db.get('run',r['id'])
+        record['trials'][0]['state']='working'
+        record=app.db.save('run',record,record['revision'])
+        from chb.arena.storage import status
+        self.assertTrue(status(app)['workspaces'][0]['canDeleteRun'])
+        delete(app,{'runId':r['id'],'revision':record['revision'],'desktopStopped':True,
+                    'confirmation':'永久删除评测 '+r['id']})
+        with self.assertRaises(ValueError):app.db.get('run',r['id'])
     def test_progress_shows_sent_prompt_and_public_messages_not_reasoning(self):
         app,r,t=self.run_fixture();job=app.local/'runs'/r['id']/t['id']/'reviews/job-fixture'
         (job/'task').mkdir(parents=True);(job/'task/instruction.md').write_text('rubric fixture')

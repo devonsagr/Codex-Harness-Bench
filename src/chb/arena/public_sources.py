@@ -19,6 +19,13 @@ def catalog(app):
 DOWNLOAD_LOCK=threading.RLock()
 
 
+def cache_root(app):
+    root=app.public_sources_root
+    if (app.local/'public-sources-location.json').exists() and not root.is_dir():
+        raise ValueError('外置题包缓存位置不可用，请先连接原磁盘；没有重新下载或覆盖缓存。')
+    return root
+
+
 def task_files(app,task_id):
     source=catalog(app)
     if task_id not in {t['id'] for t in source['tasks']}:raise ValueError('未知公开题目。')
@@ -44,9 +51,10 @@ def download_file(source,name,digest):
 def task_bundle(app,task_id):
     """Download only the selected task; reuse old whole-definition caches read-only."""
     with DOWNLOAD_LOCK:
+        root_base=cache_root(app)
         source,files=task_files(app,task_id)
-        legacy=app.local/'public-sources/deepswe'/source['revision']/'files'
-        root=app.local/'public-sources/selected'/source['revision']/task_id/'files'
+        legacy=root_base/'deepswe'/source['revision']/'files'
+        root=root_base/'selected'/source['revision']/task_id/'files'
         for candidate in [root,legacy]:
             if all((candidate/name).is_file() and hash_bytes((candidate/name).read_bytes())==digest for name,digest in files.items()):return candidate
         root.parent.mkdir(parents=True,exist_ok=True)
@@ -60,9 +68,10 @@ def task_bundle(app,task_id):
 
 def preview(app,task_id):
     with DOWNLOAD_LOCK:
+        root_base=cache_root(app)
         source,files=task_files(app,task_id);name=f'tasks/{task_id}/instruction.md'
-        candidates=[app.local/'public-sources/selected'/source['revision']/task_id/'files'/name,
-                    app.local/'public-sources/deepswe'/source['revision']/'files'/name]
+        candidates=[root_base/'selected'/source['revision']/task_id/'files'/name,
+                    root_base/'deepswe'/source['revision']/'files'/name]
         for path in candidates:
             if path.is_file() and hash_bytes(path.read_bytes())==files[name]:return {'text':path.read_text(encoding='utf-8')}
         body=download_file(source,name,files[name]);dest=candidates[0]
@@ -72,7 +81,7 @@ def preview(app,task_id):
 
 def bundle(app):
     source=catalog(app)
-    root=safe_path(app.local,'public-sources/deepswe/'+source['revision'])
+    root=safe_path(cache_root(app),'deepswe/'+source['revision'])
     receipt=root/'manifest.json'
     if receipt.exists():
         verify_snapshot(root/'files',json.loads(receipt.read_text(encoding='utf-8')))
@@ -109,6 +118,7 @@ def bundle(app):
 
 
 def install(app,task_id,files):
+    from .upstream_verifier import TASKS as UPSTREAM_DOCKER_TASKS
     source=catalog(app); item=next(t for t in source['tasks'] if t['id']==task_id)
     tid='deepswe-'+task_id
     existing=next((t for t in app.db.list('task')+app.db.list('task',True) if t['id']==tid),None)
@@ -131,9 +141,9 @@ def install(app,task_id,files):
             'requiresBaseline':True,'baselineId':baseline['id'],'channel':'deepswe-core','difficulty':'未标注','hasFrontendUI':False,
             'checks':[],'sourceKind':'deepswe','referenceUrl':item['taskUrl'],'license':source['license'],
             'sourceNote':'固定版本源码已下载；隐藏验收在 public-sources 中单独保存，参考解未解包。桌面改编运行，不是官方排行榜同条件运行。',
-            'environmentNote':f"{item['language']} · 上游 Linux 环境；源码已就绪，本机依赖未验证。上游镜像：{definition['environment'].get('docker_image','见环境定义')}。原生验收尚未接入，不生成官方通过率。",
+            'environmentNote':f"{item['language']} · 上游 Linux 环境；源码已就绪，本机依赖未验证。上游镜像：{definition['environment'].get('docker_image','见环境定义')}。所选六题可在回收后使用固定镜像运行原题验收；需 Docker Desktop Linux 引擎，仍不代表官方排行榜执行条件。" if task_id in UPSTREAM_DOCKER_TASKS else f"{item['language']} · 上游 Linux 环境；源码已就绪，本机依赖未验证。上游镜像：{definition['environment'].get('docker_image','见环境定义')}。原题程序验收尚未接入，不生成官方通过率。",
             'publicSource':{'id':task_id,'revision':source['revision'],'baseCommit':item['baseCommit'],'category':item['category'],
-                'language':item['language'],'sourceReady':True,'environmentStatus':'unverified','verifierStatus':'downloaded-not-integrated'}})
+                'language':item['language'],'sourceReady':True,'environmentStatus':'unverified','verifierStatus':'upstream-docker-available' if task_id in UPSTREAM_DOCKER_TASKS else 'downloaded-not-integrated'}})
 
 
 def start(app,data):

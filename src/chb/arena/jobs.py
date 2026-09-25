@@ -31,7 +31,8 @@ def start_job(app,rid,tid,kind,data):
         task=next(t for t in run['tasks'] if t['id']==trial['taskId'])
         if kind=='native':
             from .native_verifier import supported
-            if not supported(task):raise ValueError('此题尚未接入本机测试验收。')
+            from .upstream_verifier import supported as upstream_supported
+            if not supported(task) and not upstream_supported(task):raise ValueError('此题尚未接入原题程序验收。')
         if kind=='judge' and (not isinstance(data.get('model'),str) or not data['model'].strip() or len(data['model'])>100):
             raise ValueError('请选择裁判模型。')
         if kind=='check' and not applicable_checks(task,capture['stageIndex']):raise ValueError('当前阶段没有可执行检查；可人工复审或在题目新版本声明检查。')
@@ -65,13 +66,17 @@ def start_job(app,rid,tid,kind,data):
             try:
                 if kind=='native':
                     from .native_verifier import run as native_run
+                    from .native_verifier import supported as native_supported
                     folder=app.local/'runs'/rid/tid/'native-checks'/trial['nativeExecution']['jobId']
                     source=app.local/'runs'/rid/tid/'captures'/capture['id']/'files'
                     def progress(message):
                         with app.lock:
                             current,t=app.trial(rid,tid);t['nativeExecution']['phase']=message
                             app.db.save('run',current,current['revision'])
-                    report=native_run(app,task,source,capture['manifest'],folder,control,progress)
+                    if native_supported(task):report=native_run(app,task,source,capture['manifest'],folder,control,progress)
+                    else:
+                        from .upstream_verifier import run as upstream_run
+                        report=upstream_run(app,rid,tid,task,source,capture['manifest'],folder,control,progress)
                     if stop.is_set():raise ValueError('已取消本机测试验收。')
                 elif kind=='check':checks=run_checks(app,rid,tid,capture,task,control)
                 else:
@@ -138,9 +143,10 @@ def revalidate_saved_review(app,rid,tid):
         execution=trial.get('judgeExecution') or {}
         if run.get('archived') or run.get('deletionPending') or (rid,tid) in app.jobs:
             raise ValueError('评测已归档、正在删除或审查仍在运行，不能重新校验。')
-        if run['policy']['version']!='arena-machine-v1' or execution.get('environment')!='local' or execution.get('status')!='failed':
-            raise ValueError('只有本机裁判的校验失败报告可重新校验。')
-        if '评分报告未通过校验' not in (trial.get('lastJobError') or {}).get('message',''):
+        if run['policy']['version']!='arena-machine-v1' or execution.get('environment')!='local' or execution.get('status') not in {'failed','completed'}:
+            raise ValueError('只有本机裁判已保存的报告可重新校验。')
+        failed=execution['status']=='failed'
+        if failed and '评分报告未通过校验' not in (trial.get('lastJobError') or {}).get('message',''):
             raise ValueError('此审查不是报告校验失败，不能复用旧报告。')
         from .service import identifier
         job_id=identifier(execution.get('jobId'))
@@ -150,10 +156,15 @@ def revalidate_saved_review(app,rid,tid):
         if capture is not trial['captures'][-1]:raise ValueError('已有更新的回收版本；旧报告不能作为当前产物评分。')
         folder=safe_path(app.local,f'runs/{rid}/{tid}/reviews/{job_id}')
         answer_file=safe_path(folder,'answer.json');error_file=safe_path(folder,'validation-error.json')
-        if not answer_file.is_file() or not error_file.is_file() or answer_file.stat().st_size>2_000_000 or error_file.stat().st_size>2_000_000:
+        if not answer_file.is_file() or answer_file.stat().st_size>2_000_000 or (failed and (not error_file.is_file() or error_file.stat().st_size>2_000_000)):
             raise ValueError('保存的原始报告或校验记录不存在。')
-        error=json.loads(error_file.read_text(encoding='utf-8'))
-        if error.get('captureId')!=capture_id:raise ValueError('校验记录与冻结版本不一致。')
+        if failed:
+            error=json.loads(error_file.read_text(encoding='utf-8'))
+            if error.get('captureId')!=capture_id:raise ValueError('校验记录与冻结版本不一致。')
+        else:
+            previous=next((r for r in reversed(trial['reviews']) if r.get('captureId')==capture_id and r.get('jobPath')==str(folder)),None)
+            if not previous or not previous.get('validationWarnings'):
+                raise ValueError('当前报告没有待重新校验的引用。')
         task=next(t for t in run['tasks'] if t['id']==trial['taskId'])
         packet=review_packet(app,rid,tid,capture,task)
         from .machine import evidence_key, validate_machine

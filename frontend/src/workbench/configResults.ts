@@ -3,7 +3,7 @@ import type {Config,Run,State,Task,Trial} from './types';
 export type ConfigResultEntry={run:Run;trial:Trial;task:Task;archived:boolean;eligible:boolean;exclusion?:string};
 export type TaskResult={task:Task;mean:number;entries:ConfigResultEntry[]};
 export type CollectionResult={key:string;label:string;tasks:TaskResult[];trials:number};
-export type ConfigResult={key:string;config:Config;current:boolean;archivedConfig:boolean;entries:ConfigResultEntry[];tasks:TaskResult[];collections:CollectionResult[];score:number|null;reason?:string;completed:number;finished:number;scored:number;pending:number;archivedRuns:number;policyCount:number;judgeCount:number};
+export type ConfigResult={key:string;config:Config;current:boolean;archivedConfig:boolean;entries:ConfigResultEntry[];tasks:TaskResult[];collections:CollectionResult[];score:number|null;reason?:string;completed:number;finished:number;scored:number;pending:number;nativeScored:number;nativePassed:number;archivedRuns:number;policyCount:number;judgeCount:number};
 
 const average=(values:number[])=>values.reduce((sum,value)=>sum+value,0)/values.length;
 const stable=(value:unknown):unknown=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>[key,stable(item)])):value;
@@ -20,7 +20,7 @@ const collection=(task:Task):[string,string]=>{
   return ['other','其他来源'];
 };
 
-/** Keep scores attached to a task version; unlike tasks do not form a universal grade. */
+/** Open-project quality and public-task verifier outcomes remain separate. */
 export function configResults(state:Pick<State,'runs'|'archivedRuns'|'configs'|'archivedConfigs'>):ConfigResult[]{
   const groups=new Map<string,ConfigResult>();
   const current=new Set(state.configs.map(c=>`${c.id}:${c.revision}`));
@@ -28,7 +28,7 @@ export function configResults(state:Pick<State,'runs'|'archivedRuns'|'configs'|'
   const retainedIds=new Set([...state.configs,...state.archivedConfigs].map(c=>c.id));
   for(const config of [...state.configs,...state.archivedConfigs]){
     const key=`${config.id}:${config.revision}`;
-    groups.set(key,{key,config,current:current.has(key),archivedConfig:archivedIds.has(config.id),entries:[],tasks:[],collections:[],score:null,completed:0,finished:0,scored:0,pending:0,archivedRuns:0,policyCount:0,judgeCount:0});
+    groups.set(key,{key,config,current:current.has(key),archivedConfig:archivedIds.has(config.id),entries:[],tasks:[],collections:[],score:null,completed:0,finished:0,scored:0,pending:0,nativeScored:0,nativePassed:0,archivedRuns:0,policyCount:0,judgeCount:0});
   }
   for(const [runs,archived] of [[state.runs,false],[state.archivedRuns,true]] as const){
     for(const run of runs)for(const trial of run.trials){
@@ -38,17 +38,23 @@ export function configResults(state:Pick<State,'runs'|'archivedRuns'|'configs'|'
       if(!config||!task||!retainedIds.has(config.id))continue;
       const key=`${config.id}:${config.revision}`;
       let group=groups.get(key);
-      if(!group){group={key,config,current:current.has(key),archivedConfig:archivedIds.has(config.id),entries:[],tasks:[],collections:[],score:null,completed:0,finished:0,scored:0,pending:0,archivedRuns:0,policyCount:0,judgeCount:0};groups.set(key,group);}
+      if(!group){group={key,config,current:current.has(key),archivedConfig:archivedIds.has(config.id),entries:[],tasks:[],collections:[],score:null,completed:0,finished:0,scored:0,pending:0,nativeScored:0,nativePassed:0,archivedRuns:0,policyCount:0,judgeCount:0};groups.set(key,group);}
       const latest=trial.captures[trial.captures.length-1];
+      if(task.publicSource&&trial.state==='completed'){
+        const verifications=latest?.nativeVerifications||[];
+        const native=verifications[verifications.length-1];
+        if(native){group.nativeScored++;group.nativePassed+=native.reward===1?1:0;}
+      }
       let exclusion:string|undefined;
-      if(config.preparationOverride)exclusion='本次临时改动了技能';
+      if(task.publicSource)exclusion='公开基准题以程序验收为主；AI 质量分另见评测记录';
+      else if(config.preparationOverride)exclusion='本次临时改动了技能';
       else if(trial.state!=='completed'||trial.score.overall==null)exclusion='交付或评分未完成';
       else if(!latest||trial.captures.some(c=>!c.harnessUnchanged||!c.hostUnchanged))exclusion='运行条件发生变化';
       const entry={run,trial,task,archived,eligible:!exclusion,exclusion};
       group.entries.push(entry);
       if(trial.state==='completed')group.finished++;
-      if(trial.score.overall!=null)group.scored++;
-      if(exclusion)group.pending++;else group.completed++;
+      if(!task.publicSource&&trial.score.overall!=null)group.scored++;
+      if(exclusion){if(!task.publicSource)group.pending++;}else group.completed++;
     }
   }
   for(const group of groups.values()){
@@ -59,7 +65,7 @@ export function configResults(state:Pick<State,'runs'|'archivedRuns'|'configs'|'
     if(policies.size>1){group.reason='评分方案不同，不能合成均分';continue;}
     group.judgeCount=new Set(eligible.map(judgeKey)).size;
     if(group.judgeCount>1){group.reason='裁判模型、档位或评分协议不同，不能合成均分';continue;}
-    if(!eligible.length){group.reason=group.finished>0&&group.scored===0?'交付已结束，尚无最终评分':group.scored>0?'已有评分，但运行条件待核对':'尚无已评分的交付';continue;}
+    if(!eligible.length){group.reason=group.nativeScored?'公开题程序结果另列；项目质量暂无最终分':group.finished>0&&group.scored===0?'交付已结束，尚无可纳入的最终评分':group.scored>0?'已有评分，但运行条件待核对':'尚无已评分的交付';continue;}
     const tasks=new Map<string,{task:Task;entries:ConfigResultEntry[]}>();
     for(const entry of eligible){
       const key=`${entry.task.id}:${entry.task.revision}`;
@@ -70,8 +76,8 @@ export function configResults(state:Pick<State,'runs'|'archivedRuns'|'configs'|'
     const collections=new Map<string,{label:string;tasks:TaskResult[]}>();
     for(const task of group.tasks){const [key,label]=collection(task.task);const bucket=collections.get(key)||{label,tasks:[]};bucket.tasks.push(task);collections.set(key,bucket);}
     group.collections=[...collections].map(([key,value])=>({key,label:value.label,tasks:value.tasks,trials:value.tasks.reduce((sum,t)=>sum+t.entries.length,0)}));
-    if(group.tasks.length===1)group.score=group.tasks[0].mean;
-    else group.reason='题目难度和验收协议不同，不合成总分';
+    group.score=average(group.tasks.map(task=>task.mean));
+    if(group.pending)group.reason=`${group.pending} 次评测未形成可比最终分；均值只覆盖已验证题目`;
   }
   return [...groups.values()].sort((a,b)=>Number(b.current)-Number(a.current)||Number(a.archivedConfig)-Number(b.archivedConfig)||(b.entries[0]?.run.createdAt||'').localeCompare(a.entries[0]?.run.createdAt||''));
 }

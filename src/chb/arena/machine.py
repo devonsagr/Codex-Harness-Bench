@@ -1,4 +1,5 @@
 """Evidence-backed machine scores and append-only, per-dimension human corrections."""
+import re
 from .contracts import string
 from .files import fingerprint
 from .scoring import number, acceptance
@@ -47,8 +48,19 @@ def validate_machine(value, packet, commands):
                 command=item['command']
                 if not isinstance(command,str) or not command.strip():raise ValueError('命令引用无效。')
                 match=next((c for c in commands if command in c['command'] and contains(c['output'],quote)),None)
+                if match is None:
+                    # Codex CLI logs the PowerShell executable and shell-escaped
+                    # arguments. The judge quotes the command it typed, so the
+                    # literal substring can differ despite identical tokens.
+                    normalized=lambda value:re.sub('[^a-z0-9]+','',value.lower())
+                    reported=normalized(command)
+                    if len(reported)>=12:
+                        match=next((c for c in reversed(commands) if reported in normalized(c['command'])
+                                    and contains(c['output'],quote)),None)
                 if match is None:raise EvidenceError('机器评分引用的执行记录不存在。')
-                verified.append({'commandId':match['id'],'command':match['command'],'exitCode':match['exitCode'],'quote':quote})
+                ref={'commandId':match['id'],'command':match['command'],'exitCode':match['exitCode'],'quote':quote}
+                if command not in match['command']:ref['reportedCommand']=command
+                verified.append(ref)
             elif 'checkId' in item:
                 match=next((c for c in packet['checks'] if c['id']==item['checkId'] and contains(c.get('output',''),quote)),None)
                 if match is None:raise EvidenceError('机器评分引用的检查记录不存在。')

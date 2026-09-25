@@ -5,6 +5,7 @@ import {request} from './api';
 
 export const publicCategories:Record<string,string>={bugfix:'修复 Bug',feature_request:'增加功能',enhancement:'工程改进'};
 export const nativeTaskIds=['tengo-callable-instance-isolation','tengo-destructuring-bindings','yaegi-go-embed-directives'];
+export const upstreamDockerTaskIds=['actionlint-action-pinning-lint','abs-stepped-slices','koota-pair-relation-tracking','adaptix-name-mapping-aliases','aiomonitor-task-snapshots-diff','anko-default-function-arguments'];
 export function availableTasks(state:State):Task[]{
   const existing=new Set([...state.tasks,...state.archivedTasks].map(t=>t.id));
   const publicTasks=catalog.tasks.filter(t=>!existing.has('deepswe-'+t.id)).map(t=>({

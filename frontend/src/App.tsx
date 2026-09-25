@@ -47,7 +47,7 @@ export function App(){
         {tab==='tasks'&&<TaskManager state={state} act={act} onUse={id=>{setSelectedTaskId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='history'&&<History state={state} act={act} onOpen={go} onError={setError}/>}
         {tab==='leaderboard'&&<Comparison state={state} act={act} onOpen={go}/>}
-        {tab==='spec'&&<Guide state={state}/>}
+        {tab==='spec'&&<Guide state={state} act={act} onUse={id=>{setSelectedTaskId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='storage'&&<Storage act={act} onOpen={go}/>}
 
       </fieldset>}

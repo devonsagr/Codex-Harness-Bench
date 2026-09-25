@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import threading
 import time
+import tomllib
 import uuid
 from urllib.parse import urlencode, quote
 
@@ -48,6 +49,8 @@ class Arena:
         self.root=Path(root).resolve()
         self.local=self.root/'.local/arena'
         self.local.mkdir(parents=True,exist_ok=True)
+        from .cache_location import current_root
+        self.public_sources_root=current_root(self.local)
         self.db=Database(self.local/'arena.sqlite3')
         self.lock=threading.RLock()
         self.jobs={}
@@ -243,8 +246,36 @@ class Arena:
 
     def host_fingerprint(self):
         home=codex_home()
-        return {name:hash_bytes((home/name).read_bytes()) if (home/name).is_file() else None
+        result={name:hash_bytes((home/name).read_bytes()) if (home/name).is_file() else None
                 for name in ['AGENTS.md','AGENTS.override.md','config.toml']}
+        config=home/'config.toml'
+        try:
+            values=tomllib.loads(config.read_text(encoding='utf-8-sig')) if config.is_file() else {}
+            values.pop('projects',None)  # Codex adds project trust entries when a workspace opens.
+            result['configSemantic']=fingerprint(values)
+        except (OSError,ValueError,TypeError):
+            result['configSemantic']=None
+        return result
+
+    def host_condition_unchanged(self, run, trial):
+        """A desktop-managed project entry is not a change to the applied profile."""
+        current=self.host_fingerprint()
+        expected=trial.get('appliedHostFingerprint',run['hostFingerprint'])
+        if current==expected:
+            return True
+        if any(current.get(name)!=expected.get(name) for name in ('AGENTS.md','AGENTS.override.md')):
+            return False
+        if expected.get('configSemantic') is not None and expected['configSemantic']==current.get('configSemantic'):
+            return True
+        application_id=trial.get('codexApplicationId')
+        if not application_id:
+            return False
+        from .codex_apply import status
+        try:
+            return any(item['id']==application_id and item['status']=='applied' and item.get('settingsMatch')
+                       for item in status(self)['applications'])
+        except (OSError,ValueError):
+            return False
 
     def prepare(self,data):
         delivery_mode=data.get('deliveryMode','single-delivery')
@@ -406,10 +437,10 @@ class Arena:
                     from . import codex_apply
                     ids={item.get('codexApplicationId') for item in run['trials'] if item['configId']==t['configId']}
                     applied=codex_apply.matching_application(self,config,ids)
-                    if applied is None:
-                        raise ValueError('本批配置未应用，或 Codex 中该配置的模型、规则、Skills 已变化。请先核对配置；正在执行其他配置时不能切换。')
-                    t['codexApplicationId']=applied['id']
-                    t['appliedHostFingerprint']=self.host_fingerprint()
+                    if t.get('codexApplicationId') and applied is None:
+                        raise ValueError('先前应用的宿主配置已变化；请核对 Codex 当前模型与规则，或用此题新建评测。')
+                    if applied:t['codexApplicationId']=applied['id']
+                    if not t.get('appliedHostFingerprint'):t['appliedHostFingerprint']=self.host_fingerprint()
                 if data.get('draft'):
                     if t['stageIndex']!=0:raise ValueError('后续轮次请继续原对话，不新建任务。')
                     prompt=t['executionPrompts'][0] if t.get('executionPrompts') else stage_prompt(task,0)
@@ -417,6 +448,7 @@ class Arena:
                     if os.name!='nt':raise ValueError('当前只支持 Windows 打开对话草稿；请使用打开目录与复制提示词。')
                     try:os.startfile(url)
                     except OSError as exc:raise ValueError('无法打开 Codex 对话草稿；请打开目录并复制本轮提示词。') from exc
+                    t['draftOpenedAt']=now()
                     self.event(run,'已请求 Codex 新对话并预填本轮提示词；需在桌面确认工作区并发送，尚未开始计时。',tid)
                 else:
                     if not shutil.which('codex'):raise ValueError('本机找不到 codex 命令。可复制工作区路径到桌面打开。')
@@ -433,7 +465,7 @@ class Arena:
                 capture={'id':cid,'stageIndex':t['stageIndex'],'at':now(),'manifest':manifest,'facts':changes,
                          'response':text(data.get('response',''),60000,False),'checks':[],
                          'checksConfigured':len(applicable_checks(task,t['stageIndex'])),
-                         'harnessUnchanged':harness_files(manifest)==harness_files(t['baseline']),'hostUnchanged':self.host_fingerprint()==t.get('appliedHostFingerprint',run['hostFingerprint'])}
+                         'harnessUnchanged':harness_files(manifest)==harness_files(t['baseline']),'hostUnchanged':self.host_condition_unchanged(run,t)}
                 t['captures'].append(capture);t['state']='captured'
                 t.pop('finalCaptureId',None)
                 self.event(run,'产物已封存，包括新增/删除文件；之后修改工作区不会改写这份证据。',tid)

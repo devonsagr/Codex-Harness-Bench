@@ -222,9 +222,11 @@ body,.dark body{background:var(--canvas);color:var(--ink);font-family:var(--read
 .config-trial-row{display:grid;grid-template-columns:minmax(0,1fr) 110px auto;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}
 .config-trial-row.is-excluded{color:var(--muted)}
 .batch-queue{border:1px solid var(--line);background:var(--surface)}
-.batch-queue>header{display:flex;justify-content:space-between;align-items:end;gap:22px;padding:19px 22px;border-bottom:1px solid var(--line)}
+.batch-queue>header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 22px;padding:19px 22px;border-bottom:1px solid var(--line)}
 .batch-queue h2{font:750 23px var(--font-editorial);margin-top:3px}
-.batch-queue>header p{max-width:490px;font-size:12px;line-height:1.6;color:var(--muted)}
+.batch-queue>header p{grid-column:1/-1;font-size:12px;line-height:1.6;color:var(--muted)}
+.batch-queue>header button{grid-column:2;grid-row:1}
+@media(max-width:760px){.batch-queue>header button{grid-column:1/-1;grid-row:auto;justify-self:start}}
 .batch-queue-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .batch-queue-item{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 18px;text-align:left;border-bottom:1px solid var(--line);border-right:1px solid var(--line);transition:background-color .18s ease,box-shadow .18s ease}
 .batch-queue-item:hover{background:var(--accent-soft)}
