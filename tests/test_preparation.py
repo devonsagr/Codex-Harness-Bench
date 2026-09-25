@@ -74,7 +74,11 @@ class PreparationTests(unittest.TestCase):
     def test_failure_retry_and_conflicting_payload(self):
         with patch('chb.arena.public_sources.download_file',side_effect=ValueError('下载中断')):
             job=start(self.app,self.data());self.app.preparation_thread.join(10)
-        self.assertEqual(self.app.db.get('preparation_job',job['id'])['status'],'failed')
+        failed=self.app.db.get('preparation_job',job['id'])
+        self.assertEqual(failed['status'],'failed')
+        self.assertEqual(failed['failedTaskId'],'deepswe-first')
+        self.assertEqual(failed['completedTasks'],0)
+        self.assertEqual(failed['requestData']['taskIds'],['deepswe-first'])
         self.assertEqual(self.app.db.list('run'),[])
         with self.assertRaisesRegex(ValueError,'内容已改变'):start(self.app,self.data(task='second'))
         with patch('chb.arena.public_sources.download_file',side_effect=self.download),patch('chb.arena.public_sources.import_repository',side_effect=self.repository):

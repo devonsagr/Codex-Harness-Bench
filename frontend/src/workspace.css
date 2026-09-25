@@ -327,3 +327,6 @@ th { color:var(--muted);font-weight:500; }
 .task-library-facets{display:grid;gap:8px;margin:10px 0}
 .task-library-facets select{width:100%;min-width:0}
 .storage-detail>.source-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.preparation-resume{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface-soft)}
+.preparation-resume strong{font-size:.8rem}.preparation-resume p{font-size:.72rem;color:var(--muted);margin-top:3px}.preparation-resume button{flex-shrink:0}
+@media(max-width:650px){.preparation-resume{align-items:stretch;flex-direction:column}}
