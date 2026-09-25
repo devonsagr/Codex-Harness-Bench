@@ -95,10 +95,16 @@ def post(app,route,data):
                 run,trial=app.trial(rid,tid)
                 if run.get('archived') or trial['state']!='prepared':raise ValueError('仅在本题开始前应用冻结配置。')
                 config=next(c for c in run['configs'] if c['id']==trial['configId'])
-                result=codex_apply.switch(app,{'revision':config['revision']},frozen=config)
-                trial['codexApplicationId']=result['id']
-                trial['appliedHostFingerprint']=app.host_fingerprint()
-                app.event(run,'已将本题冻结配置写入本机 Codex；桌面实际生效仍需核对。',tid)
+                ids={item.get('codexApplicationId') for item in run['trials'] if item['configId']==config['id']}
+                result=codex_apply.matching_application(app,config,ids)
+                if result is None:result=codex_apply.switch(app,{'revision':config['revision']},frozen=config)
+                else:result={**result,'message':'已沿用本机现有的相同配置，没有再次改写 Codex 全局文件。'}
+                host=app.host_fingerprint()
+                for item in run['trials']:
+                    if item['configId']==config['id'] and item['state']=='prepared':
+                        item['codexApplicationId']=result['id']
+                        item['appliedHostFingerprint']=host
+                app.event(run,'本批同配置题目已共用一次 Codex 应用；各题仍在独立工作区执行。',tid)
                 app.db.save('run',run,run['revision'])
                 return result
             if action=='native-log':

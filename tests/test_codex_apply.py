@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import tomllib
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 from chb.arena.service import Arena
 from chb.arena.api import post
@@ -94,10 +95,27 @@ class CodexApplyTests(unittest.TestCase):
         row=status['applications'][0]
         self.assertEqual(row['status'],'applied')
         self.assertFalse(row['filesMatch'])
+        self.assertTrue(row['settingsMatch'])
         self.assertEqual({f['path']:f['matches'] for f in row['fileChecks']},{'config.toml':False,'AGENTS.override.md':True})
+        self.assertTrue(all(f['managedMatches'] for f in row['fileChecks']))
         self.assertNotIn('secret-token',json.dumps(status))
         self.assertEqual((self.home/'config.toml').read_bytes(),changed)
         self.assertEqual(receipt['id'],row['id'])
+
+    def test_changed_managed_setting_is_not_reusable(self):
+        self.apply()
+        path=self.home/'config.toml'
+        path.write_text(path.read_text().replace('test-model','external-model'))
+        row=codex_apply.status(self.app)['applications'][0]
+        self.assertFalse(row['settingsMatch'])
+        self.assertFalse(row['fileChecks'][0]['managedMatches'])
+
+    def test_preexisting_matching_model_still_detects_later_model_change(self):
+        path=self.home/'config.toml'
+        path.write_bytes(self.original.replace(b'model = "old"',b'model = "test-model"'))
+        self.apply()
+        path.write_text(path.read_text().replace('test-model','external-model'))
+        self.assertFalse(codex_apply.status(self.app)['applications'][0]['settingsMatch'])
 
     def test_status_after_restore_uses_base_instructions(self):
         self.undo(self.apply())
@@ -199,6 +217,49 @@ class CodexApplyTests(unittest.TestCase):
         self.assertTrue(captured['trials'][0]['captures'][0]['hostUnchanged'])
         self.assertNotEqual(captured['hostFingerprint'],captured['trials'][0]['appliedHostFingerprint'])
         self.undo(r)
+
+    def test_one_application_covers_prepared_trials_in_batch_while_first_is_working(self):
+        tasks=[self.app.save_task({'title':f'task {i}','inputPrompt':'build','taskParadigm':'open-ended-project',
+               'channel':'deepswe-core','hasFrontendUI':False,'stages':[{'title':'one','prompt':'build'}],'checks':[]}) for i in range(2)]
+        run=self.app.prepare({'requestId':'batch-apply','configIds':[self.config['id']],'taskIds':[t['id'] for t in tasks]})
+        first,second=run['trials']
+        receipt=post(self.app,f"/api/arena/runs/{run['id']}/trials/{first['id']}/apply-config",{})
+        updated=self.app.db.get('run',run['id'])
+        self.assertEqual([t['codexApplicationId'] for t in updated['trials']],[receipt['id'],receipt['id']])
+        self.app.mutate(run['id'],first['id'],'start',{'settingsConfirmed':True})
+        (self.home/'config.toml').write_bytes((self.home/'config.toml').read_bytes()+b'\n# desktop project\n[projects.example]\ntrust_level="trusted"\n')
+        reused=post(self.app,f"/api/arena/runs/{run['id']}/trials/{second['id']}/apply-config",{})
+        self.assertEqual(reused['id'],receipt['id'])
+        self.assertIn('没有再次改写',reused['message'])
+        self.assertTrue(codex_apply.status(self.app)['applications'][0]['settingsMatch'])
+        another=self.app.prepare({'requestId':'another-batch','configIds':[self.config['id']],'taskIds':[tasks[0]['id']]})
+        inherited=post(self.app,f"/api/arena/runs/{another['id']}/trials/{another['trials'][0]['id']}/apply-config",{})
+        self.assertEqual(inherited['id'],receipt['id'])
+
+    def test_existing_batch_can_open_sibling_without_reapplying_or_changing_host(self):
+        tasks=[self.app.save_task({'title':f'task {i}','inputPrompt':'build','taskParadigm':'open-ended-project',
+               'channel':'deepswe-core','hasFrontendUI':False,'stages':[{'title':'one','prompt':'build'}],'checks':[]}) for i in range(2)]
+        run=self.app.prepare({'requestId':'batch-legacy','configIds':[self.config['id']],'taskIds':[t['id'] for t in tasks]})
+        first,second=run['trials']
+        receipt=codex_apply.switch(self.app,{'revision':self.config['revision']},frozen=run['configs'][0])
+        record=self.app.db.get('run',run['id'])
+        record['trials'][0]['codexApplicationId']=receipt['id']
+        record['trials'][0]['appliedHostFingerprint']=self.app.host_fingerprint()
+        self.app.db.save('run',record,record['revision'])
+        self.app.mutate(run['id'],first['id'],'start',{'settingsConfirmed':True})
+        (self.home/'config.toml').write_bytes((self.home/'config.toml').read_bytes()+b'\n# desktop project\n[projects.example]\ntrust_level="trusted"\n')
+        with patch('chb.arena.service.shutil.which',return_value='codex'),patch('chb.arena.service.shell',return_value=SimpleNamespace(returncode=0)) as opened:
+            self.app.mutate(run['id'],second['id'],'open',{'draft':False})
+        self.assertEqual(opened.call_args.args[0],['codex','app',second['workspacePath']])
+        self.assertEqual(self.app.db.get('run',run['id'])['trials'][1]['codexApplicationId'],receipt['id'])
+        self.assertEqual(len(codex_apply.status(self.app)['applications']),1)
+        another=self.app.prepare({'requestId':'another-legacy-batch','configIds':[self.config['id']],'taskIds':[tasks[0]['id']]})
+        with patch('chb.arena.service.shutil.which',return_value='codex'),patch('chb.arena.service.shell',return_value=SimpleNamespace(returncode=0)):
+            self.app.mutate(another['id'],another['trials'][0]['id'],'open',{'draft':False})
+        self.assertEqual(self.app.db.get('run',another['id'])['trials'][0]['codexApplicationId'],receipt['id'])
+        path=self.home/'config.toml';path.write_text(path.read_text().replace('test-model','external-model'))
+        with self.assertRaisesRegex(ValueError,'已变化'):
+            self.app.mutate(run['id'],second['id'],'open',{'draft':False})
 
     def test_unknown_connection_refuses_before_writing(self):
         self.config=self.app.save_config({**self.config,'integrations':{'plugins':{'not-installed':True}}})

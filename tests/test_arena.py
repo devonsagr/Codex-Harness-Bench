@@ -58,16 +58,20 @@ class ArenaTests(unittest.TestCase):
     def test_desktop_draft_uses_frozen_prompt_and_does_not_start_execution(self):
         from urllib.parse import urlparse,parse_qs
         r=self.prepare();trial=r['trials'][0]
-        with patch('chb.arena.service.os.startfile',create=True) as launch:
-            result=self.mutate(r,'open',draft=True)
+        saved=self.app.db.get('run',r['id'])
+        saved['trials'][0]['codexApplicationId']='apply-fixture'
+        self.app.db.save('run',saved,saved['revision'])
+        with patch('chb.arena.codex_apply.matching_application',return_value={'id':'apply-fixture'}):
+            with patch('chb.arena.service.os.startfile',create=True) as launch:
+                result=self.mutate(r,'open',draft=True)
+            with patch('chb.arena.service.os.startfile',side_effect=OSError('unavailable'),create=True):
+                with self.assertRaisesRegex(ValueError,'复制本轮提示词'):self.mutate(r,'open',draft=True)
         url=launch.call_args.args[0];query=parse_qs(urlparse(url).query)
         self.assertTrue(url.startswith('codex://threads/new?'))
         self.assertEqual(query['path'],[str(Path(trial['workspacePath']).resolve())])
         self.assertEqual(query['prompt'],[trial['currentStage']['executionPrompt']])
         self.assertEqual(result['trials'][0]['state'],'prepared')
         self.assertNotIn('startedAt',result['trials'][0])
-        with patch('chb.arena.service.os.startfile',side_effect=OSError('unavailable'),create=True):
-            with self.assertRaisesRegex(ValueError,'复制本轮提示词'):self.mutate(r,'open',draft=True)
 
     def test_freeze_single_workspace_and_idempotency(self):
         r=self.prepare();self.assertEqual(r['executionMode'],'desktop');self.assertEqual(len(r['trials']),1)

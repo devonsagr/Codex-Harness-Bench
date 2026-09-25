@@ -402,6 +402,14 @@ class Arena:
                 t.update(state='working',startedAt=now())
                 self.event(run,'用户确认桌面设置，开始记录本轮。工作台不会自动发送提示词。',tid)
             elif action=='open':
+                if t['state']=='prepared':
+                    from . import codex_apply
+                    ids={item.get('codexApplicationId') for item in run['trials'] if item['configId']==t['configId']}
+                    applied=codex_apply.matching_application(self,config,ids)
+                    if applied is None:
+                        raise ValueError('本批配置未应用，或 Codex 中该配置的模型、规则、Skills 已变化。请先核对配置；正在执行其他配置时不能切换。')
+                    t['codexApplicationId']=applied['id']
+                    t['appliedHostFingerprint']=self.host_fingerprint()
                 if data.get('draft'):
                     if t['stageIndex']!=0:raise ValueError('后续轮次请继续原对话，不新建任务。')
                     prompt=t['executionPrompts'][0] if t.get('executionPrompts') else stage_prompt(task,0)
