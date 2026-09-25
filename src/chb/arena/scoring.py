@@ -23,8 +23,8 @@ DESKTOP_POLICY = {'version':'arena-review-v2','objectiveWeight':50,'humanWeight'
                   'rubrics':{k:{'label':v[0],'description':v[1]} for k,v in list(RUBRICS.items())[:7]}}
 MACHINE_POLICY = {'version':'arena-machine-v1','objectiveWeight':0,'humanWeight':100,
                   'dimensionUnit':'percent','requireDimensionEvidence':True,
-                  'dimensions':{'intent':50,'robustness':20,'ux':15,'handoff':10,'maintainability':5},
-                  'rubrics':{k:{'label':RUBRICS[k][0],'description':RUBRICS[k][1]} for k in ['intent','robustness','ux','handoff','maintainability']}}
+                  'dimensions':{'intent':35,'verification':20,'robustness':15,'instruction':10,'ux':10,'handoff':5,'maintainability':5},
+                  'rubrics':{k:{'label':RUBRICS[k][0],'description':RUBRICS[k][1]} for k in ['intent','verification','robustness','instruction','ux','handoff','maintainability']}}
 
 
 def number(value, minimum=0, maximum=100):

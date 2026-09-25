@@ -27,6 +27,8 @@ def size(path):
 
 
 def status(app):
+    from .telemetry import linked_sessions
+    from .skills import codex_home
     with app.lock:
         runs=app.db.list('run')+app.db.list('run',True)
         jobs=set(app.jobs)
@@ -35,18 +37,21 @@ def status(app):
     for run in runs:
         for trial in run['trials']:
             folder=safe_path(app.local,'runs/'+identifier(run['id'])+'/'+identifier(trial['id']))
+            try:sessions=linked_sessions(codex_home(),folder/'workspace');session_error=None
+            except ValueError as exc:sessions=[];session_error=str(exc)
             rows.append({'runId':run['id'],'trialId':trial['id'],'revision':run['revision'],
                 'title':next(t['title'] for t in run['tasks'] if t['id']==trial['taskId']),
                 'state':trial['state'],'workspaceBytes':size(folder/'workspace'),'reviewBytes':size(folder/'reviews')+size(folder/'native-checks'),
                 'snapshotBytes':size(folder/'captures')+size(folder/'baseline'),'captures':len(trial['captures']),
                 'reviews':len(trial['reviews']),'workspacePath':str(folder/'workspace'),'reviewPath':str(folder/'reviews'),
                 'humanBytes':size(folder/'human-inspections'),'humanPath':str(folder/'human-inspections'),'deletionPending':bool(run.get('deletionPending')),
-                'canDeleteRun':not any((run['id'],t['id']) in jobs or t['state'] in {'working','checking','judging'} or t.get('ownedContainers') for t in run['trials']),
+                'codexSessions':sessions,'codexSessionError':session_error,
+                'canDeleteRun':not any((run['id'],t['id']) in jobs or t['state'] in {'checking','judging'} or t.get('ownedContainers') for t in run['trials']),
                 'cleanup':trial.get('workspaceCleanup'),'canClean':trial['state']=='completed' and bool(trial['captures']) and (folder/'workspace').exists() and not trial.get('ownedContainers') and (run['id'],trial['id']) not in jobs})
-    return {'root':str(app.local),'categories':[
+    result={'root':str(app.local),'categories':[
         {'name':'配置、题目与历史记录','path':'arena.sqlite3','bytes':size(app.db.path),'purpose':'保存版本、评分、人工修正和索引；不会随工作区清理删除。'},
         {'name':'固定源码起点','path':'baselines/','bytes':size(app.local/'baselines'),'purpose':'创建工作区的来源。与已开始的评测副本分离。'},
-        {'name':'公开题面与隐藏验收','path':'public-sources/','bytes':size(app.local/'public-sources'),'purpose':'可重新下载的固定题包；不把隐藏测试复制到开发目录。'},
+        {'name':'公开题面与隐藏验收','path':'public-sources/','bytes':size(app.public_sources_root),'purpose':'可重新下载的固定题包；不把隐藏测试复制到开发目录。'},
         {'name':'固定工具链与环境检查','path':'toolchains/ + environment-checks/','bytes':size(app.local/'toolchains')+size(app.local/'environment-checks'),'purpose':'免 Docker 工具链和故障起点校验日志；与用户系统安装分开。'},
         {'name':'技能快照','path':'skills/','bytes':size(app.local/'skills'),'purpose':'已选配置引用的版本，不清理用户全局技能。'},
         {'name':'裁判临时运行目录','path':'reviewer-runtime/','bytes':size(app.local/'reviewer-runtime'),'purpose':'CLI 工作副本与临时配置；正常退出即删除，异常残留随对应评测删除。'},
@@ -54,6 +59,10 @@ def status(app):
         {'name':'待删除工作区','path':'trash/workspaces/','bytes':size(app.local/'trash/workspaces'),'purpose':'清理先移入这里；可恢复，彻底删除后才释放磁盘。'},
     ],'workspaces':rows,'sourceJobs':source_jobs,
     'tools':{'git':bool(shutil.which('git')),'codex':bool(shutil.which('codex')),'dockerInstalled':bool(shutil.which('docker'))}}
+    for category in result['categories']:
+        category['absolutePath']=str(app.public_sources_root) if category['path']=='public-sources/' else str(app.local/category['path']) if '+' not in category['path'] else '、'.join(str(app.local/part.strip()) for part in category['path'].split('+'))
+    result['publicSourcesRoot']=str(app.public_sources_root)
+    return result
 
 def reject_links(path):
     if path.is_symlink() or path.is_junction():raise ValueError('目录含链接或目录联接，未清理；请先人工核对。')

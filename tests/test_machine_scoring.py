@@ -266,6 +266,36 @@ class MachineScoringTests(unittest.TestCase):
         value['ratings']['intent']['evidence'][0]['quote']='hello\nexit=1'
         self.assertIsNone(validate_machine(value,self.packet,commands)['ratings']['intent']['score'])
 
+    def test_shell_escaped_command_matches_exact_logged_output(self):
+        commands=[{'id':'x','command':'pwsh.exe -Command \'python3  main.py\'','output':'hello\n','exitCode':0}]
+        result=validate_machine(self.value,self.packet,commands)
+        self.assertEqual(result['ratings']['intent']['score'],80)
+        self.assertEqual(result['ratings']['intent']['evidence'][0]['reportedCommand'],'python3 main.py')
+        commands[0]['output']='unrelated\n'
+        self.assertIsNone(validate_machine(self.value,self.packet,commands)['ratings']['intent']['score'])
+
+    def test_saved_success_with_badly_wrapped_citations_can_be_revalidated(self):
+        from chb.arena.jobs import revalidate_saved_review
+        job='job-wrapped'
+        folder=self.app.local/'runs'/self.rid/self.tid/'reviews'/job
+        folder.mkdir(parents=True)
+        (folder/'answer.json').write_text(json.dumps(self.value),encoding='utf-8')
+        (folder/'events.jsonl').write_text(json.dumps({'type':'item.completed','item':{'id':'cmd1',
+            'type':'command_execution','command':"pwsh -Command 'python3  main.py'",'aggregated_output':'hello\n','exit_code':0}}),encoding='utf-8')
+        previous=validate_machine(self.value,self.packet,[{'id':'cmd1','command':'unmatched','output':'hello\n','exitCode':0}])
+        self.assertTrue(previous['validationWarnings'])
+        run=self.app.db.get('run',self.rid)
+        trial=run['trials'][0]
+        trial['reviews'].append({'id':'ai-previous','kind':'ai','captureId':self.capture['id'],'at':'fixture',
+                                  'jobPath':str(folder),**previous})
+        trial['judgeExecution']={'status':'completed','environment':'local','jobId':job,
+                                 'captureId':self.capture['id'],'model':'fixture','reasoning':'low'}
+        self.app.db.save('run',run,run['revision'])
+        updated=revalidate_saved_review(self.app,self.rid,self.tid)
+        self.assertEqual(updated['trials'][0]['score']['machineCoverage'],100)
+        self.assertEqual(updated['trials'][0]['score']['overall'],80)
+        self.assertEqual(len(self.app.db.get('run',self.rid)['trials'][0]['reviews']),2)
+
     def test_local_judge_never_runs_docker_checks(self):
         run=self.app.db.get('run',self.rid);run['tasks'][0]['checks']=[{'id':'c','label':'check','image':'fixture','argv':['true'],'weight':1}]
         self.app.db.save('run',run,run['revision'])

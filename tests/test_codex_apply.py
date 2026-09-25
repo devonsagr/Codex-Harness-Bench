@@ -232,6 +232,8 @@ class CodexApplyTests(unittest.TestCase):
         self.assertEqual(reused['id'],receipt['id'])
         self.assertIn('没有再次改写',reused['message'])
         self.assertTrue(codex_apply.status(self.app)['applications'][0]['settingsMatch'])
+        captured=self.app.mutate(run['id'],first['id'],'capture',{})
+        self.assertTrue(captured['trials'][0]['captures'][-1]['hostUnchanged'])
         another=self.app.prepare({'requestId':'another-batch','configIds':[self.config['id']],'taskIds':[tasks[0]['id']]})
         inherited=post(self.app,f"/api/arena/runs/{another['id']}/trials/{another['trials'][0]['id']}/apply-config",{})
         self.assertEqual(inherited['id'],receipt['id'])
@@ -260,6 +262,24 @@ class CodexApplyTests(unittest.TestCase):
         path=self.home/'config.toml';path.write_text(path.read_text().replace('test-model','external-model'))
         with self.assertRaisesRegex(ValueError,'已变化'):
             self.app.mutate(run['id'],second['id'],'open',{'draft':False})
+
+    def test_batch_opens_with_project_configuration_without_global_application(self):
+        tasks=[self.app.save_task({'title':f'task {i}','inputPrompt':'build','taskParadigm':'open-ended-project',
+               'channel':'deepswe-core','hasFrontendUI':False,'stages':[{'title':'one','prompt':'build'}],'checks':[]}) for i in range(2)]
+        run=self.app.prepare({'requestId':'batch-project-only','configIds':[self.config['id']],'taskIds':[t['id'] for t in tasks]})
+        with patch('chb.arena.service.shutil.which',return_value='codex'),patch('chb.arena.service.shell',return_value=SimpleNamespace(returncode=0)):
+            for trial in run['trials']:
+                self.app.mutate(run['id'],trial['id'],'open',{'draft':False})
+        self.assertEqual((self.home/'config.toml').read_bytes(),self.original)
+        stored=self.app.db.get('run',run['id'])
+        self.assertTrue(all('appliedHostFingerprint' in t and 'codexApplicationId' not in t for t in stored['trials']))
+        with (self.home/'config.toml').open('ab') as file:
+            file.write(b'\n[projects.example]\ntrust_level="trusted"\n')
+        captured=self.app.mutate(run['id'],run['trials'][0]['id'],'capture',{})
+        self.assertTrue(captured['trials'][0]['captures'][-1]['hostUnchanged'])
+        path=self.home/'config.toml';path.write_text(path.read_text().replace('model = "old"','model = "external-model"'))
+        captured=self.app.mutate(run['id'],run['trials'][1]['id'],'capture',{})
+        self.assertFalse(captured['trials'][1]['captures'][-1]['hostUnchanged'])
 
     def test_unknown_connection_refuses_before_writing(self):
         self.config=self.app.save_config({**self.config,'integrations':{'plugins':{'not-installed':True}}})

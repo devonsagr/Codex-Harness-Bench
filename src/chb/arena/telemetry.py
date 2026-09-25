@@ -4,6 +4,7 @@ from contextlib import closing
 import json
 import os
 import sqlite3
+import uuid
 from pathlib import Path
 
 def normalized_path(value):
@@ -91,3 +92,28 @@ def discover_trace(home, workspace, previous_session=None):
     usage=read_trace(raw,workspace,previous_session)
     if usage['sessionId']!=session:raise ValueError('会话索引和日志身份不一致。')
     return usage,'已自动同步本题会话。'
+
+
+def linked_sessions(home, workspace):
+    """List only indexed native sessions whose cwd is this exact trial workspace."""
+    home=Path(home).resolve()
+    indexes=sorted(home.glob('state_*.sqlite'),key=lambda p:p.stat().st_mtime,reverse=True)
+    if not indexes:return []
+    target=str(Path(workspace).resolve()).removeprefix('\\\\?\\')
+    try:
+        with closing(sqlite3.connect(indexes[0].as_uri()+'?mode=ro',uri=True,timeout=1)) as db:
+            rows=db.execute('SELECT id,title,rollout_path,project_id FROM threads WHERE cwd COLLATE NOCASE IN (?,?,?)',
+                            (target,'\\\\?\\'+target,target.replace('\\','/'))).fetchall()
+    except (sqlite3.Error,OSError) as exc:
+        raise ValueError('Codex 会话索引暂不可读，请稍后刷新后再核对关联对话。') from exc
+    result=[]
+    for session,title,rollout,project_id in rows:
+        try:
+            if str(uuid.UUID(session))!=session:raise ValueError('关联会话编号无效。')
+            file=Path(rollout)
+            resolved=Path(str(file.resolve()).removeprefix('\\\\?\\'))
+            if file.is_symlink() or not any(resolved.is_relative_to(root) for root in (home/'sessions',home/'archived_sessions')):
+                raise ValueError('关联对话日志不在 Codex 会话目录中。')
+        except (OSError,TypeError) as exc:raise ValueError('关联会话路径无法核对。') from exc
+        result.append({'id':session,'title':title[:120],'projectId':project_id})
+    return result

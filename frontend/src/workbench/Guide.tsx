@@ -1,10 +1,10 @@
 import {useState} from 'react';
-import type {State} from './types';
+import type {State,Act} from './types';
 import {Details} from './ui';
 import {PublicTaskSources} from './PublicTaskSources';
 import {BenchmarkMethods} from './BenchmarkMethods';
 
-export function Guide({state}:{state:State}){
+export function Guide({state,act,onUse}:{state:State;act:Act;onUse:(id:string)=>void}){
   const [section,setSection]=useState('purpose');
   const dimensions=Object.entries(state.defaultPolicy.dimensions);
   const total=dimensions.reduce((sum,[,weight])=>sum+weight,0);
@@ -21,12 +21,12 @@ export function Guide({state}:{state:State}){
     {section==='workflow'&&<div className="guide-content">
       <div className="guide-two-column"><section><h2>一次评测，四步完成</h2><ol className="guide-steps"><li><strong>选配置和任务</strong><p>配置管理保存版本；题库说明任务、源码起点与环境要求。</p></li><li><strong>准备并在桌面执行</strong><p>工作台创建独立目录和任务草稿。核对配置后发送完整需求，按实际进度继续，不预设必须对话几轮。</p></li><li><strong>回收并机器评分</strong><p>完成后停止文件写入，回收产物，启动独立裁判。评分过程可查看实际命令、输出和失败原因。</p></li><li><strong>按需修正，保存结果</strong><p>有异议就按项修正并注明依据。标记交付结束，保留机器原分、修正与历次产物。</p></li></ol></section><section><h2>机器与人怎样给分</h2><div className="grading-methods"><article><h3>程序验证 · 行为证据</h3><p>运行已有测试或题包验收器，记录通过、失败和输出。用于确认具体行为，不能单独代表完整质量。</p></article><article><h3>独立 AI · 质量评价</h3><p>默认 Luna / max 在新的裁判任务中读取需求和产物副本，调用工具取证，按量表给分并引用证据。每次结果可能波动。</p></article><article><h3>人工复核 · 先看实际交付</h3><p>评分页打开“查看产物与复核”，浏览文件和图片，创建独立副本运行界面，再记录人工参考分。即使 AI 未成功也可评价；对机器分有异议仍可按项修正。</p></article></div></section></div>
       <section className="guide-two-column"><div><h2>基准验证</h2><p>固定题目、源码和验收条件，以原题程序或公开判分协议为主。AI 质量意见单列；没接通原验收器时不生成原榜单成绩。</p></div><div><h2>真实项目交付</h2><p>像产品经理一样交代目标与使用场景，让 AI 从想法落地项目。按实际需求、运行证据和体验评价，接受多种合理实现。当前按公开题源 / 程序验收识别基准验证，其余采用项目质量视角；这是判分依据分类，不是 Bug 与新建项目的分类。</p></div></section><p className="score-notice">评分仅供参考，不代表模型的全部能力或你的每次真实体验。基准表现与使用感受可能不同；AI 及人工判定有主观性，需要重复任务与证据复核。</p>
-      <Details title="分数、权重与未验证项"><p>当前项目质量参考方案按适用维度加权；以下权重可在准备时调整并冻结，属于产品约定。人工修正替换对应维度后重算。所有适用项有分且交付结束才显示最终分，缺项保留暂定分和机器覆盖率。</p><div className="guide-weights">{dimensions.map(([id,weight])=><div key={id}><span>{state.defaultPolicy.rubrics?.[id]?.label||state.rubricCatalog[id]?.label||id}</span><strong>{total?Math.round(weight/total*100):0}%</strong></div>)}</div><p>必要需求的验收结论单列。程序通过率、AI质量分和用量分别展示，不混成一种“官方跑分”。</p></Details>
+      <Details title="分数、权重与未验证项"><p>项目质量参考方案按适用维度加权；以下是新建评测的默认起点，创建前可调整并冻结。无界面题不计交互项，其余权重重新归一；安全和性能仅在任务要求它们时加入。人工修正替换对应维度后重算。所有适用项有分且交付结束才显示整题质量参考分；缺项只显示已评分权重与已评分项均值，不显示总分。</p><div className="guide-weights">{dimensions.map(([id,weight])=><div key={id}><span>{state.defaultPolicy.rubrics?.[id]?.label||state.rubricCatalog[id]?.label||id}</span><strong>{total?Math.round(weight/total*100):0}%</strong></div>)}</div><p>必要需求的验收结论单列。DeepSWE 等固定题以原题程序验收为主；AI 质量分、人工体验和用量各自展示，不混成一种“官方跑分”。</p></Details>
       <Details title="实际使用中需要知道的事"><ul className="guide-facts"><li><strong>配置应用：</strong>导入到工作台只保存副本；点击应用到 Codex 才备份并写入设置，新任务中仍需核对实际模型及覆盖关系。</li><li><strong>Docker：</strong>网站、桌面工作区和本机裁判不要求 Docker。外部题包若依赖 Linux 镜像和独立验收器，则按它的环境要求准备。</li><li><strong>界面评分：</strong>交互与视觉需要真实操作和截图证据。当前 Windows 本机裁判的浏览器取证尚未打通，无法验证时留空。</li><li><strong>资源统计：</strong>从匹配工作区的原生日志读取 Token、缓存和活动时间；等待时间不冒充推理时间，缺失数据留空。</li><li><strong>中断与数据：</strong>环境错误、额度不足不记为任务得零分。记录保存在本机，导出可能包含个人配置与产物。</li></ul></Details>
     </div>}
     {section==='sources'&&<div className="guide-content"><section className="guide-two-column"><div><h2>先选题，创建时准备</h2><p>从零构建与已有工程分开选择。DeepSWE 保留原题分类：修复 Bug、增加功能、工程改进。创建评测时只下载所选题目的固定源码；下载失败不会生成空工程让你做题。</p></div><div><h2>当前接入情况</h2><p>113 道 DeepSWE 题可按需选用；Tengo 两题和 Yaegi Embed 支持自动准备 Windows 环境与程序验收。其他题会准备源码，依赖和原测试仍待适配。另有三套自带源码的原创题包。</p></div></section>
       <Details title="同一道题重复做，会不会混在一起？"><p>同一仓库和提交校验后复用缓存，不重复下载。每次评测复制到新的 run / trial / workspace，拥有自己的 Git 起点；你的修改不会写回缓存。回收快照、评分与日志独立保留，结束后可在“评测历史”清理工作区。全部位于本项目 .local/arena。</p></Details>
-      <PublicTaskSources state={state}/>
+      <PublicTaskSources state={state} act={act} onUse={onUse}/>
       <Details title="其他公开方案与用途"><ul className="guide-facts"><li><a href="https://github.com/SWE-bench/SWE-bench" target="_blank" rel="noreferrer">SWE-bench ↗</a>：已有工程修复，按任务测试验证修复与回归。</li><li><a href="https://github.com/harbor-framework/harbor" target="_blank" rel="noreferrer">Harbor / Terminal-Bench ↗</a>：复用任务、环境和验收器格式。</li><li><a href="https://github.com/WebPAI/DesignBench" target="_blank" rel="noreferrer">DesignBench ↗</a>：前端生成、编辑和修复的专项评测参考。</li><li><a href="https://github.com/metauto-ai/agent-as-a-judge" target="_blank" rel="noreferrer">Agent-as-a-Judge ↗</a>：开放需求的工具取证与判定参考。</li></ul></Details>
     </div>}
   </div>;

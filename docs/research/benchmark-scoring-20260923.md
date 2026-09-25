@@ -78,6 +78,16 @@ AI 参与评分。方法描述不同类型的裁判池；每个条目或比较�
 
 截图前两行输入/输出 Token 价格是成本信息，不是第九、第十项能力评测。模型预算、长上下文、缓存和供应商规则可能改变费用，不能反推订阅额度。
 
+## 2026-09-25 补充：其余截图与跨榜单读法
+
+- **Artificial Analysis Intelligence Index v4.3.2**：十项评测按发布者公开的固定权重组成指数。当前列表含 AA-Briefcase、GDPval-AA、AutomationBench-AA、Terminal-Bench 4.0、SciCode、AA-LCR、AA-Omniscience、Humanity's Last Exam、GDP.pdf、CritPt。原始项目单位不同；例如 GDPval-AA 和 AA-Briefcase 的 Elo 经固定范围归一后再纳入指数。截图中的指数 58 并非“58% 软件任务完成率”。具体权重和版本以[官方方法页](https://artificialanalysis.ai/methodology/intelligence-benchmarking)为准。
+- **GDPval-AA v2.1**：220 道专业交付任务，产出文件后进行同题盲评，使用 Crowd-BT 汇总成相对 Elo；锚点为 DeepSeek V4.1 Flash (max) 1600。截图中的 1846、1994 这种数不是百分比，也不能与本项目 0–100 项目质量分直接相加。见[评测页](https://artificialanalysis.ai/evaluations/gdpval-aa)与[方法页](https://artificialanalysis.ai/methodology/intelligence-benchmarking)。
+- **AutomationBench-AA**：657 道模拟 SaaS 跨应用流程。主指标为每题达成的目标比例，触发约束违规时该题记零；“Tasks Completed”另指全部目标完成且无违规的任务比例。与 Zapier 原榜单的全题完成率口径不同。见[官方评测页](https://artificialanalysis.ai/evaluations/automationbench-aa)。这特别值得借鉴用于项目经理式需求：目标完成率和不可违反的边界同时报告，不能让界面观感掩盖错误写入。
+- **Code Arena WebDev**：用户在同题两份实际网页间盲选，成对胜负由 Bradley–Terry 模型估计相对强度；Pareto 图把质量尺度和成本并列展示，不把价格混入质量分。见[Arena 方法介绍](https://arena.ai/blog/webdev-arena)。
+- **厂商模型对照表**：每一行引用不同第三方或自有评测（包括 CursorBench、Terminal-Bench、HealthBench、EEBench 等），单位可能是 pass@1、Elo、长度校正得分或费用。表格只是并排展示，并无共同分母；厂商所选子集和执行 Harness 要逐项核对。CursorBench 4.0 完整私有逐题验收器未公开，不能从截图复算它的百分比。见[CursorBench](https://cursor.com/cursorbench)。
+
+本工作台可借鉴“先定义任务和验收、报告覆盖率、固定环境、逐题留证、重复运行、把质量与成本并列”的方法。现有桌面流程不能据此宣称复现任何外部排行榜。项目经理式开放任务应冻结用户目标和必要验收条目：需求达成与实际运行是主轴，健壮性、规则遵守、交互、交付和维护按适用性评价；安全与性能只有任务要求且能实际取证时才计入。缺项不作零分，也不把其余已评分项重标为整题总分。
+
 ## 可借鉴的开源 Harness 评测项目
 
 |项目|可复用部分|仍需自己定义|

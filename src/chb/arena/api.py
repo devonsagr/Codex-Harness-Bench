@@ -19,6 +19,18 @@ def post(app,route,data):
     if parts==['runs','prepare-async']:
         from .preparation import start
         return start(app,data)
+    if len(parts)==3 and parts[0]=='runs' and parts[2]=='open-batch':
+        rid=identifier(parts[1])
+        with app.lock:
+            run=app.db.get('run',rid)
+            if run.get('archived') or run.get('deletionPending'):raise ValueError('这批评测当前不可打开新对话。')
+            pending=[t['id'] for t in run['trials'] if t['state']=='prepared' and not t.get('draftOpenedAt') and not t.get('sessionId')]
+        opened=[]
+        for tid in pending:
+            try:app.mutate(rid,tid,'open',{'draft':True})
+            except ValueError as exc:return {'openedTrialIds':opened,'failedTrialId':tid,'error':str(exc)}
+            opened.append(tid)
+        return {'openedTrialIds':opened,'failedTrialId':None,'error':None}
     if parts==['sources','preview']:
         from .public_sources import preview
         return preview(app,identifier(data.get('taskId')))
@@ -28,6 +40,9 @@ def post(app,route,data):
     if parts==['storage','status']:
         from .storage import status
         return status(app)
+    if parts==['storage','move-public-cache']:
+        from .cache_location import move_public_cache
+        return move_public_cache(app,data)
     if parts==['storage','workspace']:
         from .storage import workspace
         return workspace(app,data)
