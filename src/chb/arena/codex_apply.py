@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import uuid
 import tomlkit
-from .files import hash_bytes, inventory, now, safe_path, verify_snapshot
+from .files import fingerprint, hash_bytes, inventory, now, safe_path, verify_snapshot
 from .skills import codex_home, checked_directory, invocation
 from .models import validate_effort, validate_service_tier
 
@@ -50,9 +50,20 @@ def status(app):
                         target=safe_path(home,name)
                         matches=(target.is_file() and hash_bytes(target.read_bytes())==entry['afterHash']) if entry['afterHash'] is not None else not target.exists()
                     except (OSError,ValueError):matches=False
-                    checks.append({'path':name,'matches':matches})
+                    managed_matches=matches
+                    if name=='config.toml' and not matches:
+                        try:
+                            before=base64.b64decode(entry['before']) if entry['before'] is not None else b''
+                            after=applied_toml(app,r,entry)
+                            current=target.read_bytes() if target.is_file() else b''
+                            paths=r.get('managedPaths')
+                            if paths is None:paths=managed_paths(stored_config(app,r))
+                            managed_matches=managed_settings_match(before,after,current,paths)
+                        except (OSError,ValueError,UnicodeError,KeyError,TypeError):managed_matches=False
+                    checks.append({'path':name,'matches':matches,'managedMatches':managed_matches})
                 item['fileChecks']=checks
                 item['filesMatch']=all(c['matches'] for c in checks)
+                item['settingsMatch']=all(c['managedMatches'] for c in checks)
                 if not item['filesMatch']:
                     try:
                         restore_plan(app,r,home,True)
@@ -65,6 +76,62 @@ def status(app):
     tier='fast' if doc.get('service_tier') in {'fast','priority'} and features.get('fast_mode',True) is True else 'standard' if doc.get('service_tier')=='default' and features.get('fast_mode',False) is False else None
     return {'home':str(home),'instructionsFile':'AGENTS.override.md' if has_override else 'AGENTS.md',
             'settings':{k:doc[k] for k in OPTIONS if k in doc},'model':doc.get('model'),'reasoning':doc.get('model_reasoning_effort'),'serviceTier':tier,'connections':rows,'applications':[r for i,r in enumerate(receipts) if i<20 or r['status'] in {'applying','applied','restore_failed'}]}
+
+def stored_config(app,r):
+    with app.db.connect() as db:
+        row=db.execute("SELECT body FROM revisions WHERE kind='config' AND id=? AND revision=?",(r['configId'],r['configRevision'])).fetchone()
+    if not row:raise ValueError('找不到当时应用的配置版本。')
+    return json.loads(row['body'])
+
+def managed_paths(config):
+    paths=[['model'],['model_reasoning_effort']]
+    if config.get('serviceTier') in {'fast','standard'}:
+        paths.extend([['service_tier'],['features','fast_mode']])
+    paths.extend([[key] for key in config.get('nativeSettings',{})])
+    paths.extend([[group,key,'enabled'] for group,items in config.get('integrations',{}).items() for key in items])
+    return paths
+
+def config_fingerprint(config):
+    keys=('baseModel','reasoning','serviceTier','agentsPrompt','customConstraints','interactiveMode',
+          'skills','skillMode','nativeSettings','integrations')
+    return fingerprint({key:config.get(key) for key in keys})
+
+def managed_settings_match(before,after,current,paths):
+    """Ignore unrelated Codex edits while requiring every setting we wrote to match."""
+    old=tomlkit.parse(before.decode('utf-8-sig'))
+    applied=tomlkit.parse(after.decode('utf-8-sig'))
+    live=tomlkit.parse(current.decode('utf-8-sig'))
+    missing=object()
+    def matches(b,a,c):
+        if b==a:return True
+        if isinstance(a,dict) and (b is missing or isinstance(b,dict)) and isinstance(c,dict):
+            return all(matches(b.get(key,missing),a.get(key,missing),c.get(key,missing)) for key in set(b)|set(a))
+        return c==a
+    def at(doc,path):
+        for key in path:
+            if not isinstance(doc,dict):return missing
+            doc=doc.get(key,missing)
+        return doc
+    return matches(old,applied,live) and all(at(applied,path)==at(live,path) for path in paths)
+
+def matching_application(app,config,application_ids):
+    """An application from this run may serve its other trials without another global write."""
+    active=next((r for r in status(app)['applications'] if r['status'] in {'applying','applied','restore_failed'}),None)
+    if not active or active['status']!='applied' or not active.get('settingsMatch'):
+        return None
+    if active['configId']!=config['id'] or active['configRevision']!=config['revision']:
+        return None
+    if active['id'] in application_ids:return active
+    receipt=json.loads((app.local/'codex-applications'/active['id']/'receipt.json').read_text(encoding='utf-8'))
+    applied_profile=receipt.get('configFingerprint')
+    if applied_profile is None:
+        for run in app.db.list('run')+app.db.list('run',True):
+            if any(t.get('codexApplicationId')==active['id'] for t in run['trials']):
+                applied_config=next((c for c in run['configs'] if c['id']==active['configId']),None)
+                if applied_config:applied_profile=config_fingerprint(applied_config)
+                break
+    if applied_profile is None:applied_profile=config_fingerprint(stored_config(app,receipt))
+    return active if applied_profile==config_fingerprint(config) else None
 
 def public(r):
     return {k:r[k] for k in ['id','configId','configName','configRevision','at','status','home','message']}
@@ -165,6 +232,8 @@ def apply(app,data,frozen=None):
     folder=app.local/'codex-applications'/aid;folder.mkdir(parents=True)
     r={'id':aid,'configId':config['id'],'configName':config['name'],'configRevision':config['revision'],'at':now(),
        'status':'applying','home':str(home),'message':'正在应用；异常中断可从备份撤销。',
+       'configFingerprint':config_fingerprint(config),
+       'managedPaths':managed_paths(config),
        'files':{n:{'before':base64.b64encode(b).decode() if b is not None else None,'afterHash':hash_bytes(changes[n]),'after':base64.b64encode(changes[n]).decode() if n=='config.toml' else None} for n,b in before.items()}}
     store(folder,r)
     try:
@@ -186,10 +255,7 @@ def applied_toml(app,r,item):
         raw=base64.b64decode(item['after'])
     else:
         # Legacy receipts can only be reconstructed if the exact hash is proven.
-        with app.db.connect() as db:
-            row=db.execute("SELECT body FROM revisions WHERE kind='config' AND id=? AND revision=?",(r['configId'],r['configRevision'])).fetchone()
-        if not row:raise ValueError('旧回执缺少应用版本，不能自动合并撤销。')
-        config=json.loads(row['body'])
+        config=stored_config(app,r)
         before=base64.b64decode(item['before']) if item['before'] is not None else b''
         doc=tomlkit.parse(before.decode('utf-8-sig'))
         for group,items in config.get('integrations',{}).items():
