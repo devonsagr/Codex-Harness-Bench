@@ -26,9 +26,9 @@ def start(app,data):
             if tid in archived:raise ValueError('请先恢复已归档题目。')
             if tid not in existing and tid not in source_ids:raise ValueError('所选题目不存在。')
         task_revisions={tid:existing[tid]['revision'] for tid in ids if tid in existing}
-        job=app.db.save('preparation_job',{'id':request_id,'fingerprint':fingerprint(data),'status':'running',
+        job=app.db.save('preparation_job',{'id':request_id,'fingerprint':fingerprint(data),'requestData':data,'status':'running',
             'phase':'核对所选题目','taskIds':ids,'completedTasks':0,'totalTasks':len(ids),'stage':'source',
-            'startedAt':now(),'runId':None,'error':None},saved['revision'] if saved else None)
+            'startedAt':now(),'runId':None,'error':None,'currentTaskId':None,'failedTaskId':None},saved['revision'] if saved else None)
 
     def update(**values):
         with app.lock:
@@ -36,10 +36,12 @@ def start(app,data):
             return app.db.save('preparation_job',job,job['revision'])
 
     def worker():
+        current_task=None
         try:
             from .native_verifier import supported,prepare_environment,runtime
             for index,tid in enumerate(ids):
-                update(phase=f'准备第 {index+1}/{len(ids)} 道题：固定源码与环境',completedTasks=index,stage='source')
+                current_task=tid
+                update(phase=f'准备第 {index+1}/{len(ids)} 道题：固定源码与环境',completedTasks=index,stage='source',currentTaskId=tid)
                 if tid in source_ids:
                     update(phase='准备题目与固定源码 · '+source_ids[tid])
                     with DOWNLOAD_LOCK:
@@ -49,7 +51,8 @@ def start(app,data):
                         task=prepare_environment(app,task,lambda phase:update(phase=phase))
                     task_revisions[tid]=task['revision']
                 update(completedTasks=index+1)
-            update(phase='从已校验缓存复制到本次独立工作区；这一步可能需要数分钟',stage='workspace')
+            current_task=None
+            update(phase='从已校验缓存复制到本次独立工作区；这一步可能需要数分钟',stage='workspace',currentTaskId=None)
             with app.lock:
                 if any(app.db.get('config',cid)['revision']!=rev for cid,rev in config_revisions.items()):raise ValueError('准备期间配置已修改，请重新核对后创建。')
                 if any(app.db.get('task',tid)['revision']!=rev for tid,rev in task_revisions.items()):raise ValueError('准备期间题目已修改，请重新核对后创建。')
@@ -58,7 +61,7 @@ def start(app,data):
         except Exception as exc:
             message=str(exc)
             safe=message if isinstance(exc,ValueError) and len(message)<250 and any('\u4e00'<=c<='\u9fff' for c in message) else '准备失败；已缓存内容保留，请检查网络与磁盘后重试。'
-            update(status='failed',phase='尚未完成工作区准备',error=safe,endedAt=now())
+            update(status='failed',phase='尚未完成工作区准备',error=safe,failedTaskId=current_task,endedAt=now())
     thread=threading.Thread(target=worker,daemon=True)
     app.preparation_thread=thread;thread.start()
     return job

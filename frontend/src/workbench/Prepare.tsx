@@ -33,6 +33,7 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
   const filterRef=useRef<HTMLDetailsElement>(null);
   useEffect(()=>{const close=(event:PointerEvent)=>{if(filterRef.current?.open&&!filterRef.current.contains(event.target as Node))filterRef.current.open=false;};const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&filterRef.current?.open)filterRef.current.open=false;};document.addEventListener('pointerdown',close);document.addEventListener('keydown',escape);return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',escape);};},[]);
   const [jobId,setJobId]=useState<string|null>(null);const delivered=useRef<string|null>(null);
+  const [createError,setCreateError]=useState('');
   const [deliveryMode,setDeliveryMode]=useState('single-delivery');
   const [batch,setBatch]=useState(false);
   const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
@@ -56,17 +57,33 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
   const categoryOptions=[['','全部任务'],['bugfix','修复 Bug'],['feature_request','增加功能'],['enhancement','工程改进']] as const;
   const languages=[...new Set(sourceCandidates.map(t=>t.publicSource?.language).filter((value):value is string=>!!value))].sort();
   const selected=catalog.filter(t=>taskIds.includes(t.id));
+  const lastFailed=state.preparationJobs?.[0]?.status==='failed'&&state.preparationJobs[0].taskIds?.length?state.preparationJobs[0]:null;
   const previewTasks=batch&&selected.length>1?[selected.find(t=>t.id===focusedTaskId)||selected[selected.length-1]]:selected;
   const canStage=selected.length>0&&selected.every(t=>t.stages.length>1);
   const effectiveDelivery=canStage?deliveryMode:'single-delivery';
   const pending=useRef<{payload:string;requestId:string}|null>(null);
+  const recover=(previous:PreparationJob)=>{
+    const ids=previous.taskIds.filter(id=>catalog.some(t=>t.id===id));
+    if(!ids.length)return;
+    setTasks(ids);setBatch(ids.length>1);setFocusedTaskId(ids[0]);setShowPending(false);
+    const request=previous.requestData;
+    const usable=!!request&&request.configIds?.length===1&&request.taskIds.length===ids.length&&state.configs.some(config=>config.id===request.configIds[0]);
+    if(usable){
+      setConfigId(request.configIds[0]);setPolicy(request.policy);setNotes(request.notes||'');setDeliveryMode(request.deliveryMode||'single-delivery');
+      pending.current={requestId:previous.id,payload:JSON.stringify({configIds:request.configIds,taskIds:request.taskIds,policy:request.policy,notes:request.notes||'',deliveryMode:request.deliveryMode||'single-delivery'})};
+    }else pending.current=null;
+    setJobId(previous.id);setPane(usable?'scoring':'config');
+  };
   const create=async()=>{
+    setCreateError('');
     const data={configIds:[configId],taskIds,policy,notes,deliveryMode:effectiveDelivery};
     const payload=JSON.stringify(data);if(pending.current?.payload!==payload)pending.current={payload,requestId:crypto.randomUUID()};
-    try{const job=await act<PreparationJob>('/runs/prepare-async',{...data,requestId:pending.current.requestId});setJobId(job.id);}catch{/* Reuse the request ID after a connection failure. */}
+    try{const job=await act<PreparationJob>('/runs/prepare-async',{...data,requestId:pending.current.requestId});setJobId(job.id);}catch(error){setCreateError((error as Error).message);}
   };
   const job=state.preparationJobs?.find(j=>j.id===jobId)||(jobId?undefined:state.preparationJobs?.find(j=>j.status==='running'||j.status==='interrupted'));
   const preparing=job?.status==='running';
+  const blockedTaskId=job?.failedTaskId||(job?.status==='failed'&&job.stage==='source'?job.taskIds[job.completedTasks||0]:null);
+  const blockedTask=blockedTaskId?catalog.find(t=>t.id===blockedTaskId):null;
   useEffect(()=>{
     if(job?.status!=='completed'||!job.runId||!jobId||delivered.current===job.id)return;
     delivered.current=job.id;pending.current=null;onCreated(job.runId);
@@ -74,7 +91,7 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
   return <><section className="editorial-hero"><div className="editorial-hero-copy"><h1 className="page-title">{pane==='tasks'?'让每次评测，都有证据。':pane==='config'?'选好这次的工作方式。':'核对评分，再创建工作区。'}</h1><p>{pane==='tasks'?'从真实任务出发，在可复现的条件下，验证模型与个人配置的交付能力。':pane==='config'?'选择已保存配置；模型、规则与 Skills 按该版本冻结。':'评分依据与运行条件会随评测保存，交付后仍可复查。'}</p></div><div className="editorial-hero-art" aria-hidden="true"><span>REAL<br/>TASKS<br/>REAL<br/>PROGRESS</span></div>
     <nav className="prepare-tabs" aria-label="评测准备步骤">{([['tasks','选题','从任务库选择合适的任务'],['config','配置','选择模型与运行参数'],['scoring','创建工作区','核对评分并准备环境']] as const).map(([id,label,hint],index)=><button type="button" aria-current={pane===id?'step':undefined} disabled={preparing||(id==='config'&&!taskIds.length)||(id==='scoring'&&(!taskIds.length||!config))} className={pane===id?'selected':index<['tasks','config','scoring'].indexOf(pane)?'is-complete':''} key={id} onClick={()=>setPane(id)}><i>{index<['tasks','config','scoring'].indexOf(pane)?<Check size={16}/>:index+1}</i><span><strong>{label}</strong><small>{hint}</small></span></button>)}</nav></section>
     <fieldset className="prepare-grid" disabled={preparing}>
-      <div className="prepare-tasks" hidden={pane!=='tasks'}><div className="task-board">
+      <div className="prepare-tasks" hidden={pane!=='tasks'}>{lastFailed&&<section className="preparation-resume"><div><strong>上次批次准备中断 · 已准备 {lastFailed.completedTasks||0}/{lastFailed.totalTasks||lastFailed.taskIds.length} 道题</strong><p>{lastFailed.taskIds.length} 道题的选择已保留在准备记录中；已下载的源码会校验复用。</p></div><button type="button" className="btn-secondary" onClick={()=>recover(lastFailed)}>继续这批题</button></section>}<div className="task-board">
         <section className="task-library" aria-label="任务库"><header className="task-library-heading"><h2>任务库</h2><label className="task-search"><Search size={17}/><input aria-label="搜索评测题目" placeholder="搜索任务关键词…" value={query} onChange={e=>setQuery(e.target.value)}/></label></header>
           <div className="task-library-toolbar"><div className="editorial-category-tabs" role="group" aria-label="任务类型">{categoryOptions.map(([id,label])=><button type="button" key={id} className={category===id?'active':''} aria-pressed={category===id} onClick={()=>setCategory(id)}>{label}<span>（{sourceCandidates.filter(t=>(!id||t.publicSource?.category===id)&&matchTask(t,paradigm,query,channel,difficulty)&&(showPending?!canStartTask(t,state.baselines):canStartTask(t,state.baselines))).length}）</span></button>)}</div><label className="check-row batch-toggle"><input type="checkbox" checked={batch} onChange={e=>{setBatch(e.target.checked);setTasks(taskIds.slice(0,1));}}/>批量选题（最多 10 道）</label><details ref={filterRef} className="task-filter-details"><summary><Filter size={16}/>筛选</summary><div className="task-filter-bar"><Field label="评测类别"><select aria-label="评测类别" value={paradigm} onChange={e=>{setParadigm(e.target.value);if(!batch)setTasks([]);setShowPending(false);}}><option value="open-ended-project">从零构建</option><option value="repository">已有仓库任务</option><option value="deterministic-bugfix">仅 Bug 修复</option></select></Field><Field label="题目来源"><select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}><option value="all">全部来源</option><option value="deepswe">DeepSWE 公开题</option><option value="local">本地与内置题目</option></select></Field><Field label="项目语言"><select aria-label="按项目语言筛选" value={language} onChange={e=>setLanguage(e.target.value)}><option value="">全部语言</option>{languages.map(value=><option key={value} value={value}>{value}</option>)}</select></Field><TaskFilters tasks={facetTasks} channel={channel} difficulty={difficulty} onChannel={setChannel} onDifficulty={setDifficulty}/><div className="editorial-list-mode"><button type="button" className={!showPending?'active':''} onClick={()=>setShowPending(false)}>可选题目 · {matches.length-pendingTasks.length}</button><button type="button" className={showPending?'active':''} onClick={()=>setShowPending(true)}>待补全题面 · {pendingTasks.length}</button></div></div></details></div>
           <div className="prepare-task-list">{tasks.map((t,index)=><label key={t.id} className={'editorial-task-card '+(taskIds.includes(t.id)?'selected':'')}><input className="sr-only" type={batch?'checkbox':'radio'} name="task" checked={taskIds.includes(t.id)} disabled={batch&&taskIds.length>=10&&!taskIds.includes(t.id)} onChange={e=>{setShowFullPrompt(false);setFocusedTaskId(e.target.checked?t.id:null);setTasks(batch?(e.target.checked?[...taskIds,t.id]:taskIds.filter(id=>id!==t.id)):[t.id]);}}/><span className="task-card-icon">{needsBaseline(t)?<Code2 size={25} strokeWidth={1.5}/>:<Lightbulb size={25} strokeWidth={1.5}/>}</span><span className="task-card-content"><strong>{t.title}</strong><span className="task-card-description">{t.publicSource?`${t.publicSource.language||'开源'}项目 · 固定源码起点${state.baselines.some(b=>b.id===t.baselineId)?'已缓存':'创建时按题准备'}`:t.inputPrompt?.trim().slice(0,100)||'查看完整需求与项目起点'}</span><span className="task-card-meta"><em>{taskKind(t)}</em>{t.difficulty&&t.difficulty!=='未标注'&&<em className="task-difficulty">{t.difficulty}</em>}{t.publicSource?.language&&<em>{t.publicSource.language}</em>}<span>{sourceName(t)}</span></span></span><span className="task-card-index">#{String(index+1).padStart(3,'0')}</span></label>)}</div>
@@ -96,7 +113,8 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
         </div>
       </section>
       <footer className="prepare-action" hidden={pane==='tasks'}>
-        {job&&<div className="preparation-status" role="status"><strong>{job.phase}</strong>{job.totalTasks!=null&&<><progress aria-label="题目源码准备进度" max={job.totalTasks+1} value={job.status==='completed'?job.totalTasks+1:job.completedTasks||0}/><p>{job.stage==='workspace'?'源码与环境已准备，正在复制独立工作区':`已准备 ${job.completedTasks||0}/${job.totalTasks} 道题；当前题目可能正在下载或配置环境`}</p></>}{job.error&&<p className="alert-error">{job.error}</p>}<p className="muted">只下载缺失的固定源码与必要环境，校验缓存后复制到每题独立目录。这个进度按题计数，不代表当前下载的字节百分比。</p>{job.runId&&<button className="btn-secondary" onClick={()=>onCreated(job.runId!)}>进入已创建的评测</button>}{job.status==='interrupted'&&<p>重新选择题目后创建即可；已下载文件会校验复用。</p>}</div>}
+        {createError&&<p role="alert" className="alert-error">{createError}</p>}
+        {job&&<div className="preparation-status" role="status"><strong>{job.phase}</strong>{job.totalTasks!=null&&<><progress aria-label="题目源码准备进度" max={job.totalTasks+1} value={job.status==='completed'?job.totalTasks+1:job.completedTasks||0}/><p>{job.stage==='workspace'?'源码与环境已准备，正在复制独立工作区':`已准备 ${job.completedTasks||0}/${job.totalTasks} 道题${job.status==='running'?'；当前题目可能正在下载或配置环境':''}`}</p></>}{job.error&&<><p role="alert" className="alert-error">{blockedTask?`第 ${(job.completedTasks||0)+1} 道“${blockedTask.title}”准备失败：`:''}{job.error}</p><p className="muted">前面已完成的源码缓存会校验复用；本次尚未创建评测工作区，也没有生成分数。{!job.requestData&&'这份旧准备记录未保存原配置；重试前请重新选择当时使用的配置与评分方案。'}</p><div className="source-actions">{pane==='scoring'?<button type="button" className="btn-primary" onClick={()=>void create()}>重试这批题</button>:<span className="muted">先核对配置和评分方案，再重试。</span>}<button type="button" className="btn-secondary" onClick={()=>setPane('tasks')}>返回选题调整批次</button></div></>}{!job.error&&<p className="muted">只下载缺失的固定源码与必要环境，校验缓存后复制到每题独立目录。这个进度按题计数，不代表当前下载的字节百分比。</p>}{job.runId&&<button className="btn-secondary" onClick={()=>onCreated(job.runId!)}>进入已创建的评测</button>}{job.status==='interrupted'&&<p>重新选择题目后创建即可；已下载文件会校验复用。</p>}</div>}
 
         {pane==='scoring'&&<div className="space-y-2"><p className="score-notice">创建完成后，先在评测详情点击“应用到 Codex”，再打开新对话。所选模型、思考档位、速度、规则与 Skills 会一次写入并留备份。</p>
           {taskIds.length>1&&<p className="score-notice">将创建 {taskIds.length} 个独立工作区，列成待办队列。准备过程会顺序处理源码；不会自动启动桌面任务。每题分别评分，配置成绩页按题汇总。各工作区文件分开，但同机共享 Codex 全局设置；请逐项核对配置并依次执行，同时手动运行无法保证条件互不影响。</p>}
