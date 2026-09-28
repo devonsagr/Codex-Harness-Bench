@@ -1,0 +1,9 @@
+id,days_since_delivery,product,opened,quality_claim,delivery_state
+R1,2,physical,no,no,delivered
+R2,18,physical,no,no,delivered
+R3,4,physical,yes,yes,delivered
+R4,3,digital,yes,no,delivered
+R5,,physical,no,no,in_transit
+R6,7,physical,yes,no,delivered
+R7,6,physical,,yes,delivered
+R8,1,physical,no,no,disputed

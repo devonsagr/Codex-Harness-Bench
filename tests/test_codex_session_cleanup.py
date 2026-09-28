@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch,MagicMock
 
-from chb.arena.delete_run import delete
+from chb.arena.delete_run import delete,delete_workspaces
 from chb.arena.service import Arena
 from chb.arena.telemetry import linked_sessions
 
@@ -40,13 +40,38 @@ class CodexSessionCleanupTests(unittest.TestCase):
 
     def test_delete_requires_fresh_exact_list_before_fixed_cli_command(self):
         data={'runId':self.run['id'],'revision':self.run['revision'],'desktopStopped':True,
-              'confirmation':'永久删除评测 '+self.run['id'],'deleteCodexSessions':True,'sessionIds':[]}
-        with self.assertRaisesRegex(ValueError,'列表已变化'):delete(self.app,data)
+              'confirmation':'删除工作区 '+self.run['id'],'sessionIds':[]}
+        with self.assertRaisesRegex(ValueError,'列表已变化'):delete_workspaces(self.app,data)
         self.assertTrue(Path(self.trial['workspacePath']).exists())
-        with patch('chb.arena.delete_run.shutil.which',return_value='codex'),patch('chb.arena.delete_run.subprocess.run',return_value=MagicMock(returncode=0)) as execute:
-            delete(self.app,{**data,'sessionIds':[self.session]})
+        def remove_session(*args,**kwargs):
+            with closing(sqlite3.connect(self.home/'state_1.sqlite')) as db:
+                db.execute('DELETE FROM threads WHERE id=?',(self.session,));db.commit()
+            return MagicMock(returncode=0)
+        with patch('chb.arena.delete_run.shutil.which',return_value='codex'),patch('chb.arena.delete_run.subprocess.run',side_effect=remove_session) as execute:
+            delete_workspaces(self.app,{**data,'sessionIds':[self.session]})
         self.assertEqual(execute.call_args.args[0],['codex','delete',self.session,'--force'])
         self.assertEqual(execute.call_args.kwargs['env']['CODEX_HOME'],str(self.home))
+        self.assertFalse(Path(self.trial['workspacePath']).exists())
+        current=self.app.db.get('run',self.run['id'])
+        self.assertEqual(current['workspaceDeletion']['status'],'deleted')
+        delete(self.app,{'runId':self.run['id'],'revision':current['revision'],'confirmation':'永久删除评测 '+self.run['id']})
+        with self.assertRaises(ValueError):self.app.db.get('run',self.run['id'])
+
+    def test_loaded_idle_chat_is_archived_then_deleted_before_workspace(self):
+        commands=[]
+        def execute(args,**kwargs):
+            commands.append(args)
+            if len(commands)==1:return MagicMock(returncode=1)
+            if args[1]=='delete':
+                with closing(sqlite3.connect(self.home/'state_1.sqlite')) as db:
+                    db.execute('DELETE FROM threads WHERE id=?',(self.session,));db.commit()
+            return MagicMock(returncode=0)
+        with patch('chb.arena.delete_run.shutil.which',return_value='codex'),patch('chb.arena.delete_run.subprocess.run',side_effect=execute):
+            delete_workspaces(self.app,{'runId':self.run['id'],'revision':self.run['revision'],'desktopStopped':True,
+                                        'confirmation':'删除工作区 '+self.run['id'],'sessionIds':[self.session]})
+        self.assertEqual(commands,[['codex','delete',self.session,'--force'],
+                                   ['codex','archive',self.session],
+                                   ['codex','delete',self.session,'--force']])
         self.assertFalse(Path(self.trial['workspacePath']).exists())
 
 

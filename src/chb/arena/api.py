@@ -21,19 +21,45 @@ def post(app,route,data):
         return start(app,data)
     if len(parts)==3 and parts[0]=='runs' and parts[2]=='open-batch':
         rid=identifier(parts[1])
+        tid=identifier(data.get('trialId'))
         with app.lock:
             run=app.db.get('run',rid)
-            if run.get('archived') or run.get('deletionPending'):raise ValueError('这批评测当前不可打开新对话。')
-            pending=[t['id'] for t in run['trials'] if t['state']=='prepared' and not t.get('draftOpenedAt') and not t.get('sessionId')]
-        opened=[]
-        for tid in pending:
+            if run.get('archived') or run.get('deletionPending') or (run.get('workspaceDeletion') or {}).get('status')=='deleted':raise ValueError('这批评测当前不可打开新对话。')
+            trial=next((item for item in run['trials'] if item['id']==tid),None)
+            if trial is None or trial['state']!='prepared' or trial.get('sessionId'):
+                raise ValueError('这道题已开始或不属于当前待打开队列。')
+            pending=next((item for item in run['trials'] if item['state']=='prepared' and not item.get('sessionId')
+                          and item.get('draftOpenedAt') and item.get('draftRequestStatus','requested')=='requested'),None)
+            if pending:raise ValueError('上一道题的 Codex 草稿仍待确认；请先确认打开成功，或标记取消后重试该题。')
+            if trial.get('draftOpenedAt') and trial.get('draftRequestStatus')!='cancelled':
+                raise ValueError('这道题已请求打开；请先处理该题的待确认状态。')
+            # A launch request cannot confirm the Codex trust dialog or preserve
+            # the previous composer. Open one explicit trial per user action.
             try:app.mutate(rid,tid,'open',{'draft':True})
-            except ValueError as exc:return {'openedTrialIds':opened,'failedTrialId':tid,'error':str(exc)}
-            opened.append(tid)
-        return {'openedTrialIds':opened,'failedTrialId':None,'error':None}
+            except ValueError as exc:return {'openedTrialIds':[],'failedTrialId':tid,'error':str(exc)}
+            return {'openedTrialIds':[tid],'failedTrialId':None,'error':None}
+    if len(parts)==3 and parts[0]=='runs' and parts[2]=='confirm-batch-draft':
+        rid=identifier(parts[1]);tid=identifier(data.get('trialId'))
+        confirmed=data.get('confirmed')
+        if type(confirmed) is not bool:raise ValueError('请明确确认草稿是否在 Codex 保留。')
+        with app.lock:
+            run=app.db.get('run',rid)
+            if run.get('archived') or run.get('deletionPending'):raise ValueError('这批评测当前不可修改草稿状态。')
+            trial=next((item for item in run['trials'] if item['id']==tid),None)
+            if trial is None or trial['state']!='prepared' or trial.get('sessionId') or not trial.get('draftOpenedAt') or trial.get('draftRequestStatus','requested')!='requested':
+                raise ValueError('这道题没有待确认的草稿请求，请刷新后重试。')
+            trial['draftRequestStatus']='confirmed' if confirmed else 'cancelled'
+            trial['draftConfirmedAt' if confirmed else 'draftCancelledAt']=now()
+            app.event(run,'用户确认 Codex 中已保留本题草稿；可继续请求下一道。' if confirmed else '用户表示 Codex 草稿未保留；本题留待重试，不自动跳到下一道。',tid)
+            app.db.save('run',run,run['revision'])
+            return {'trialId':tid,'status':trial['draftRequestStatus']}
     if parts==['sources','preview']:
         from .public_sources import preview
         return preview(app,identifier(data.get('taskId')))
+    if parts==['sources','webgen']:
+        from .webgen_source import install
+        with app.lock:
+            return install(app)
     if parts==['sources','prepare']:
         from .public_sources import start
         return start(app,data)
@@ -46,6 +72,9 @@ def post(app,route,data):
     if parts==['storage','workspace']:
         from .storage import workspace
         return workspace(app,data)
+    if parts==['storage','delete-workspaces']:
+        from .delete_run import delete_workspaces
+        return delete_workspaces(app,data)
     if parts==['storage','delete-run']:
         from .delete_run import delete
         return delete(app,data)
@@ -106,6 +135,12 @@ def post(app,route,data):
             if action=='judge-revalidate':
                 from .jobs import revalidate_saved_review
                 return revalidate_saved_review(app,rid,tid)
+            if action=='judge-screenshots':
+                from .jobs import review_screenshots
+                return review_screenshots(app,rid,tid,data)
+            if action=='behavior-image':
+                from .behavior import screenshot
+                return screenshot(app,rid,tid,data)
             if action=='apply-config':
                 run,trial=app.trial(rid,tid)
                 if run.get('archived') or trial['state']!='prepared':raise ValueError('仅在本题开始前应用冻结配置。')
@@ -135,7 +170,7 @@ def post(app,route,data):
                     length=log.stat().st_size;stream.seek(max(0,length-20000));body=stream.read(20000)
                 return {'output':body.decode('utf-8',errors='replace'),'truncated':length>20000}
             if action=='native-check':return start_job(app,rid,tid,'native',data)
-            if action in {'check','judge'}:return start_job(app,rid,tid,action,data)
+            if action in {'check','judge','behavior'}:return start_job(app,rid,tid,action,data)
             if action=='stop':return stop_job(app,rid,tid)
             return app.mutate(rid,tid,action,data)
     raise ValueError('没有这个操作。')

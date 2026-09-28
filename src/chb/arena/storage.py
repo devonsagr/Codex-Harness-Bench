@@ -41,10 +41,11 @@ def status(app):
             except ValueError as exc:sessions=[];session_error=str(exc)
             rows.append({'runId':run['id'],'trialId':trial['id'],'revision':run['revision'],
                 'title':next(t['title'] for t in run['tasks'] if t['id']==trial['taskId']),
-                'state':trial['state'],'workspaceBytes':size(folder/'workspace'),'reviewBytes':size(folder/'reviews')+size(folder/'native-checks'),
+                'state':trial['state'],'workspaceBytes':size(folder/'workspace'),'reviewBytes':size(folder/'reviews')+size(folder/'native-checks')+size(folder/'behavior-checks'),
                 'snapshotBytes':size(folder/'captures')+size(folder/'baseline'),'captures':len(trial['captures']),
                 'reviews':len(trial['reviews']),'workspacePath':str(folder/'workspace'),'reviewPath':str(folder/'reviews'),
                 'humanBytes':size(folder/'human-inspections'),'humanPath':str(folder/'human-inspections'),'deletionPending':bool(run.get('deletionPending')),
+                'workspaceDeletion':run.get('workspaceDeletion'),
                 'codexSessions':sessions,'codexSessionError':session_error,
                 'canDeleteRun':not any((run['id'],t['id']) in jobs or t['state'] in {'checking','judging'} or t.get('ownedContainers') for t in run['trials']),
                 'cleanup':trial.get('workspaceCleanup'),'canClean':trial['state']=='completed' and bool(trial['captures']) and (folder/'workspace').exists() and not trial.get('ownedContainers') and (run['id'],trial['id']) not in jobs})
@@ -56,7 +57,7 @@ def status(app):
         {'name':'技能快照','path':'skills/','bytes':size(app.local/'skills'),'purpose':'已选配置引用的版本，不清理用户全局技能。'},
         {'name':'裁判临时运行目录','path':'reviewer-runtime/','bytes':size(app.local/'reviewer-runtime'),'purpose':'CLI 工作副本与临时配置；正常退出即删除，异常残留随对应评测删除。'},
         {'name':'初始配置与应用备份','path':'initial-config/ + codex-applications/','bytes':size(app.local/'initial-config')+size(app.local/'codex-applications'),'purpose':'保护首次配置与每次应用前的原文件；删除评测不会删除恢复备份。'},
-        {'name':'待删除工作区','path':'trash/workspaces/','bytes':size(app.local/'trash/workspaces'),'purpose':'清理先移入这里；可恢复，彻底删除后才释放磁盘。'},
+        {'name':'旧待删除工作区','path':'trash/workspaces/','bytes':size(app.local/'trash/workspaces'),'purpose':'旧版单项清理留下的目录；现在删除整次评测的第一步会一并清理。'},
     ],'workspaces':rows,'sourceJobs':source_jobs,
     'tools':{'git':bool(shutil.which('git')),'codex':bool(shutil.which('codex')),'dockerInstalled':bool(shutil.which('docker'))}}
     for category in result['categories']:
@@ -74,7 +75,8 @@ def workspace(app,data):
     rid=identifier(data.get('runId'));tid=identifier(data.get('trialId'));action=data.get('action')
     with app.lock:
         run=app.db.get('run',rid)
-        if run.get('deletionPending'):raise ValueError('整次评测删除未完成，请继续整次删除，不再单独清理或恢复工作区。')
+        if run.get('deletionPending'):raise ValueError('工作区删除或整次评测删除正在进行，不能单独清理或恢复。')
+        if (run.get('workspaceDeletion') or {}).get('status')=='deleted':raise ValueError('这次评测的工作区已删除；记录、快照和评分仍保留。')
         if data.get('revision')!=run['revision']:raise ValueError('记录已变化，请刷新后重新核对清理范围。')
         trial=next((t for t in run['trials'] if t['id']==tid),None)
         if not trial or trial['state']!='completed' or not trial['captures']:raise ValueError('只能清理已标记交付结束且已回收的工作区。')

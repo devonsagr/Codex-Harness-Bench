@@ -111,3 +111,52 @@ AI 参与评分。方法描述不同类型的裁判池；每个条目或比较�
 人工入口：评测→评分→查看产物与复核。文件与图片取自校验过的回收版本；运行项目时先创建独立 `human-inspections/.../workspace`，查看 README / scripts，打开目录或复制启动说明到 Codex。启动后打开独立本机地址体验，再保存观察与分数。不会自动运行任意项目命令。未实际体验的 UX 项留空。独立人工参考分与程序、AI、既有人工修正分存；缺项显示覆盖率。
 
 统一声明：**分数仅供特定条件下的参考，不代表全面能力或每次真实表现。** 不同题类、裁判、环境与预算不直接横比。AI 会波动，人也有偏好。下一阶段的校准、盲评配对、多次重复和统计区间见主架构，不能把本轮的 UI 和留证能力称为已完成科学校准。
+
+## 2026-09-26 补充：四张新截图的来源、指标与适用范围
+
+用户提供的四张视频截帧是**研究线索**，不是本项目的运行结果，也不承载操作指令。已核对发布方的 [GPT-6 Astra 页面](https://openai.com/index/gpt-6-astra/)、[Claude Fable 5.1 页面](https://www.anthropic.com/claude-fable-and-mythos-5-1)、[Kimi K3 技术博客](https://www.kimi.com/en/blog/kimi-k3)及 [DeepSeek V4.1 Flash 发布记录](https://api-docs.deepseek.com/updates/)。它们把若干不同单位、不同题库、不同工具/思考预算的成绩并排放在模型宣传表中；不能将表格行当作一题内部的打分维度，也不能拿百分数、Elo、Codeforces rating 和 API 价格求平均。页面随版本更新；下表只归纳截至核对日可以从发布方或题库方确认的**测量对象与对本项目的启发**，不复制供应商对照数值。
+
+|截图中出现的题库/指标|测量对象和原始口径（依题库版本）|能借鉴到本项目什么|是否进入普通项目单题总分|
+|---|---|---|---|
+|DeepSWE v1.1、Terminal-Bench 2.1/3.0/4.0|真实仓库补丁或终端任务；固定任务验收器汇成解决率，DeepSWE 单次原生 reward 为通过/失败；[AA Coding Agent 方法](https://artificialanalysis.ai/methodology/coding-agents-benchmarking)|独立验证环境、源码/镜像版本、失败与环境异常分开、重复试次|只有该题适用的原测试是证据；原榜单通过率另列，不冒充连续本地质量分|
+|Terminal-Bench-Science 0.1|科学研究工作流，交付分析、仿真、证明、代码或数据；任务专属可复现实验验收；[题库方说明](https://www.tbench.ai/news/terminal-bench-science-0-1)|真实长任务、领域专家定义可检验产物、任务预算|仅当题目确属科研工作时适用|
+|CursorBench 3.2.0/4.0、ProgramBench、NL2Repo-Bench|软件工程/仓库任务的不同测试集；完整细节和可获取性各异；[CursorBench](https://cursor.com/cursorbench)、[DeepSeek 发布方列表](https://api-docs.deepseek.com/updates/)|混合新功能、修复、重构和仓库理解，不只刷一种 Bug|作为选题类别；无公开逐题验收器时不宣称复现其榜单|
+|Code Arena WebDev / WebDev Arena、OSWorld 2.0|真实网页交互的人工成对偏好；桌面跨应用流程的 strict 完成与 partial 进度是两种口径；[Arena 方法](https://arena.ai/blog/webdev-arena)、[OSWorld 2.0 论文](https://arxiv.org/abs/2606.29537)|可运行网页、键盘/视觉取证、同题盲评；长流程要同时给进度和最终完成|仅前端/电脑操作题按相关验收计分；人工偏好与任务绝对分分存|
+|AutomationBench / AutomationBench-AA|多应用业务流程的目标完成率，违规约束可令该题记零；AA 另列整题完成率；[AA 方法](https://artificialanalysis.ai/evaluations/automationbench-aa)|模糊业务需求分解成目标和禁止动作；部分目标给分并保留硬约束|项目经理式流程题高度相关，但不能直接套其题库权重|
+|GDPval-AA v2.1、AA-Briefcase v1.1、APEX-Agents|专业交付文件、跨周或跨应用工作；GDPval 用同题盲评 Elo，AA-Briefcase 结合逐条标准、分析质量与呈现质量；[GDPval](https://artificialanalysis.ai/evaluations/gdpval-aa)、[AA-Briefcase](https://artificialanalysis.ai/evaluations/aa-briefcase)、[APEX-Agents](https://artificialanalysis.ai/evaluations)|长项目阶段产物、质量与呈现分离、同题成对比较；这是开放项目评分的重要参考|可借方法，不能把相对 Elo 当某一交付的 0–100 绝对分|
+|OfficeQA Pro、SpreadsheetBench 2、DECK-Bench (Internal)|前者为文件检索与数值推理，后者为跨表格的生成/调试/可视化；DECK 是厂商内部集合、公开复算方法不足；[OfficeQA 仓库](https://github.com/databricks/officeqa)、[SpreadsheetBench 2](https://spreadsheetbench.github.io/)、[Kimi 说明](https://www.kimi.com/en/blog/kimi-k3)|若未来纳入办公项目，须检查文件可打开、公式与跨表引用正确、视觉交付可用|软件项目不默认计入办公专门指标；内部题库不称可复现|
+|SWE-Atlas-QnA、GPQA Diamond、HLE/HLE with tools、Agents' Last Exam|仓库问答、学科知识与复杂推理/工具使用等不同题型；[SWE-Atlas](https://github.com/scaleapi/SWE-Atlas)、[AA 方法](https://artificialanalysis.ai/methodology/intelligence-benchmarking)|多步论证、引用与事实核查、工具条件需同一版本|可以选择为独立能力题，不用知识题正确率代替真实软件交付|
+|FrontierMath、MathArena Apex、Codeforces rating、SciCode|数学证明/竞赛/科研代码，单位可能是通过率或 rating；[OpenAI 发布方表](https://openai.com/index/gpt-6-astra/)、[AA 指数方法](https://artificialanalysis.ai/methodology/intelligence-benchmarking)|逻辑、代码推理可作为专项题组；评分需原题答案或可验证程序|不因一项目需要“逻辑”就塞数学竞赛分|
+|HealthBench Professional、GeneBench Pro、MedChemBench、LifeSciBench|临床/生命科学/化学专业任务；HealthBench Professional 的发布数值还做长度校正；[原始论文](https://cdn.openai.com/dd128428-0184-4e25-b155-3a7686c7d744/HealthBench-Professional.pdf)、[OpenAI 页面](https://openai.com/index/gpt-6-astra/)|提醒专业领域须有专家标准与风险项|本项目普通软件题不适用，不拿医疗分评价人情味|
+|MMMU-Pro、CharXiv、MathVision、BabyVision、ZeroBench、Chartography|多模态、图表、视觉或视觉推理；有的区分是否调用 Python/工具或 pass@5；[Kimi 方法说明](https://www.kimi.com/en/blog/kimi-k3)|截图/图表读取、视觉事实核对须记录工具和实际样本|只对题目明确含视觉输入/输出的项目适用|
+|CyberGym、SEC-Bench Pro、ExploitGym|网络安全、漏洞查找或利用能力；[DeepSeek 发布方列表](https://api-docs.deepseek.com/updates/)|独立安全题与禁止越权的负面验收|不能把攻击题得分当一般工程安全评分|
+|Artificial Analysis Intelligence Index|若干不同评测先各按自身协议求值，再按发布方权重聚合；[指数方法](https://artificialanalysis.ai/methodology/intelligence-benchmarking)|跨题集必须先固定集合、单位、版本、权重和适用条件|不能直接抄其权重或用一个指数声称 Harness 的微小改动有效|
+
+上表未逐项审计所有厂商二次引用的运行条件；尤其 `DECK-Bench (Internal)`、私有 CursorBench 版本和某些供应商自行复跑行不具公开完整验收器。若要导入其中的任务，先核对许可证、题目可获取性、版本、参考解污染风险、执行预算、是否允许 Codex 桌面运行；这些检查通过前仅当选题线索。截图中的模型名和分数不写入产品成绩。
+
+### 从榜单名称提炼成真正可操作的测量指标
+
+|专业指标/单位|发布方常见做法与依据|本项目采用或保留的位置|人工能否调整|
+|---|---|---|---|
+|整题解决率、pass@1（%）|DeepSWE、Terminal-Bench等以整题验收器给单次0/1，再跨题和重复汇总；[AA方法](https://artificialanalysis.ai/methodology/coding-agents-benchmarking)|原题 reward、同协议题级解决率；不把0/1改写成连续质量分|不能改原始结果；可对验收器申诉/复跑|
+|目标测试与旧功能回归（通过数/总数）|F2P/P2P各反映不同目标，数量本身不是语义权重；[DeepSWE方法](https://artificialanalysis.ai/methodology/coding-agents-benchmarking)|每题证据和故障定位，映射预先声明的语义目标|不能滑条改命令输出；可指出测试未覆盖或误判|
+|部分目标完成（%）与整题完成（%）|AutomationBench-AA区分目标进度与Tasks Completed，OSWorld 2.0区分partial与strict；[AA](https://artificialanalysis.ai/evaluations/automationbench-aa)、[OSWorld论文](https://arxiv.org/abs/2606.29537)|开放业务需求按目标贡献给连续分，必要项另列|目标解释/体验可复核，硬约束结果不可直接改|
+|约束违规/越权（次数、是否触发）|业务与电脑操作任务可能有禁令/guardrail；[AA AutomationBench](https://artificialanalysis.ai/evaluations/automationbench-aa)|项目约束、范围控制、未经授权操作；不与礼貌口吻混为一栏|人工判断是否真正违规；原始轨迹只读|
+|质量量表（逐项锚点分）|AA-Briefcase等检查产物的分析与呈现质量；[AA-Briefcase](https://artificialanalysis.ai/evaluations/aa-briefcase)|需求、工程、维护、界面、交付按题适用，需证据和评分卡版本|允许有理由的主观复核，保留原分|
+|成对偏好、Elo/胜率|WebDev Arena与GDPval在同题候选间比较；[Arena](https://arena.ai/blog/webdev-arena)、[GDPval-AA](https://artificialanalysis.ai/evaluations/gdpval-aa)|用于微差盲评的辅助比较，不是单题绝对0–100|评审者投票不可回写程序成绩；分歧要显示|
+|浏览器功能与视觉体验|WebDev/OSWorld需要实际界面或电脑操作；[Arena](https://arena.ai/blog/webdev-arena)、[OSWorld](https://arxiv.org/abs/2606.29537)|网页任务看主路径、窄屏、键盘、视觉、可访问性；无网页题不适用|实际体验与视觉可调整；截图/操作回执只读|
+|长时任务连续性|科学/专业任务跨步骤、跨工具与多次修订；[Terminal-Bench Science](https://www.tbench.ai/news/terminal-bench-science-0-1)、[AA-Briefcase](https://artificialanalysis.ai/evaluations/aa-briefcase)|里程碑、要求变更、返工与最终回归；仍按一个项目一题|主观交接质量可复核，版本和时间戳不可改|
+|稳定性/可靠性（有效重复、失败率、分布）|Coding Agent Index报告任务级尝试与reliability；[AA方法](https://artificialanalysis.ai/methodology/coding-agents-benchmarking)|配置层按相同题目/条件展示重复分布和失败，中断与环境故障另列|不能凭感觉改次数；可复核故障归因|
+|成本、Token、完成时间（不同单位）|AA同时报告token、cost、execution time；厂商曲线还展示质量—成本取舍；[AA方法](https://artificialanalysis.ai/methodology/coding-agents-benchmarking)|结果主卡单列被测用量和时长、价格假设与裁判开销；默认不进入质量分|原生日志只读；人可标注等待和计费解释，不能造账单|
+|知识、逻辑、视觉、安全专项成绩|GPQA、HLE、FrontierMath、MMMU、CyberGym等测不同域；[OpenAI](https://openai.com/index/gpt-6-astra/)、[Kimi](https://www.kimi.com/en/blog/kimi-k3)、[DeepSeek](https://api-docs.deepseek.com/updates/)|需要时形成单独的专项题或题内可检验目标，不当作所有工程题的固定维度|按各专项协议；专家意见与程序结果分存|
+
+该表的“采用位置”是 U46 **待审设计**。测量单位不能因为都写成百分数而直接相加；能否人工复核取决于证据性质，而非哪个厂商使用了 AI 裁判。默认只展示少量当前题适用的指标，全部指标库留在方法页查询。
+
+### 可迁移的方法，不可迁移的数字
+
+1. **目标进度与整题完成分列**：AutomationBench-AA 的部分目标进度、OSWorld 2.0 的 partial/strict 说明二元完成指标不是唯一信号；但部分进度要按预先声明的用户目标和重要性计，而不是把大量回归用例当目标。[AutomationBench-AA](https://artificialanalysis.ai/evaluations/automationbench-aa)、[OSWorld 2.0](https://arxiv.org/abs/2606.29537)。
+2. **交付质量和相对偏好并列**：GDPval-AA、AA-Briefcase、WebDev Arena 会对实际交付或可用页面作比较；同题盲评可帮助发现小差异，但 Elo/胜率是相对统计量，不能直接塞进一个任务的绝对百分分。[GDPval-AA](https://artificialanalysis.ai/evaluations/gdpval-aa)、[AA-Briefcase](https://artificialanalysis.ai/evaluations/aa-briefcase)、[WebDev Arena](https://arena.ai/blog/webdev-arena)。
+3. **成本和时间同屏，默认不兑换质量分**：厂商曲线用质量—成本 Pareto 关系说明“更便宜但未完成”不能当更好；本项目要展示被测执行 Token、活动/总时长和有条件的 API 等值估算，复审开销另列。实际订阅扣额未知时不可标“实际花费”。
+4. **低预算不等于零重复**：固定少量锚题、同题配对、分批扩展、记录所有失败与中断。小差异在有限样本里可能无法判断，UI 应显示原始每题差值与不确定性，而不是多保留一位小数假装精确。长期项目可保留少数深入案例，不假装五个阶段是五个独立样本。
+
+本研究表不直接决定本站新的单题/配置总分公式。目标合同、人工调整边界和实施状态分别由 [评分合同](../architecture/EVALUATION.md)、[主架构第8节](../PROJECT_SPEC.md#8-唯一实施路线与完成标准)和 [当前交接](../当前交接.md)维护。2026-09-26 新评分方案仍待用户审查；研究结论本身不构成执行授权。

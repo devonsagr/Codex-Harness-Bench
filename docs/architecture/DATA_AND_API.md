@@ -112,7 +112,7 @@ kind 包括 config、task、skill、baseline、run，以及题包导入幂等回
 |review|captureId、scores、notes、readiness、constraints；v2加criteria、constraintNotes、revisionReason|只接受最新回收；条目集合必须完整，修订已有复审须原因；始终新建版本|
 |objective-review|captureId、evidenceKey、score(0–100或null撤回)、reason、evidence|最新回收且完整客观原分；拒绝后台运行和过期证据；追加人工裁定，不覆盖原分|
 |check|captureId|异步运行该快照适用检查；可选历史阶段快照|
-|judge|captureId、model、可选environment: local/docker|显式使用额度；旧API省略环境仍为docker，新机器评分UI默认local|
+|judge|captureId、model、usageAcknowledged=true、可选environment: local/docker|每次显式确认使用当前 CLI 登录账号额度；缺少确认直接拒绝且不建作业。旧API省略环境仍为docker，界面题默认 Docker|
 |stop|{}|返回 stopping:true / desktopStopped:false|
 
 动作状态前提见 [执行合同](EXECUTION_AND_EVIDENCE.md)。接口列表不是统一保证所有动作在所有状态可调用。
@@ -197,7 +197,7 @@ Trial.objectiveReviews保存id/at/captureId/evidenceKey/score/reason/evidence/or
 
 U19：/codex/status活动回执在有变化时增加canPreserveChanges（只读预检）；/codex/restore增加可选preserveUnrelated:true，后端再次三方核对，不信任前端旧状态。/runs/:rid/trials/:tid/open接受draft:true，仅首轮使用服务端冻结的executionPrompts文本和本试次workspace生成codex://threads/new?path=...&prompt=...；不得由客户端传入任意目录/协议/命令。Windows调用注册协议，失败不回滚已准备工作区，不自动开始计时或发送任务。默认open旧目录方式继续兼容。
 
-机器方案 POST `/runs/{rid}/trials/{tid}/judge` 请求captureId/model/environment，Docker串联可用脚本与机器裁判，本机跳过容器脚本；无脚本允许启动。POST同试次`/machine-correction`请求reviewId/evidenceKey/changes，changes为维度到{score,reason}的映射；拒绝后台运行、过期证据或无理由。返回Run，分数由score.machine/machineCoverage/machineRatings/machineOverrides/effectiveScores/overall派生。machine是原分（缺项时暂定）；overall含当前人工修正，缺项或未completed为null。程序结果和criteria不被修正覆盖。
+机器方案 POST `/runs/{rid}/trials/{tid}/judge` 请求captureId/model/usageAcknowledged=true及可选environment，Docker串联可用脚本与机器裁判，本机跳过容器脚本；无脚本允许启动。没有本次明确额度确认直接拒绝，不创建裁判作业。新报告标注judgeBlinding/judgePromptVersion/judgePromptSha256与可获得的judgeUsage累计计数；`judge-progress`也从旧事件或超时rollout读本作业累计用量，未知保持null，不当作免费。POST同试次`/machine-correction`请求reviewId/evidenceKey/changes，changes为维度到{score,reason}的映射；拒绝后台运行、过期证据或无理由。开放项目的score.machine/machineCoverage/machineRatings/machineOverrides/effectiveScores/overall由适用维度派生；machine是AI原分，overall含当前人工修正，缺项或未completed为null。**当前 arena-machine-v1 协议**：公开题的scoreSource=native-verifier，overall只由当前快照哈希匹配的原题程序reward生成100/0，未验收为null；AI维度仅作独立参考，人工修正不能改写程序结果。U46 拟另增本地连续任务分，不回写这一历史字段的意义。
 
 ### U24交付方式与引用状态
 
@@ -242,9 +242,41 @@ native-runtime/native-homes为每次临时副本和空CODEX_HOME，正常完成�
 
 ## U33–U34 补充接口
 
-- storage/delete-run：runId/revision/desktopStopped/确认短语；拒绝后台任务和活动状态。先保存deletionPending，再删除owned运行与trash目录、凭回执确认的裁判残留，最后事务删除records/revisions与准备任务、截断WAL。共享缓存/配置/宿主日志/手工导出不在范围；中断可按可见记录重试。
+- storage/delete-workspaces：第一项独立操作，runId/revision/desktopStopped/确认短语/精确关联的Codex会话ID清单。拒绝运行中的检查或裁判；按固定工作区cwd再次核对会话，通过Codex CLI删除并核实索引已消失，再删除本次所有工作区（含旧待删除区），保留快照、评分和记录。先持久化deletionPending与workspaceDeletion，文件占用或中断后可在同一步重试，已开始的删除不受旧revision阻断；成功后清除deletionPending，可继续对保留快照评分，但不能再打开被删除的开发工作区。只读Git对象按受限路径清除只读属性后重试；不跟随链接。
+- storage/delete-run：第二步，仅workspaceDeletion=deleted后允许，runId/revision/确认短语。先保存recordDeletionPending，再删除owned运行目录、凭回执确认的裁判残留，最后事务删除records/revisions与准备任务、截断WAL。共享缓存/配置/宿主日志/手工导出不在范围；中断可继续第二步。Codex侧栏项目文件夹不属于会话，当前受支持接口不能删除项目索引，需在Codex项目菜单移除。
 - state.initialConfig、codex/restore-initial：一次三文件备份与显式恢复，完整性校验，当前文件另存撤销回执；认证不进入初始配置备份。
 - runs/{rid}/trials/{tid}/inspection-status|file|prepare|open|save：均受既有本机令牌/Origin保护。data.captureId必填；file.path必须在快照清单，文本只作为文本，PNG/JPEG/WebP惰性显示。prepare生成human-inspections/{id}/workspace，不执行命令；open只打开本次记录目录。save追加版本绑定参考评价，不改原评分。
 - judge-progress新增实际instruction、公开agent messages、命令、elapsed与runtime目录；不返回reasoning事件。
+- `POST runs/{rid}/trials/{tid}/judge-screenshots`：只读列出本题已保存裁判报告或当前失败作业的最多20张光栅截图；提交 `reviewId` 选择历史报告，不提交则使用当前 `judgeExecution.jobId`。再提交返回清单中的 `path` 才返回单张不超过2 MB的 PNG/JPEG/WebP data URL。服务端从本题 review 目录重建路径、逐段拒绝链接和越界、检查文件头；不提供 SVG/HTML/任意文件入口。图片供人工复核，存在不等于 AI 已看图。
 
 人工副本位于run内，整评测删除包含它；仅workspace清理保留它。人工预览链接只接纳明确端口的本机HTTP地址，工作台不代理获取该URL、不自动运行项目脚本。
+
+## U46–U47：评分卡、连续分与配置分的数据合同（v1 已接入，完整实体待补）
+
+当前已有任务版本、冻结快照、原题验收、机器报告、人工记录与桌面用量。U47 增加 `trial.score.taskScorecard` 派生视图和前端 `configResults` 最近完整批次汇总；五题旧 CTRF 从本地报告只读追溯，原题 reward 不改。下表是**尚未完整实现**的持久化评分卡/具名题集/配置快照合同，不能把候选实体误读为现成请求协议。前端当前分已有真实 UI 回执，但后端统一聚合接口仍待补。
+
+|候选实体|不可缺少的字段与关系|不允许的隐式行为|
+|---|---|---|
+|`taskScorecardRevision`|独立版本ID、taskId/taskRevision、适用条件、预先声明的条目ID/分值/锚点/必要程度/证据方式/人工权限、创建来源与hash|看过结果后覆盖旧权重；把原题通过用例逐个按数量计权|
+|`trialScoreAssessment`|run/trial/captureId/captureHash、scorecardVersion、各条目证据引用、系数、贡献、未验证原因、最终本地分、原始与修正版本、追溯标记|覆盖原生reward、旧`overall`或原AI报告；把部分已评分项归一化为全题分|
+|`nativeVerification`|现有上游镜像/源码/验收器版本、F2P/P2P/奖励、命令输出、时间和快照关联|用本地新增测试冒充发布方结果；环境错误写成失败0|
+|`suiteRevision`|具名题集、题目/评分卡版本、执行预算、重复策略、预先声明的题权/领域及时间窗|批次结束后按哪套配置赢了来删题或改权|
+|`configScoreSnapshot`|configId+revision、suiteRevision、截止时点、计划/有效/缺失/排除任务、同题重复均值、跨题均值、领域画像、聚合协议版本|把全部历史中题目覆盖不同的均值当通用排名；读取当前编辑器覆盖旧记录|
+|`efficiencyEvidence`|被测与裁判用量分别记录；Token 分类、缓存、活动/等待/墙钟时长、价格来源/日期/假设、是否实际账单|估算成本当真实扣费；缺日志推断免费或速度更快|
+|`comparisonSnapshot`|匹配题目、条件指纹、配对试次ID、逐题差值、顺序、失败/中断、样本数、评审协议与不确定性|单次 0.1 或 1 分差自动宣布配置胜出|
+
+后续具名题集的数据读取路径应由**后端统一聚合**，历史页、批次页、配置成绩页共用同一已冻结解释，避免前端各自写不同的公式。目前单题分由后端派生，配置分由前端同一 `configResults` helper 汇总。持久化评分卡版本须先验证权重合计100、条目稳定ID、证据语义和适用条件；评分作业只引用现有快照和已经保存的检查回执。人工改动作为追加事件，后端按“最新有效修正＋原证据”派生当前本地分。新 Capture、验收回执变化、题目或量表版本变化使旧派生分失效而保留旧记录；禁止偷偷沿用修正。旧 `arena-machine-v1` 保持原样可读。
+
+缺失语义至少区分：未准备/未执行、程序确证失败、环境或工具故障、引用无效、证据待补、正式交付未结束、条目不适用、评分协议不兼容。`null` 必须伴随状态和下一动作；只对**确证未达标**条目计零。若必要验收器未就绪，保留局部条目和原生日志，但本地最终任务分及对应题集分为空。既有五份 DeepSWE 快照已附加统一版本的只读追溯评价，不重跑被测模型；页面并列展示 U45 原题 reward 和 U47 本地分，当前完整批次为 91.2，旧 80.0 是历史 reward×100 口径。
+
+后续接口沿用本机令牌/Origin、固定ID推导路径、revision 乐观锁和任务互斥，不新开任意命令或任意文件接口。需要的动作依次为：只读预览评分卡与题集 → 保存新版本 → 对指定现存 capture 补验证据/评分 → 人工修正主观项 → 读统一派生汇总与配对报告。每次返回目标快照哈希、算法/裁判版本和排除理由。失败或中断可在同一冻结版本重试；不可因刷新而重复计分或重复消费额度。公式 v1 已获审定；完整持久化路由、API 冲突/幂等/快照变动测试和前后端同值核对仍待实现。
+
+U54 的新增开放题使用**已有** task、baseline、run、trial、capture、review 实体与导入路径：catalog 元信息只在缺失 ID 时生成冻结题目，各题起点以单独 baseline 保存，`checks=[]` 为无专用程序验收，不能序列化成“程序通过”。已创建的题目修订、归档态和旧评测不被启动导入覆盖；后续为题补原验收时须创建新题目/评分协议版本，不回写旧题的证据含义。`catalog/core-task-set.json` 和 `catalog/benchmark-families.json` 是前端精选顺序与研究说明，前者不是 `suiteRevision`，后者不是可执行任务 API。两者不参与后端分数或来源准备计数。
+
+## U64：题源导入与等级报告
+
+`POST /api/arena/sources/webgen`：沿用Host/Origin/X-CHB-Token保护，固定来源、无任意URL参数，返回added/total/shortCandidates及首次导入的commit/sha256/officialVerifier=false。下载与写入使用已有应用锁；失败不伪报成功，重试跳过已存在题。固定缓存路径属于本地私有数据清单，不打包到Git。
+
+机器packet新增scoringContract（version、facets、anchors、requirements、formula、calibrated、sha256）；protocol.json新增scoringProtocol，历史无此字段使用旧校验。报告包含ratings[dimension].checks[coverage|quality|resilience]及score/level/method/reason/evidence/counterEvidence/可选constraint，另含requirementChecks、scoringProtocol、scoringContractSha256、calibrated=false。报告与命令、截图仍归属于同一冻结capture。缺失细项null保留，不把错误消息转成数值。
+
+抽题备注保存balanced-v2、seed、候选池数和实际所选task IDs。相同版本题库/分组/seed可重放，允许用户手调且实际清单为准；种子不是跨题库版本的唯一复现依据。

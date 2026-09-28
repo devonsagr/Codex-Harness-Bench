@@ -1,0 +1,270 @@
+[
+  {
+    "id": "refund-exceptions-v1",
+    "title": "售后争议：退款例外与可解释判定",
+    "family": "business-workflow",
+    "category": "业务规则与例外",
+    "difficulty": "Medium",
+    "channel": "interactive-confirm",
+    "tags": [
+      "requirements",
+      "reasoning",
+      "data",
+      "communication"
+    ],
+    "prompt": "接手一家虚构商店的售后规则。阅读 policy.md 和 cases.csv，做一个离线工具或可运行脚本，逐单给出可退款、需人工复核或不符合规则的建议及对应规则；冲突或缺信息时不能猜测同意退款。另交一页给客服的说明，说明两个最容易误判的边界。允许提出必要澄清，但先给出能运行的保守版本。",
+    "reviewFocus": [
+      "八条案例与规则、例外是否逐条对应",
+      "缺失信息和冲突规则是否显式进入人工复核",
+      "工具能复现建议且客服说明可直接使用"
+    ]
+  },
+  {
+    "id": "field-dispatch-v1",
+    "title": "现场维修：排班、优先级与承诺窗口",
+    "family": "business-workflow",
+    "category": "资源分配与业务流程",
+    "difficulty": "Medium",
+    "channel": "interactive-confirm",
+    "tags": [
+      "requirements",
+      "reasoning",
+      "data",
+      "reliability"
+    ],
+    "prompt": "为虚构维修队处理 requests.csv。两位维修员每天各有 8 小时，市中心到北区需额外 1 小时往返，紧急工单应优先但不得让普通工单凭空消失。交付可复跑的排班方案和冲突清单，并说明哪些时间承诺尚需客户确认。不要把示例当真实派工。",
+    "reviewFocus": [
+      "工时与跨区成本没有超过容量",
+      "紧急/普通优先级和未安排原因清楚",
+      "承诺窗口与待确认信息被区分"
+    ]
+  },
+  {
+    "id": "subscription-cohort-v1",
+    "title": "订阅分析：重复事件与留存口径",
+    "family": "data-analysis",
+    "category": "数据清洗与解释",
+    "difficulty": "Medium",
+    "channel": "deepswe-core",
+    "tags": [
+      "data",
+      "reasoning",
+      "coding",
+      "communication"
+    ],
+    "prompt": "用 events.csv 做可复跑的月度新增与第二个月留存报告。同一 event_id 的重复上报只计一次；trial_start 不是付费新增，cancel 不等于当日立即失效。先写明自己采用的留存口径，再给出逐用户核对表、汇总数与一个不能由当前小样本推出的结论。不要虚构缺失月份。",
+    "reviewFocus": [
+      "去重、付费新增和留存口径正确且可复现",
+      "逐用户表与汇总数字一致",
+      "样本限制和不确定性写清楚"
+    ]
+  },
+  {
+    "id": "incident-log-v1",
+    "title": "故障排查：乱序日志与证据时间线",
+    "family": "data-analysis",
+    "category": "日志关联与诊断",
+    "difficulty": "Medium",
+    "channel": "deepswe-core",
+    "tags": [
+      "data",
+      "debugging",
+      "reasoning",
+      "communication"
+    ],
+    "prompt": "分析 logs.txt 中的虚构订单故障。写脚本按 request_id 关联乱序日志，交付可检查的时间线、最可能故障位置、至少两种替代解释及验证下一步。不要把日志中没有的数据库事实写成已证实根因；重复行不能扩大影响数。",
+    "reviewFocus": [
+      "乱序与重复日志处理可复核",
+      "观察事实与根因假设严格分开",
+      "下一步验证具有区分假设的价值"
+    ]
+  },
+  {
+    "id": "event-schema-v1",
+    "title": "事件协议：兼容旧格式并接入新版",
+    "family": "architecture-engineering",
+    "category": "协议演进",
+    "difficulty": "Medium",
+    "channel": "architecture-constraint",
+    "tags": [
+      "architecture",
+      "coding",
+      "maintainability",
+      "reliability"
+    ],
+    "prompt": "扩展 events.py 的 decode_event，使旧版 kind/amount 和新版 type/value 两种事件都能解码成统一结构。未知字段要可追踪，金额非法时给出可理解错误；不要静默丢字段或改坏旧调用。补测试和一页迁移说明，说明何时不能自动转换。可以重构，但保持原有 decode_event(event) 入口。",
+    "reviewFocus": [
+      "v1/v2 有效事件均能稳定解码且保留旧入口",
+      "非法金额/未知字段不被无声吞掉",
+      "测试和迁移说明覆盖回退边界"
+    ]
+  },
+  {
+    "id": "retry-idempotency-v1",
+    "title": "后台任务：重复投递与幂等执行",
+    "family": "security-reliability",
+    "category": "可靠性与失败恢复",
+    "difficulty": "Medium",
+    "channel": "architecture-constraint",
+    "tags": [
+      "coding",
+      "architecture",
+      "reliability",
+      "debugging"
+    ],
+    "prompt": "修正 worker.py 里重复投递会重复记账的问题。给出清楚的幂等键、成功/失败状态与重试语义，允许在本地内存或文件中演示；失败不能假装已完成，重试不能再次扣款。写最少三种边界测试，说明多进程/真实支付系统下当前方案仍缺什么，不要宣称生产可用。",
+    "reviewFocus": [
+      "重复成功事件不重复产生副作用",
+      "失败后的重试与状态记录一致",
+      "测试和生产边界不夸大"
+    ]
+  },
+  {
+    "id": "cache-retention-v1",
+    "title": "本地缓存：安全清理与可撤销计划",
+    "family": "architecture-engineering",
+    "category": "资源管理与安全边界",
+    "difficulty": "Medium",
+    "channel": "architecture-constraint",
+    "tags": [
+      "architecture",
+      "coding",
+      "security",
+      "maintainability"
+    ],
+    "prompt": "为 manifest.json 中的缓存记录做清理器：默认只输出候选和原因；显式确认后只处理 workspace 下未被引用、超过 30 天的条目。必须拒绝目录穿越和符号链接，提供恢复计划而非直接永久删除。不要碰当前项目外的文件；用临时夹具证明不会误删共享缓存。",
+    "reviewFocus": [
+      "默认预演、引用关系和期限判断正确",
+      "路径越界/链接/共享缓存有硬保护",
+      "恢复与隔离测试有实际证据"
+    ]
+  },
+  {
+    "id": "latency-budget-v1",
+    "title": "报表服务：性能预算与正确性守护",
+    "family": "performance",
+    "category": "性能与工程取舍",
+    "difficulty": "Medium",
+    "channel": "architecture-constraint",
+    "tags": [
+      "performance",
+      "coding",
+      "data",
+      "reliability"
+    ],
+    "prompt": "优化 report.py 的分组汇总，输入是可重复的小数据生成器。先建立正确性测试和基准脚本，再改进复杂度；对数据规模、运行环境和测量波动做记录，不能只贴一个毫秒数。输出原始与优化版本的同输入比较及内存/速度取舍，保留缺失值处理行为。",
+    "reviewFocus": [
+      "前后结果一致及缺失值边界有测试",
+      "基准方法可复跑、没有虚构固定加速倍数",
+      "实现复杂度和资源取舍说明合理"
+    ]
+  },
+  {
+    "id": "stock-migration-v1",
+    "title": "库存系统：分阶段迁移与回滚",
+    "family": "long-horizon",
+    "category": "长期项目与变更管理",
+    "difficulty": "Long",
+    "channel": "architecture-constraint",
+    "tags": [
+      "long-context",
+      "architecture",
+      "coding",
+      "reliability"
+    ],
+    "prompt": "接手旧库存系统的分阶段迁移项目。阅读 inventory.csv 与 legacy.py，只执行本轮明确开放的阶段；保留可复现的测试和交接记录，不能覆盖唯一旧数据。后续需求会在下一阶段单独给出。",
+    "stages": [
+      {
+        "title": "盘点与迁移方案",
+        "prompt": "阅读现有库存样本和旧实现，写明字段契约、缺失项、迁移步骤和回滚条件。先保存可复现的基线测试。"
+      },
+      {
+        "title": "实现与校验",
+        "prompt": "在第一阶段方案上实现可重跑迁移与新读写路径；测试重复执行、缺失数量和旧接口兼容。保存本阶段交接。"
+      },
+      {
+        "title": "需求变更与最终回归",
+        "prompt": "现在新增批次号：同一 SKU 可以有多个批次，但旧记录没有批次号。实现保守兼容和回滚说明，运行最终回归；未知批次不要编造。"
+      }
+    ],
+    "reviewFocus": [
+      "各阶段决定、实现和最终变更互相一致",
+      "迁移可重跑且原始数据可恢复",
+      "未知批次与旧接口兼容处理清楚"
+    ]
+  },
+  {
+    "id": "community-scheduler-v1",
+    "title": "社区活动：跨轮需求、冲突与交接",
+    "family": "long-horizon",
+    "category": "长期项目与变更管理",
+    "difficulty": "Long",
+    "channel": "interactive-confirm",
+    "tags": [
+      "long-context",
+      "requirements",
+      "coding",
+      "collaboration"
+    ],
+    "prompt": "基于 events.csv 做一个离线活动排期工具，按本轮已开放的要求分阶段交付。每轮记录新增约束和验证，最终交接须可复跑；后续需求在相应阶段才会给出。",
+    "stages": [
+      {
+        "title": "基础日程",
+        "prompt": "读取 events.csv，做能查看、添加和修改活动的离线工具，记录基础测试与数据存放位置。"
+      },
+      {
+        "title": "场地冲突",
+        "prompt": "新要求：同一场地的时间段不可重叠；可给出替代时段，但未经确认不要自动移动别人的活动。补边界测试。"
+      },
+      {
+        "title": "取消与交接",
+        "prompt": "新要求：活动取消后应保留审计痕迹，并让候补活动有明确确认流程。检查前两阶段回归，交接后续维护者。"
+      }
+    ],
+    "reviewFocus": [
+      "多轮约束被持续保留且最终回归完整",
+      "冲突和取消具有真实状态变更及审计记录",
+      "交接能让别人继续工作"
+    ]
+  },
+  {
+    "id": "stakeholder-scope-v1",
+    "title": "多方需求：预算冲突与最小交付范围",
+    "family": "collaboration-planning",
+    "category": "需求澄清与决策",
+    "difficulty": "Medium",
+    "channel": "interactive-confirm",
+    "tags": [
+      "requirements",
+      "reasoning",
+      "collaboration",
+      "communication"
+    ],
+    "prompt": "读三份不同角色的诉求，在两周、两人和不能处理真实个人数据的限制下，交付一份有取舍的最小范围、三条需要确认的问题、可验收的交付清单和延期项。不能把所有请求都标成第一优先级；若做原型，用虚构数据。目标是可执行的决策，不是套用通用项目模板。",
+    "reviewFocus": [
+      "冲突被指出且取舍有实际约束依据",
+      "关键澄清问题会改变实施决定",
+      "交付与延期边界可被对方直接审查"
+    ]
+  },
+  {
+    "id": "incident-handoff-v1",
+    "title": "故障协作：值班交接与不确定性标记",
+    "family": "collaboration-planning",
+    "category": "证据沟通与交接",
+    "difficulty": "Short",
+    "channel": "interactive-confirm",
+    "tags": [
+      "collaboration",
+      "communication",
+      "reasoning",
+      "reliability"
+    ],
+    "prompt": "根据 timeline.md 为下一班值班人员写一页交接：已证实的事实、尚未验证的假设、当前影响、下一步调查负责人和升级条件。不要把“可能是缓存”写成根因，不要替他人确认未获批准的修复；提出一条能快速排除假设的取证动作。",
+    "reviewFocus": [
+      "已证实/猜测/待确认明确分栏",
+      "下一位值班者可立即行动且知道何时升级",
+      "叙述简洁，不越权承诺恢复时间"
+    ]
+  }
+]

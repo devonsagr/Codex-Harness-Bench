@@ -1,0 +1,1 @@
+{"root":"workspace","items":[{"path":"workspace/a","age_days":45,"references":0},{"path":"workspace/b","age_days":60,"references":2},{"path":"workspace/c","age_days":5,"references":0},{"path":"../outside","age_days":90,"references":0}]}

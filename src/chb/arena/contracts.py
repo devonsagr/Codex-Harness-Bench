@@ -35,6 +35,8 @@ def validate_id(value):
 def normalize_contract(task):
     """Return a copy; callers decide whether to save a new revision or freeze a new run."""
     result = copy.deepcopy(task)
+    from .taxonomy import classify
+    result['taskFamily'], result['capabilityTags'] = classify(result)
     if 'requiresBaseline' in result and type(result['requiresBaseline']) is not bool:
         raise ValueError('需要已有源码标记必须是布尔值。')
     result['requiresBaseline'] = requires_baseline(task)

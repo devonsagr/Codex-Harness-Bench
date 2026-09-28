@@ -1,0 +1,8 @@
+event_id,user_id,date,type
+e1,u1,2026-01-03,trial_start
+e2,u1,2026-01-05,paid_start
+e2,u1,2026-01-05,paid_start
+e3,u2,2026-01-20,paid_start
+e4,u2,2026-02-02,cancel
+e5,u1,2026-02-05,renewed
+e6,u3,2026-02-10,paid_start
