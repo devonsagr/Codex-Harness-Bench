@@ -188,7 +188,9 @@ class ArenaTests(unittest.TestCase):
         from chb.arena.api import import_originals
         shutil.copytree(ROOT/'tasks',self.root/'tasks')
         result=import_originals(self.app)
-        self.assertEqual(len(result['imported']),3)
+        creative_count=len(json.loads((ROOT/'tasks/creative-web-v1/catalog.json').read_text(encoding='utf-8')))
+        open_count=len(json.loads((ROOT/'tasks/open-work-v1/catalog.json').read_text(encoding='utf-8')))
+        self.assertEqual(len(result['imported']),5+creative_count+open_count)
         self.assertEqual(len(import_originals(self.app)['imported']),0)
         t=self.app.db.get('task','original-search-notes-v1')
         r=self.prepare(taskIds=[t['id']]);workspace=Path(r['trials'][0]['workspacePath'])
@@ -206,7 +208,43 @@ class ArenaTests(unittest.TestCase):
         again=Arena(self.root)
         saved=again.db.get('task',original['id'])
         self.assertTrue(saved['archived']);self.assertEqual(saved['title'],'User edited title')
-        self.assertEqual(len(again.db.list('baseline')),3)
+        self.assertEqual(len(again.db.list('baseline')),6+len(json.loads((ROOT/'tasks/open-work-v1/catalog.json').read_text(encoding='utf-8'))))
+
+    def test_creative_web_catalog_uses_one_answer_free_starter(self):
+        from chb.arena.builtin_tasks import creative_web_catalog
+        entries=creative_web_catalog(ROOT)
+        self.assertEqual(len(entries),51)
+        self.assertEqual(len({e['id'] for e in entries}),len(entries))
+        self.assertEqual(len({e['title'] for e in entries}),len(entries))
+        self.assertTrue(all(len(e['prompt'])>80 and len(e['reviewFocus'])>=3 for e in entries))
+        shutil.copytree(ROOT/'tasks',self.root/'tasks')
+        app=Arena(self.root)
+        tasks=[app.db.get('task','original-creative-'+e['id']) for e in entries]
+        self.assertEqual(len({t['baselineId'] for t in tasks}),1)
+        baseline=app.db.get('baseline',tasks[0]['baselineId'])
+        files=self.root/'.local/arena/baselines'/baseline['id']/'files'
+        self.assertEqual((files/'app.js').read_text(encoding='utf-8').count('Implement only'),1)
+        self.assertFalse((files/'tests/verify.cjs').exists())
+        self.assertTrue(all(t['checks'][0]['argv'][-1]==e['profile'] for t,e in zip(tasks,entries)))
+
+    def test_open_work_tasks_have_distinct_starters_and_no_fake_program_score(self):
+        from chb.arena.builtin_tasks import open_work_catalog
+        entries=open_work_catalog(ROOT)
+        self.assertEqual(len(entries),12)
+        self.assertEqual(len({entry['id'] for entry in entries}),len(entries))
+        shutil.copytree(ROOT/'tasks',self.root/'tasks')
+        app=Arena(self.root)
+        tasks=[app.db.get('task','original-open-'+entry['id']) for entry in entries]
+        self.assertEqual(len({task['baselineId'] for task in tasks}),len(tasks))
+        self.assertTrue(all(not task['checks'] for task in tasks))
+        self.assertTrue(all(len(task['evaluationRubric'])>=3 for task in tasks))
+        self.assertEqual(len(tasks[8]['stages']),3)
+        config=app.db.list('config')[0]
+        run=app.prepare({'requestId':'open-work-fixture','configIds':[config['id']],
+                         'taskIds':[tasks[4]['id']]})
+        workspace=Path(run['trials'][0]['workspacePath'])
+        self.assertTrue((workspace/'events.py').exists())
+        self.assertFalse((workspace/'verify.py').exists())
 
     def test_bundled_repair_workspace_contains_executable_project_and_constraints(self):
         import subprocess,sys

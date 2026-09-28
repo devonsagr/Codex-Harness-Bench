@@ -14,7 +14,7 @@ from urllib.parse import urlencode, quote
 
 from .database import Database
 from .files import diff_facts, fingerprint, hash_bytes, inventory, now, safe_path, snapshot, verify_snapshot
-from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, MACHINE_POLICY, RUBRICS
+from .scoring import calculate, policy, validate_review, DEFAULT_POLICY, DIMENSIONS, DESKTOP_POLICY, MACHINE_POLICY, AUTO_MACHINE_POLICY, RUBRICS, UI_RUBRIC_KEYS
 from .contracts import normalize_contract, task_view, freeze_prompts, stage_prompt, applicable_checks, delivery_task, requires_baseline
 from .models import capabilities, validate_effort
 from .skills import invocation, codex_home
@@ -206,7 +206,7 @@ class Arena:
         return {'initialConfig':self.initial_config,'reviewConnection':public_connection(),'configs':self.db.list('config'),'tasks':[task_view(t) for t in self.db.list('task')],'skills':self.db.list('skill'),
                 'archivedConfigs':self.db.list('config',True),'archivedTasks':[task_view(t) for t in self.db.list('task',True)],
                 'runs':runs,'archivedRuns':[self.present_run(r) for r in self.db.list('run',True)],'baselines':self.db.list('baseline'),
-                'preparationJobs':self.db.list('preparation_job'),'sourceJobs':self.db.list('source_job'),'models':self.models(),'defaultPolicy':MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
+                'preparationJobs':self.db.list('preparation_job'),'sourceJobs':self.db.list('source_job'),'models':self.models(),'defaultPolicy':AUTO_MACHINE_POLICY,'dimensions':DIMENSIONS,'rubricCatalog':{k:{'label':v[0],'description':v[1]} for k,v in RUBRICS.items()},
                 'mode':'desktop','source':'SQLite 与本机冻结文件','legacyExperiments':len(list((self.root/'runs').glob('*/plan.json')))}
 
     def sync_desktop_traces(self):
@@ -215,6 +215,7 @@ class Arena:
             if time.monotonic()-self._last_trace_sync<5:return
             self._last_trace_sync=time.monotonic()
             for run in self.db.list('run'):
+                if run.get('deletionPending') or (run.get('workspaceDeletion') or {}).get('status')=='deleted':continue
                 changed=False
                 for trial in run['trials']:
                     if trial['state'] in {'checking','judging'} or trial.get('workspaceCleanup',{}).get('status') in {'trashed','deleting','deleted'}:continue
@@ -317,10 +318,21 @@ class Arena:
                 config.update(skills=skills,skillMode=mode)
         scoring_policy=policy(data.get('policy'))
         selected=[{**freeze_prompts(delivery_task(t,delivery_mode)), 'sourceSchemaVersion':t.get('schemaVersion',1)} for t in selected]
+        task_overrides=scoring_policy.get('taskOverrides',{})
+        if set(task_overrides)-set(tasks):raise ValueError('逐题评分方案包含未选择的题目。')
+        if any(t.get('publicSource') and t['id'] in task_overrides for t in selected):
+            raise ValueError('公开原题使用固定程序验收评分卡，不能逐题改动其权重。')
+        if any(not t.get('hasFrontendUI') and not any(key not in UI_RUBRIC_KEYS and weight>0
+               for key,weight in task_overrides[t['id']]['dimensions'].items())
+               for t in selected if t['id'] in task_overrides):
+            raise ValueError('非界面题至少需要一个非视觉评分项。')
+        if (scoring_policy['version']=='arena-machine-v1' and any(t.get('publicSource') for t in selected)
+                and scoring_policy['dimensions'].get('maintainability',0)<=0):
+            raise ValueError('公开题的本地连续评分需要“可维护性”审查，请在评分方案中保留该项。')
         if scoring_policy.get('dimensionUnit')=='percent' and scoring_policy['objectiveWeight'] and any(not t['checks'] for t in selected):
             raise ValueError('所选题目没有自动检查，请选择纯人工方案，或先在题库配置检查。')
         if scoring_policy['humanWeight'] and any(not t.get('hasFrontendUI') for t in selected):
-            if not sum(v for k,v in scoring_policy['dimensions'].items() if k!='ux'):
+            if not sum(v for k,v in scoring_policy['dimensions'].items() if k not in UI_RUBRIC_KEYS):
                 raise ValueError('非界面题至少需要一个非视觉维度的权重大于零。')
         # Reject an ambiguous baseline/selected skill collision before creating any workspace.
         for task in selected:
@@ -337,6 +349,10 @@ class Arena:
         run={'id':rid,'requestId':request_id,'requestFingerprint':fingerprint(data),'createdAt':now(),'executionMode':'desktop','policy':scoring_policy,
              'configs':configs,'tasks':selected,'trials':[],'events':[], 'hostFingerprint':self.host_fingerprint(),
              'harnessApplication':'workspace-overlay','comparisonWarnings':[], 'notes':text(data.get('notes',''),10000,False)}
+        from .task_scorecards import VERSION as local_scorecard_version
+        from .task_scorecards import PROJECT_POLICY_VERSION, AUTO_PROJECT_VERSION
+        run['localScorecardVersion']=local_scorecard_version
+        run['projectScorecardVersion']=scoring_policy.get('autoScorecardVersion',AUTO_PROJECT_VERSION) if scoring_policy.get('taskTypeAuto') else PROJECT_POLICY_VERSION
         if len(configs)==2 and (configs[0]['baseModel'],configs[0]['reasoning'])!=(configs[1]['baseModel'],configs[1]['reasoning']):
             run['comparisonWarnings'].append('模型或推理档位不同，不能把差异归因于 Harness。')
         for task in selected:
@@ -402,8 +418,35 @@ class Arena:
     def present_run(self,run):
         run=copy.deepcopy(run)
         for t in run['trials']:
+            # Older judge attempts stored a generic empty-result error even when
+            # the saved Codex event log explains why the model never ran. This
+            # read-only presentation fix keeps the original record and log intact.
+            failure=t.get('lastJobError') or {}
+            execution=t.get('judgeExecution') or {}
+            if failure.get('kind')=='judge' and '未返回有效结果' in failure.get('message','') and execution.get('jobId'):
+                from .jobs import judge_empty_result_reason
+                folder=safe_path(self.local,'runs/'+identifier(run['id'])+'/'+identifier(t['id'])+'/reviews/'+identifier(execution['jobId']))
+                for result_file in folder.glob('harbor/**/result.json'):
+                    if not result_file.is_file() or result_file.stat().st_size>2_000_000:continue
+                    try:exception=json.loads(result_file.read_text(encoding='utf-8')).get('exception_info') or {}
+                    except (ValueError,OSError):continue
+                    diagnosis=judge_empty_result_reason([str(exception)])
+                    if diagnosis!='未返回有效结果（没有足够证据认定为超时）':
+                        failure['message']=f'AI 审查未完成：{diagnosis}；未生成评分。诊断记录：{execution["jobId"]}。'
+                        break
+                if '未返回有效结果' in failure.get('message',''):
+                    for event_log in folder.glob('harbor/**/agent/codex.txt'):
+                        if not event_log.is_file() or event_log.stat().st_size>2_000_000:continue
+                        diagnosis=judge_empty_result_reason([event_log.read_text(encoding='utf-8',errors='replace')])
+                        if diagnosis!='未返回有效结果（没有足够证据认定为超时）':
+                            failure['message']=f'AI 审查未完成：{diagnosis}；未生成评分。诊断记录：{execution["jobId"]}。'
+                            break
             t['score']=calculate(run,t)
             task=next(x for x in run['tasks'] if x['id']==t['taskId'])
+            from .behavior import summarize
+            t['score']['behaviorAcceptance']=summarize(task,t['captures'][-1] if t['captures'] else None,self.root)
+            if (t['score']['behaviorAcceptance'] or {}).get('status')=='failed':
+                t['score']['assurance']='task-check-fail'
             prompt=t['executionPrompts'][t['stageIndex']] if t.get('executionPrompts') else stage_prompt(task,t['stageIndex'])
             t['currentStage']={**task['stages'][t['stageIndex']], 'executionPrompt':prompt['text'],
                                'promptSha256':prompt['sha256'],'promptSource':prompt['source']}
@@ -429,7 +472,7 @@ class Arena:
                 raise ValueError('工作区已清理；可在数据与存储恢复，或使用同题创建新评测。')
             if action=='start':
                 if t['state'] not in {'prepared','waiting_confirmation'}:raise ValueError('该轮已开始或需要先完成当前步骤。')
-                if not data.get('settingsConfirmed'):raise ValueError('请先核对桌面中的模型、推理档位和工作区。')
+                if not data.get('settingsConfirmed'):raise ValueError('请先核对桌面中的模型、思考档位、速度和工作区。')
                 t.update(state='working',startedAt=now())
                 self.event(run,'用户确认桌面设置，开始记录本轮。工作台不会自动发送提示词。',tid)
             elif action=='open':
@@ -449,6 +492,7 @@ class Arena:
                     try:os.startfile(url)
                     except OSError as exc:raise ValueError('无法打开 Codex 对话草稿；请打开目录并复制本轮提示词。') from exc
                     t['draftOpenedAt']=now()
+                    t['draftRequestStatus']='requested'
                     self.event(run,'已请求 Codex 新对话并预填本轮提示词；需在桌面确认工作区并发送，尚未开始计时。',tid)
                 else:
                     if not shutil.which('codex'):raise ValueError('本机找不到 codex 命令。可复制工作区路径到桌面打开。')

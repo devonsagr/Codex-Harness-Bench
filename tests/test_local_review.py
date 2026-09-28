@@ -22,9 +22,12 @@ class LocalReviewTests(unittest.TestCase):
                 self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',args)
                 self.assertIn('--ephemeral',args);self.assertIn('--ignore-rules',args);self.assertNotIn('resume',args)
                 self.assertIn('--ignore-user-config',args);self.assertIn('--output-schema',args)
-                self.assertIn('model_reasoning_effort="max"',args)
-                if 'service_tier="fast"' in args:self.assertIn('features.fast_mode=true',args)
-                else:self.assertIn('service_tier="default"',args)
+                if 'service_tier="fast"' in args:
+                    self.assertIn('features.fast_mode=true',args)
+                    self.assertNotIn('model_reasoning_effort="max"',args)
+                else:
+                    self.assertIn('service_tier="default"',args)
+                    self.assertIn('model_reasoning_effort="max"',args)
                 self.assertNotIn('OPENAI_API_KEY',kwargs['env'])
                 self.assertEqual(Path(kwargs['env']['NPM_CONFIG_USERCONFIG']).read_text(),'')
                 self.assertNotEqual(kwargs['env']['NPM_CONFIG_USERCONFIG'],kwargs['env']['NPM_CONFIG_GLOBALCONFIG'])
@@ -36,7 +39,7 @@ class LocalReviewTests(unittest.TestCase):
                 Path(args[args.index('-o')+1]).write_text('{"summary":"fixture","findings":[]}')
                 return MagicMock(returncode=0,poll=lambda:0)
             with patch.dict(os.environ,{'CODEX_HOME':str(home),'OPENAI_API_KEY':'never-forward'}),patch('chb.arena.local_review.shutil.which',return_value='codex'),patch('chb.arena.local_review.subprocess.run',return_value=MagicMock(stdout='codex fixture')),patch('chb.arena.local_review.subprocess.Popen',side_effect=launch),patch('chb.arena.local_review.ProcessTree') as tree:
-                _,answer,_=execute_local(folder,source,'fixture','fixture',{}, {'stop':threading.Event()},1)
+                _,answer,_=execute_local(folder,source,'fixture','fixture',{}, {'stop':threading.Event()},1,reasoning='max')
                 self.assertEqual(json.loads(answer)['summary'],'fixture');tree.return_value.close.assert_called_once()
                 execute_local(folder,source,'fixture','fixture',{}, {'stop':threading.Event()},1,service_tier='fast')
             self.assertNotEqual(copied_home[0],copied_home[1])

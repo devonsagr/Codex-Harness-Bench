@@ -114,7 +114,7 @@ def main():
         assert storage['trials'][0]['score']['objective']==100
         evidence['checks'].append({'name':'storage-two-stage-negative-and-reference','runId':storage['id']});save();print('PASS: both storage stages reject incomplete work and accept references',flush=True)
         if args.judge_model:
-            start_job(app,run['id'],tid,'judge',{'captureId':run['trials'][0]['captures'][-1]['id'],'model':args.judge_model})
+            start_job(app,run['id'],tid,'judge',{'captureId':run['trials'][0]['captures'][-1]['id'],'model':args.judge_model,'usageAcknowledged':True})
             run=wait(app,run['id'],tid,300)
             reviews=[r for r in run['trials'][0]['reviews'] if r['kind']=='ai']
             evidence['aiReview']={'model':args.judge_model,'reviews':reviews,'error':run['trials'][0].get('lastJobError')}

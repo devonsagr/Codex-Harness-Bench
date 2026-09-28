@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-09-27",
+  "status": "research-only-not-runnable",
+  "families": [
+    {
+      "id": "terminal-bench-2",
+      "name": "Terminal-Bench 2.0",
+      "domain": "终端环境、系统构建、数据与科研工作流",
+      "url": "https://github.com/harbor-framework/terminal-bench-2",
+      "fit": "适合补充非仓库修题的终端能力；与本项目现有 Harbor 裁判有技术交点。",
+      "gate": "已核对日志汇总/日历排班/数据集计数三题；首选日志汇总仍需从固定镜像安全提取输入、隔离原测试、准备离线依赖并验证负/正例。Docker Linux 可连接不等于题目已接通。",
+      "scoreBoundary": "原基准通过率单列，不混入开放项目质量分。"
+    },
+    {
+      "id": "browsergym",
+      "name": "BrowserGym · WebArena Verified / VisualWebArena",
+      "domain": "既有网页上的浏览器操作与视觉理解",
+      "url": "https://github.com/ServiceNow/BrowserGym",
+      "fit": "测使用网页的代理能力，不是让模型写网页；可成为独立的浏览器操作专项。",
+      "gate": "需自托管站点与可重置状态、固定浏览器动作轨迹、截图/目标判定及桌面任务交接；不能拿当前静态页烟检替代。",
+      "scoreBoundary": "任务成功与页面开发质量分开。"
+    },
+    {
+      "id": "tau3",
+      "name": "τ³-bench",
+      "domain": "多轮业务对话、政策遵守与工具调用",
+      "url": "https://github.com/sierra-research/tau2-bench",
+      "fit": "补充业务流程、沟通和禁止动作的可复评场景。",
+      "gate": "需固定模拟用户、领域 API、数据库重置与轨迹评估；现有 Codex 桌面文件工作区不能直接当成该工具代理。",
+      "scoreBoundary": "对话和工具调用原分单列，不算软件项目完成分。"
+    },
+    {
+      "id": "swe-bench",
+      "name": "SWE-bench Verified / Multimodal",
+      "domain": "真实 GitHub 问题修复、部分含视觉任务",
+      "url": "https://github.com/SWE-bench/SWE-bench",
+      "fit": "可扩充当前 DeepSWE 之外的真实仓库题源，但仍属软件工程，不补业务或协作空白。",
+      "gate": "需固定 instance、目标源码、镜像与隐藏测试，按题验证可重现，区分公开原分与本地适配分。",
+      "scoreBoundary": "基准版本和执行条件不同不得直接并表。"
+    }
+  ]
+}

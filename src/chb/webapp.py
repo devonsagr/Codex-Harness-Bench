@@ -405,6 +405,8 @@ class Handler(BaseHTTPRequestHandler):
             safe = message if re.search(r"[\u4e00-\u9fff]", message) and len(message) < 180 and ':\\' not in message else "配置无效或名称已存在；请选择新名称并核对输入。"
             return self.reply(400, {"error": safe})
         except (OSError, subprocess.SubprocessError):
+            if urlsplit(self.path).path.startswith('/api/arena/'):
+                return self.reply(409, {"error": "本机文件操作未完成；请关闭占用文件的程序，再在当前操作中重试。"})
             return self.reply(409, {"error": "本地操作未完成。保存计划需要 Docker 与所选题目的镜像；配置操作需要有效来源文件。"})
         except (KeyError, TypeError, AttributeError):
             return self.reply(400, {"error": "请求字段缺失或格式无效。"})

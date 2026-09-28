@@ -1,0 +1,4 @@
+id,title,room,start,end,status
+E1,读书会,Hall,09:00,10:00,active
+E2,绘画课,Room-A,09:30,11:00,active
+E3,讲座,Hall,11:00,12:00,active

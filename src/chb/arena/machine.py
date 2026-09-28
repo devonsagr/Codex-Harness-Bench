@@ -1,36 +1,105 @@
 """Evidence-backed machine scores and append-only, per-dimension human corrections."""
+import json
 import re
 from .contracts import string
 from .files import fingerprint
-from .scoring import number, acceptance
+from .scoring import number, acceptance, UI_RUBRIC_KEYS, auto_dimensions
 
 
 class EvidenceError(ValueError):
     """A well-shaped citation that does not resolve to frozen evidence."""
 
 
+# These bundled verifiers have task-specific positive/negative fixtures. The
+# shared creative-web verifier only checks basic page health and must not turn
+# an AI quality opinion into a comparison-ready configuration score.
+TASK_VERIFIERS = {
+    'original-search-notes-v1': 'search-notes-v1',
+    'original-storage-migration-v1': 'storage-migration-v1',
+    'original-csv-catalog-v1': 'csv-catalog-v1',
+    'original-invoice-reconcile-v1': 'invoice-reconcile-v1',
+    'original-web-metrics-v1': 'web-metrics-v1',
+}
+
+
+def score_assurance(task, trial):
+    """Classify program evidence without treating a citation as validation."""
+    verifier = TASK_VERIFIERS.get(task.get('id'))
+    configured = task.get('checks') or []
+    # An edited task no longer has the contract exercised by these fixtures.
+    # Built-in multi-stage checks are not rerun against the final snapshot.
+    if (not verifier or task.get('sourceKind') != 'repository-original'
+            or task.get('revision') != 1 or len(task.get('stages') or []) != 1
+            or not configured):
+        return 'ai-reference'
+    if any(check.get('image') != 'chb-verifier:' + verifier
+           or not any('/tests/verify.' in str(arg) for arg in check.get('argv', []))
+           for check in configured):
+        return 'ai-reference'
+    captures = trial.get('captures') or []
+    observed = {check['id']: check for check in (captures[-1].get('checks', []) if captures else [])
+                if check.get('id')}
+    statuses = [observed.get(check.get('id'), {}).get('status') for check in configured]
+    if any(status not in {'passed', 'failed'} for status in statuses):
+        return 'ai-reference'
+    return 'task-check-pass' if all(status == 'passed' for status in statuses) else 'task-check-fail'
+
+
 def dimensions(policy, task):
-    return {k:w for k,w in policy['dimensions'].items() if w>0 and (k!='ux' or task.get('hasFrontendUI'))}
+    if policy.get('taskTypeAuto'):
+        override=policy.get('taskOverrides',{}).get(task['id'])
+        if override:return override['dimensions']
+        return auto_dimensions(task,policy.get('autoScorecardVersion','project-tasktype-v2'))
+    return {k:w for k,w in policy['dimensions'].items() if w>0 and (k not in UI_RUBRIC_KEYS or task.get('hasFrontendUI'))}
+
+
+def policy_for_task(policy,task):
+    override=policy.get('taskOverrides',{}).get(task['id']) if policy.get('taskTypeAuto') else None
+    return {**policy,'taskTypeAuto':False,'dimensions':override['dimensions'],'rubrics':override['rubrics']} if override else policy
 
 
 def evidence_key(capture):
     return fingerprint({'id':capture['id'],'manifest':capture['manifest'],'checks':capture['checks']})
 
 
+def json_fragment_matches(output,quote):
+    """Accept a re-formatted JSON member only inside one actual JSON command result."""
+    try:
+        document=json.loads(output)
+        fragment=json.loads('{'+quote+'}')
+    except (ValueError,TypeError):return False
+    if not isinstance(fragment,dict) or not fragment:return False
+    expected=list(fragment.items())
+    def visit(value):
+        if isinstance(value,dict):
+            items=list(value.items())
+            if any(items[index:index+len(expected)]==expected for index in range(len(items)-len(expected)+1)):
+                return True
+            return any(visit(child) for child in value.values())
+        return isinstance(value,list) and any(visit(child) for child in value)
+    return visit(document)
+
+
 def validate_machine(value, packet, commands):
     """Validate provenance, not the truth of a model's interpretation."""
+    if packet.get('scoringContract'):
+        from .judge_protocol import VERSION, validate
+        if packet['scoringContract'].get('version') != VERSION:
+            raise ValueError('未知统一评分协议，不能按其他版本解释。')
+        return validate(value, packet, commands)
     rows=value.get('ratings')
     expected=dimensions(packet['policy'],packet['task'])
     if not isinstance(rows,dict) or set(rows)!=set(expected):raise ValueError('机器评分必须逐项覆盖冻结的评分维度。')
     def contains(output,quote):
         # Windows tool output uses CRLF; JSON judges commonly quote LF. Only
-        # normalize line terminators, never punctuation, whitespace or meaning.
-        return quote.replace('\r\n','\n').replace('\r','\n') in output.replace('\r\n','\n').replace('\r','\n')
+        # reformatting of a complete JSON result is also allowed, but its
+        # quoted members must match one nested object in their original order.
+        exact=quote.replace('\r\n','\n').replace('\r','\n') in output.replace('\r\n','\n').replace('\r','\n')
+        return exact or json_fragment_matches(output,quote)
     def evidence(items):
         if not isinstance(items,list):raise ValueError('评分引用格式无效。')
         if len(items)>50:raise EvidenceError('此项引用超过50条，无法可靠复核。')
-        verified=[]
-        for item in items:
+        def one(item):
             if not isinstance(item,dict):raise ValueError('评分引用格式无效。')
             quote=item.get('quote')
             if not isinstance(quote,str) or not quote.strip() or len(quote)>3000:raise ValueError('评分引用缺少原文。')
@@ -43,7 +112,7 @@ def validate_machine(value, packet, commands):
                     if type(line) is not int or line<1 or len(matches)!=1:
                         raise EvidenceError(f'文件 {item["path"][:80]} 第 {line if type(line) is int else "无效"} 行与引用原文不符，且无法唯一定位。')
                     ref.update(line=matches[0],reportedLine=line,anchor='unique-exact-quote')
-                verified.append(ref)
+                return ref
             elif 'command' in item:
                 command=item['command']
                 if not isinstance(command,str) or not command.strip():raise ValueError('命令引用无效。')
@@ -60,13 +129,19 @@ def validate_machine(value, packet, commands):
                 if match is None:raise EvidenceError('机器评分引用的执行记录不存在。')
                 ref={'commandId':match['id'],'command':match['command'],'exitCode':match['exitCode'],'quote':quote}
                 if command not in match['command']:ref['reportedCommand']=command
-                verified.append(ref)
+                if json_fragment_matches(match['output'],quote) and quote not in match['output']:
+                    ref['anchor']='json-object-fragment'
+                return ref
             elif 'checkId' in item:
                 match=next((c for c in packet['checks'] if c['id']==item['checkId'] and contains(c.get('output',''),quote)),None)
                 if match is None:raise EvidenceError('机器评分引用的检查记录不存在。')
-                verified.append({'checkId':match['id'],'status':match['status'],'quote':quote})
+                return {'checkId':match['id'],'status':match['status'],'quote':quote}
             else:raise ValueError('评分必须引用文件、执行记录或检查。')
-        return verified
+        verified=[];invalid=[]
+        for item in items:
+            try:verified.append(one(item))
+            except (EvidenceError,ValueError) as exc:invalid.append(str(exc))
+        return verified,invalid
     ratings={};warnings=[]
     for key,row in rows.items():
         if not isinstance(row,dict):raise ValueError('机器评分项格式无效。')
@@ -75,14 +150,18 @@ def validate_machine(value, packet, commands):
         reason=string(row.get('reason'),'评分理由',5000,True)
         method=row.get('method')
         if method not in {'static','runtime','unverified'}:raise ValueError('评分取证方式无效。')
-        try:refs=evidence(row.get('evidence',[]))
+        try:refs,invalid=evidence(row.get('evidence',[]))
         except EvidenceError as exc:
             warnings.append({'section':'ratings','key':key,'message':str(exc)})
             ratings[key]={'score':None,'reason':'引用未通过校验，此项未计分：'+str(exc),'method':'unverified','evidence':[]}
             continue
+        warnings.extend({'section':'ratings','key':key,'message':message} for message in invalid)
+        if score is not None and not refs and invalid:
+            ratings[key]={'score':None,'reason':'引用未通过校验，此项未计分。','method':'unverified','evidence':[]}
+            continue
         if score is not None and (not refs or method=='unverified'):raise ValueError('没有证据的维度不能生成分数。')
         if method=='runtime' and not any('commandId' in r or 'checkId' in r for r in refs):raise ValueError('运行结论必须引用实际执行记录。')
-        if key in {'ux','performance'} and score is not None and method!='runtime':raise ValueError('交互或性能评分需要实际运行证据。')
+        if key in UI_RUBRIC_KEYS|{'performance'} and score is not None and method!='runtime':raise ValueError('界面或性能评分需要实际运行证据。')
         ratings[key]={'score':score,'reason':reason,'method':method,'evidence':refs}
     criteria=value.get('criteria',{})
     if not isinstance(criteria,dict) or set(criteria)!={c['id'] for c in packet['task'].get('criteria',[])}:raise ValueError('机器验收必须覆盖冻结的需求条目。')
@@ -90,10 +169,14 @@ def validate_machine(value, packet, commands):
     for key,row in criteria.items():
         if not isinstance(row,dict) or row.get('status') not in {'met','partial','unmet','unverified'}:raise ValueError('机器验收状态无效。')
         notes=string(row.get('notes'),'需求验收理由',5000,True)
-        try:refs=evidence(row.get('evidence',[]))
+        try:refs,invalid=evidence(row.get('evidence',[]))
         except EvidenceError as exc:
             warnings.append({'section':'criteria','key':key,'message':str(exc)})
             verified[key]={'status':'unverified','notes':'引用未通过校验：'+str(exc),'evidence':[]}
+            continue
+        warnings.extend({'section':'criteria','key':key,'message':message} for message in invalid)
+        if row['status']!='unverified' and not refs and invalid:
+            verified[key]={'status':'unverified','notes':'引用未通过校验，此项未验收。','evidence':[]}
             continue
         if row['status']!='unverified' and not refs:raise ValueError('需求验收缺少证据。')
         verified[key]={'status':row['status'],'notes':notes,'evidence':refs}
@@ -132,7 +215,7 @@ def calculate_machine(run,trial):
         from .scoring import calculate
         # Keep existing multi-stage deterministic score semantics, without changing the run.
         objective=calculate({**run,'policy':{**run['policy'],'version':'arena-review-v2'}},trial)['objective']
-    return {'machine':original,'machineReviewId':report['id'] if report else None,'machineEvidenceKey':key,
+    score={'machine':original,'machineReviewId':report['id'] if report else None,'machineEvidenceKey':key,
             'machineCoverage':coverage,'machineRatings':rows,'machineOverrides':overrides,'effectiveScores':effective,
             'objective':objective,'human':None,'overall':adjusted if complete and trial['state']=='completed' else None,
             'provisional':not complete or trial['state']!='completed','partialScore':adjusted,
@@ -140,6 +223,46 @@ def calculate_machine(run,trial):
             'adjudicatedObjective':None,'objectiveReviewId':None,'objectiveEvidenceKey':key,'humanReviewId':None,'varianceMargin':None,
             'acceptance':acceptance(task,trial,report,{c['stageIndex']:c for c in captures}),
             'coverage':{'configuredChecks':len(task['checks']),'executedChecks':len(checks)}}
+    if task.get('publicSource'):
+        # Preserve the upstream pass/fail separately. Only a versioned local
+        # card may produce the user's per-task continuous score.
+        native=next((item for item in reversed(latest.get('nativeVerifications',[]))
+                     if item.get('captureHash')==latest['manifest']['sha256']
+                     and type(item.get('reward')) is int and item['reward'] in (0,1)),None) if latest else None
+        from .task_scorecards import score_public
+        from .task_scorecards import VERSION
+        card=score_public(task,native,effective.get('maintainability') if report else None,report['id'] if report else None,
+                          retrospective=run.get('localScorecardVersion')!=VERSION)
+        local_total=card['overall'] if card else None
+        score.update(scoreSource='task-scorecard' if card else 'native-verifier',overall=local_total,
+                     taskScorecard=card,nativeReward=native['reward'] if native else None,
+                     assurance='native' if local_total is not None else 'ai-reference',
+                     provisional=local_total is None,partialScore=None,adjudicatedOverall=local_total if overrides and local_total is not None else None,
+                     nativeVerificationId=native['id'] if native else None)
+    else:
+        from .task_scorecards import PROJECT_POLICY_VERSION, AUTO_PROJECT_VERSION, score_project, score_project_policy, score_project_auto
+        required={'intent','instruction','verification','robustness','maintainability','handoff'}|({'ux'} if task.get('hasFrontendUI') else set())
+        task_policy=policy_for_task(run['policy'],task)
+        if run.get('projectScorecardVersion') in {'project-tasktype-v2',AUTO_PROJECT_VERSION} and task_policy.get('taskTypeAuto'):
+            card=score_project_auto(task,trial,effective,report['id'] if report else None,run['projectScorecardVersion'])
+        elif run.get('projectScorecardVersion') in {PROJECT_POLICY_VERSION,'project-tasktype-v2',AUTO_PROJECT_VERSION} and not task_policy.get('taskTypeAuto'):
+            card=score_project_policy(task,trial,effective,report['id'] if report else None,task_policy)
+        elif run.get('localScorecardVersion') and required<=set(weights):
+            card=score_project(task,trial,effective,report['id'] if report else None)
+        else:
+            card=None
+        if card:
+            if latest and trial.get('finalCaptureId')!=latest['id'] and latest['stageIndex']+1<len(task['stages']):
+                # A scored intermediate snapshot is not the final deliverable.
+                card['overall']=None
+            score.update(scoreSource='task-scorecard',taskScorecard=card,overall=card['overall'],
+                         assurance=score_assurance(task,trial),
+                         provisional=card['overall'] is None or trial['state']!='completed',
+                         adjudicatedOverall=card['overall'] if overrides and card['overall'] is not None else None)
+        else:score['scoreSource']='project-rubric'
+    from .judge_reliability import summarize
+    score['judgeReliability']=summarize(trial,score)
+    return score
 
 
 def validate_correction(data,score):

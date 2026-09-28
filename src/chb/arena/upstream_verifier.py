@@ -70,9 +70,24 @@ def _wait(process,stop,deadline,log):
 
 def _image(app,image,stop,folder,progress):
     try:ready=shell(['docker','info','--format','{{.ServerVersion}}'],timeout=15)
-    except (OSError,subprocess.SubprocessError) as exc:
-        raise ValueError('Docker Desktop Linux 引擎没有在15秒内响应；启动并确认状态为运行中后重试，当前不记零分。') from exc
-    if ready.returncode:raise ValueError('Docker Desktop Linux 引擎未运行；启动后重试原题验收，当前不记零分。')
+    except (OSError,subprocess.SubprocessError):ready=None
+    if ready is None or ready.returncode:
+        if os.name!='nt' or not shutil.which('docker'):
+            raise ValueError('Docker Linux 引擎未运行或未安装；原题验收尚未开始，当前不记零分。')
+        progress('Docker Linux 引擎未就绪，正在自动启动 Docker Desktop')
+        try:started=shell(['docker','desktop','start','--detach'],timeout=30)
+        except (OSError,subprocess.SubprocessError) as exc:
+            raise ValueError('自动启动 Docker Desktop 未成功；原题验收尚未开始，当前不记零分。') from exc
+        if started.returncode:
+            raise ValueError('Docker Desktop 启动命令失败；原题验收尚未开始，当前不记零分。')
+        for _ in range(6):
+            if stop.is_set():raise ValueError('已取消原题验收。')
+            try:ready=shell(['docker','info','--format','{{.ServerVersion}}'],timeout=5)
+            except (OSError,subprocess.SubprocessError):ready=None
+            if ready is not None and ready.returncode==0:break
+            stop.wait(3)
+        else:
+            raise ValueError('已自动尝试启动 Docker Desktop，但 Linux 引擎仍不可用；原题验收未开始，当前不记零分。')
     try:inspect=shell(['docker','image','inspect',image,'--format','{{.Id}}'],timeout=20)
     except (OSError,subprocess.SubprocessError) as exc:
         raise ValueError('无法检查固定镜像；请确认 Docker 引擎可用后重试。') from exc
@@ -108,6 +123,18 @@ def failed_tests(verifier,reward):
                     failures.append((str(test.get('name','未命名测试'))+'：'+str(test.get('message','查看原始测试日志')))[:400])
                     if len(failures)>=30:break
     return failures or ['未通过测试的逐项报告缺失；查看原始测试输出。']
+
+
+def target_cases(verifier,expected):
+    """Persist only named target cases needed by the local semantic card."""
+    path=verifier/'ctrf.json'
+    if not path.is_file() or path.stat().st_size>10_000_000:return None
+    try:
+        tests=json.loads(path.read_text(encoding='utf-8')).get('results',{}).get('tests',[])
+        cases=[{'name':row['name'],'status':row['status']} for row in tests
+               if isinstance(row,dict) and isinstance(row.get('name'),str) and row['name'].startswith('[f2p] ')]
+    except (OSError,ValueError,TypeError,KeyError,AttributeError):return None
+    return cases if len(cases)==expected and all(row['status'] in {'passed','failed'} for row in cases) else None
 
 
 def run(app,rid,tid,task,source,manifest,folder,control,progress=lambda message:None):
@@ -188,6 +215,8 @@ def run(app,rid,tid,task,source,manifest,folder,control,progress=lambda message:
                       captureHash=manifest['sha256'],seconds=round(time.monotonic()-started,2),imageId=pinned,
                       commands=[{'argv':['bash','/tests/test.sh'],'log':log.name}],logDirectory=str(folder),notPassed=not_passed,
                       scope='固定上游镜像与原题隐藏测试；桌面手动执行条件不同，不是官方排行榜提交。')
+        cases=target_cases(verifier,reward['f2p_total'])
+        if cases is not None:report['f2pCases']=cases
         (folder/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
         return report
     finally:

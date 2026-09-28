@@ -26,7 +26,7 @@ CODEX_VERSION = "0.154.0"
 
 
 def task_settings(name, root=None):
-    if name not in {"search-notes-v1", "storage-migration-v1", "csv-catalog-v1"}:
+    if name not in {"search-notes-v1", "storage-migration-v1", "csv-catalog-v1", "invoice-reconcile-v1", "web-metrics-v1"}:
         raise ValueError("Unknown task")
     image = IMAGE if name == "search-notes-v1" else f"chb-{name}:codex-{CODEX_VERSION}"
     return (root or ROOT) / "tasks" / name, image, f"chb-verifier:{name}"

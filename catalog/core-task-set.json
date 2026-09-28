@@ -1,0 +1,30 @@
+{
+  "version": "2026-09-27-v1",
+  "purpose": "跨题型低预算选题入口；只控制默认展示，不改变题目、评测或历史分数。",
+  "taskIds": [
+    "original-invoice-reconcile-v1",
+    "original-creative-mini-exhibit-3d-v1",
+    "original-open-event-schema-v1",
+    "original-open-stakeholder-scope-v1",
+    "original-creative-energy-dashboard-v1",
+    "original-open-subscription-cohort-v1",
+    "original-search-notes-v1",
+    "original-creative-meteor-rescue-v1",
+    "original-open-retry-idempotency-v1",
+    "original-open-refund-exceptions-v1",
+    "original-creative-golden-gate-fog-v1",
+    "original-open-stock-migration-v1",
+    "original-open-incident-handoff-v1",
+    "original-creative-pixel-postcard-v1",
+    "original-open-cache-retention-v1",
+    "original-open-field-dispatch-v1",
+    "original-creative-museum-exhibition-v1",
+    "original-open-community-scheduler-v1",
+    "original-csv-catalog-v1",
+    "original-creative-market-checkout-v1",
+    "original-open-latency-budget-v1",
+    "original-open-incident-log-v1",
+    "original-storage-migration-v1",
+    "original-web-metrics-v1"
+  ]
+}

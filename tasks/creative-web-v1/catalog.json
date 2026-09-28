@@ -1,0 +1,308 @@
+[
+  {
+    "id": "otter-cable-car-v1", "title": "SVG 场景：水獭驾驶山间缆车", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "请用内联 SVG 创作一幅“水獭驾驶山间缆车送信”的完整场景。观众应能看懂水獭、缆车、缆绳、山谷和投递动作；请自己决定画风、配色、景深及叙事细节。页面须有作品标题和一两句说明，桌面与手机均能完整观看，SVG 要有可访问名称。不要用现成图片替代画面。",
+    "reviewFocus": ["主体和动作是否一眼可辨，前后遮挡与比例是否合理", "原创细节、视觉统一性和色彩层次", "手机视口与辅助技术下作品是否仍能理解"]
+  },
+  {
+    "id": "pelican-unicycle-v1", "title": "SVG 变体：鹈鹕骑单轮车送包裹", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "请用内联 SVG 画一只鹈鹕骑单轮车穿过海边集市并送出包裹。明确表达鹈鹕的长喙、单轮车的一个轮子、骑乘姿势及包裹交接关系。自选画风和构图；页面要给出作品标题与替代说明，手机上不能裁掉主要情节。不要照搬流传的“鹈鹕骑自行车”固定画面。",
+    "reviewFocus": ["单轮而非双轮、骑乘和递送三种关系是否准确", "构图和角色表情是否有原创性", "SVG 可读性与移动端适配"]
+  },
+  {
+    "id": "golden-gate-fog-v1", "title": "金门大桥：晨雾与夜景切换", "category": "地标叙事与交互视觉", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "制作一个离线可用的单页视觉故事：用自绘 SVG 呈现金门大桥的两座桥塔、悬索、桥面及海湾关系，提供晨雾与夜景两种可切换状态。切换要影响场景本身，而不只是按钮文案；自选文字、节奏和风格，不使用网络图片。鼠标和键盘都可切换，窄屏仍能辨认桥的结构。",
+    "reviewFocus": ["桥梁结构与地标特征是否清楚", "两种状态是否形成真实视觉变化且交互可理解", "窄屏、键盘与文字对比度"]
+  },
+  {
+    "id": "yellow-crane-tower-v1", "title": "黄鹤楼：江景与时令叙事", "category": "地标叙事与交互视觉", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "为黄鹤楼做一页可交互的文化地标展示。主视觉用自绘 SVG 表达多层楼阁、翘檐与临江环境，至少提供两个时令或天气视角，并写简短、不杜撰史实的导览文字。用户可以切换视角，布局在手机上可阅读；不要把一张外部照片当成全部作品。",
+    "reviewFocus": ["楼阁和江景的层次与辨识度", "状态切换是否改变场景并帮助理解", "文化文字是否审慎、层级和小屏阅读是否清晰"]
+  },
+  {
+    "id": "botanical-icons-v1", "title": "植物园：一套可复用的 SVG 图标", "category": "矢量系统与设计一致性", "profile": "svg", "difficulty": "Short",
+    "tags": ["frontend", "browser", "maintainability"],
+    "prompt": "为虚构植物园设计不少于六枚自绘内联 SVG 图标，分别对应温室、步道、饮水、无障碍路线、观鸟和儿童活动。图标应共享清晰的线条或填充规则，在大图和紧凑卡片中都可辨认。做一个展示页说明设计原则及每枚图标的含义；不使用外部图标库或图片。",
+    "reviewFocus": ["六种含义能否区别，视觉系统是否一致", "缩小后辨识度与色盲情况下的信息表达", "SVG 命名、复用与页面说明"]
+  },
+  {
+    "id": "solar-orbits-v1", "title": "太阳系：可探索的轨道图", "category": "交互可视化", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "data", "requirements"],
+    "prompt": "做一个面向中学生的离线太阳系探索页。核心是自绘 SVG 轨道图，点选至少四颗行星后展示其名称、一条可靠的基础事实与相对位置解释。用说明文字区分示意图和真实比例，避免把夸张尺寸误当科学比例。键盘可选，手机可操作，自选视觉表达。",
+    "reviewFocus": ["轨道关系、名称与事实是否可信，比例免责声明是否明确", "交互反馈和信息层级", "键盘、移动触控与视觉表现"]
+  },
+  {
+    "id": "museum-exhibition-v1", "title": "虚构展览：编辑式落地页", "category": "品牌、排版与响应式网页", "profile": "page", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "communication"],
+    "prompt": "给虚构展览“城市里的微小声音”制作落地页，包含清晰的主题、展览亮点、日期地点、参观信息和行动入口。你决定字体、网格、留白、配色与插画方式；资源须本地自制或用 CSS/SVG 绘制。让第一次来访者在 10 秒内知道是什么、何时何地、下一步做什么。",
+    "reviewFocus": ["信息优先级与视觉叙事", "桌面和手机排版、文本可读性", "行动入口与参观信息是否完整明确"]
+  },
+  {
+    "id": "night-market-v1", "title": "夜市活动：移动优先宣传页", "category": "品牌、排版与响应式网页", "profile": "page", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "为一个虚构周末夜市做移动优先宣传网页。用户应能迅速找到时间地点、特色摊位、交通方式、雨天安排及联系电话。页面既要有鲜明个性也要保持清晰可读；自选图形和动效，但离线能打开，不能依赖远程素材。",
+    "reviewFocus": ["关键信息是否容易扫读", "视觉风格与夜市主题是否吻合", "窄屏布局、动效克制和对比度"]
+  },
+  {
+    "id": "architect-portfolio-v1", "title": "建筑师作品集：三项目案例页", "category": "品牌、排版与响应式网页", "profile": "page", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "communication"],
+    "prompt": "为虚构青年建筑师做作品集首页，呈现三个不同尺度的项目。每个案例要说明问题、设计决定与效果，另有个人简介和联系入口。禁止用一屏空洞大字代替案例；可以用自绘示意、CSS 图形或本地内容。你决定艺术方向，但作品内容须可信且手机可阅读。",
+    "reviewFocus": ["案例是否讲清设计推理而非只有形容词", "作品区分、排版节奏和图文关系", "移动端可读性与联系路径"]
+  },
+  {
+    "id": "coffee-origin-v1", "title": "咖啡产地：纵向滚动故事", "category": "品牌、排版与响应式网页", "profile": "page", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "communication"],
+    "prompt": "为一家虚构小型烘焙店制作产地故事页：解释一款豆子的产地、处理法、风味与冲煮建议，最后给出清晰的购买或了解更多入口。可设计滚动叙事，但所有内容在无动画或减少动态效果时也可读。不得用真实品牌的商标和文案。",
+    "reviewFocus": ["内容是否具体、连贯且不伪装事实来源", "滚动层次、视觉节奏及减少动态效果", "移动端与行动入口"]
+  },
+  {
+    "id": "inclusive-city-guide-v1", "title": "无障碍城市导览：信息型网页", "category": "品牌、排版与响应式网页", "profile": "page", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements", "reliability"],
+    "prompt": "为虚构城市做一天无障碍游览指南。包含三处地点、到达方式、无障碍设施的已知信息和未知信息、临时变更提示，以及联系确认建议。设计需让使用者快速比较路线与限制；不要虚构真实场馆已认证无障碍。支持键盘、手机和清晰的状态标注。",
+    "reviewFocus": ["已知与未知的边界是否清晰，避免误导", "信息架构、对比与优先级", "键盘和移动端可用性"]
+  },
+  {
+    "id": "river-data-story-v1", "title": "河流观察：小数据故事", "category": "数据叙事与可视化", "profile": "data", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "data", "reasoning"],
+    "prompt": "用下列虚构的每月河流清洁志愿时数做一页数据故事：1月 42、2月 38、3月 55、4月 71、5月 64、6月 80。至少用一种自绘 SVG 或 Canvas 图表展示趋势，并写明单位、数据是示例、一个观察和一个不能从数据推出的结论。视觉可自由设计，但图形和文字数值必须一致。",
+    "reviewFocus": ["图表与给定数据、单位是否一致", "观察与推断边界是否诚实", "图表替代文本、配色和手机阅读"]
+  },
+  {
+    "id": "energy-dashboard-v1", "title": "家庭能源：比较型仪表盘", "category": "数据叙事与可视化", "profile": "data", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "data", "reasoning"],
+    "prompt": "为虚构家庭设计一页能源仪表盘，使用固定示例数据：周一到周日用电量依次为 9、8、11、10、7、12、6 kWh；上周总计 70 kWh。展示本周总量、与上周比较及逐日变化，至少有一种自绘 SVG/Canvas 图表。标明数据为示例，避免夸大节能结论；手机和键盘浏览时仍清楚。",
+    "reviewFocus": ["计算与图表是否准确、比较基线是否清楚", "重要数字、趋势和异常是否可扫读", "图形替代文字与小屏布局"]
+  },
+  {
+    "id": "transit-map-v1", "title": "虚构地铁：可选线路的路线图", "category": "交互可视化", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "data", "requirements"],
+    "prompt": "为虚构海港城市做离线地铁地图：至少两条线路、六个站点和一个换乘站，核心线路图用自绘 SVG。用户能选择线路并看到站点顺序与换乘提示；颜色不是唯一的区分方式。可自由命名、布局和设定故事，但地图、站点文字与选择后的信息应一致。",
+    "reviewFocus": ["线路拓扑和换乘关系是否自洽", "选择反馈是否清楚且可键盘操作", "色彩、文字、地图在手机上的辨识度"]
+  },
+  {
+    "id": "music-player-v1", "title": "离线唱片柜：音乐播放器界面", "category": "状态、反馈与微交互", "profile": "interactive", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "为三张虚构唱片设计可操作的离线播放器界面。没有音频文件时不要假装真的在播放；可以明确做“播放演示模式”。用户能切换唱片、查看曲目和当前状态，至少一个控制产生真实可见反馈。风格自定，重点是信息层级、状态一致性、键盘与窄屏操作。",
+    "reviewFocus": ["播放状态与实际能力是否诚实", "控制反馈和唱片切换是否一致", "视觉细节、键盘和手机可用性"]
+  },
+  {
+    "id": "garden-mini-game-v1", "title": "花园小游戏：可键盘玩的收集挑战", "category": "状态、反馈与微交互", "profile": "interactive", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements", "reliability"],
+    "prompt": "做一款可离线玩的轻量浏览器小游戏：在花园里收集种子并避开障碍，规则、开始/重来、分数或进度都要清楚。允许自由设计画风与玩法细节，但必须能用键盘游玩，手机触控有可用替代，结束后可以重新开始。不要只做一张游戏海报。",
+    "reviewFocus": ["游戏是否真的可玩，胜负/分数/重来是否自洽", "键盘和触控控制是否可发现", "视觉反馈和运行稳定性"]
+  },
+  {
+    "id": "event-calendar-v1", "title": "社区活动：可筛选日历", "category": "状态、反馈与微交互", "profile": "interactive", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "data", "requirements"],
+    "prompt": "为虚构社区做活动日历。至少提供四个有日期、地点和类型的示例活动，用户可以按类型筛选并打开详情，空筛选结果有解释和恢复入口。视觉方向自定；重点是卡片信息、交互反馈、日期表达和手机使用。不依赖后端或网络。",
+    "reviewFocus": ["筛选与详情内容是否正确、空态可恢复", "卡片密度、日期和地点是否好读", "键盘、移动端和交互状态"]
+  },
+  {
+    "id": "clinic-booking-v1", "title": "预约体验：清楚解释每一步的表单", "category": "表单与真实用户流程", "profile": "form", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements", "reliability"],
+    "prompt": "为虚构社区服务点制作离线预约演示：选择服务与时段、填写联系信息、确认摘要并得到本地模拟成功反馈。必须明确没有向真实机构提交，不收集敏感病史；缺项与无效输入给出可理解的提示。视觉与流程布局自定，键盘和手机都能完成。",
+    "reviewFocus": ["步骤、摘要和成功状态是否一致且不误导用户", "错误提示、标签与键盘操作", "窄屏布局与信息密度"]
+  },
+  {
+    "id": "weekend-planner-v1", "title": "周末路线：可调整的行程规划器", "category": "表单与真实用户流程", "profile": "form", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "做一个离线周末行程规划器：用户输入出发时间和偏好，在至少四个虚构活动中挑选并调整顺序，页面给出清晰的行程摘要与时间冲突提醒。路线、文案和视觉可自由发挥；时间关系必须自洽，不能把未计算的旅行时长说成精准导航。手机可操作。",
+    "reviewFocus": ["选择、顺序和摘要是否同步，冲突是否可解释", "时间假设与不确定性表达", "表单和移动端交互"]
+  },
+  {
+    "id": "market-checkout-v1", "title": "农夫市集：有边界的结算演示", "category": "表单与真实用户流程", "profile": "form", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "reliability"],
+    "prompt": "制作虚构农夫市集的离线购物结算演示：至少三件商品、数量调整、商品小计与总价、配送方式、空购物车及确认摘要。必须写明没有真实支付或订单提交；金额用整数分或等价精确方法计算。你决定视觉和微交互，但错误与状态不能互相矛盾。",
+    "reviewFocus": ["数量和金额计算是否准确，清空/恢复是否合理", "模拟交易边界和确认信息是否清楚", "结算路径、键盘和手机可用性"]
+  },
+  {
+    "id": "fox-balloon-post-v1", "title": "SVG 故事：狐狸乘热气球投递地图", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "用内联 SVG 画狐狸乘热气球在峡谷上方把卷起的地图交给桥上的探险者。让篮子、绳索、峡谷深度和递交方向一眼可懂。画风与配色自由；页面附标题、简短图注和 SVG 可访问名称，390px 下不裁掉交接动作。",
+    "reviewFocus": ["角色、物件与交接方向是否清楚", "前后景和高差是否可信", "原创表现及小屏可读性"]
+  },
+  {
+    "id": "heron-lighthouse-v1", "title": "SVG 场景：苍鹭在灯塔旁引导归船", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "制作一幅离线 SVG 插画：暴风雨将停，一只苍鹭在灯塔旁引导小船驶入港湾。要能看见灯塔光束、航路、岸线和船只相对位置，但由你决定构图、天气层次与艺术风格。用文字说明画面中正在发生什么，并为 SVG 提供可访问名称。",
+    "reviewFocus": ["光束、船和港湾的空间关系", "天气与叙事是否一致", "细节、对比度及辅助说明"]
+  },
+  {
+    "id": "turtle-mobile-library-v1", "title": "SVG 剖面：乌龟的移动图书车", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "用自绘 SVG 表现一只乌龟驾驶移动图书车来到公园，车体有可辨认的书架、借阅窗口和通往窗口的路径。允许童话风格，但角色、车、书和读者的关系必须明确。页面写标题、图注及无障碍替代说明；手机上能看清主要情节。",
+    "reviewFocus": ["书架、借阅动作与通道是否可辨", "童话造型与空间逻辑", "缩放后文字和图形是否仍清楚"]
+  },
+  {
+    "id": "robot-clocktower-v1", "title": "SVG 构图：机器人修理钟楼", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements", "reasoning"],
+    "prompt": "画一幅机器人在钟楼外部修理停住的指针的 SVG 场景。脚手架、工具、钟面、机器人与地面的关系要自洽，让人能看懂修理发生在高处。可自行选择科幻或复古风格；不要以一张外部图片代替自绘画面。提供标题和可访问说明。",
+    "reviewFocus": ["修理动作、钟面及高处结构是否合理", "形体遮挡和画面节奏", "小屏与辅助技术可理解性"]
+  },
+  {
+    "id": "underwater-mail-v1", "title": "SVG 世界：海底邮局与三封信", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "用内联 SVG 设计一座海底邮局，至少让三封信沿不同的可见路径从收件处走向海龟、章鱼和潜水员。读者应能区分邮局入口、路线和收件者；角色造型及材质自由发挥。页面简要说明三条路线并让插画在桌面和手机可读。",
+    "reviewFocus": ["三条路线与收件者是否一一对应", "水下空间层次和原创细节", "图例、图注及小屏辨识度"]
+  },
+  {
+    "id": "paper-crane-theater-v1", "title": "SVG 光影：纸鹤剧场的前后幕", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "创作一幅 SVG 纸鹤影子戏：台前观众能看到纸鹤，台后要能看见光源、操纵杆和投影幕的相对关系。画面应同时解释影子从何而来，并允许你选择剪纸、拼贴或极简风。页面附标题和一段向儿童解释光影关系的文字。",
+    "reviewFocus": ["光源、遮挡、幕布与影子的因果关系", "画面构图和风格统一", "解释文字和替代描述"]
+  },
+  {
+    "id": "forest-ecosystem-v1", "title": "SVG 剖面：雨后森林的三层生态", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements", "reasoning"],
+    "prompt": "制作雨后森林的 SVG 剖面插画，明确区分树冠、林下和土壤三层，并用少量自写标签说明每层的一种生物活动。主角与路径由你选择；标签不应压住图形，事实应保持基础可信。手机上仍能读懂三层关系，SVG 有可访问名称。",
+    "reviewFocus": ["三层空间和生物活动是否对应", "标注布局与生态事实边界", "视觉统一性及手机阅读"]
+  },
+  {
+    "id": "island-rescue-map-v1", "title": "SVG 地图：风暴后小岛的救援路线", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements", "reasoning"],
+    "prompt": "为虚构小岛画一张自绘 SVG 救援示意图：至少有港口、医院、被阻断的桥和一条替代路线。让路线、障碍和方向标记清楚，图例不要仅靠颜色区分；写明这是虚构演示而非真实应急指引。整体视觉风格自由，桌面和手机都能阅读。",
+    "reviewFocus": ["阻断处和替代路线是否逻辑自洽", "地图符号、图例与方向", "虚构边界和无障碍辨识度"]
+  },
+  {
+    "id": "harbor-crane-story-v1", "title": "SVG 互动：港口吊机搬运集装箱", "category": "地标叙事与交互视觉", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "制作港口吊机的离线 SVG 场景，提供“装船”和“卸船”两种可切换状态。吊臂、集装箱、船舱和码头的位置应随状态合理变化，不能只换按钮文案。用文字解释当前动作；键盘可切换，减少动态效果设置下仍能辨认状态。",
+    "reviewFocus": ["两种装卸状态的物体关系", "切换反馈和当前状态说明", "键盘、减弱动效与小屏"]
+  },
+  {
+    "id": "moon-observatory-v1", "title": "SVG 互动：山顶天文台的昼夜", "category": "地标叙事与交互视觉", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "以自绘 SVG 建一个山顶天文台网页，用户能切换白天开放参观与夜间观测两种场景。天空、建筑、人物和望远镜的状态应真实变化；自选画风，文字清楚指出当前状态与可做的事。离线运行，键盘和手机可操作。",
+    "reviewFocus": ["昼夜状态是否影响核心场景", "建筑与望远镜关系", "控制与文字反馈的易懂程度"]
+  },
+  {
+    "id": "rainwater-city-v1", "title": "SVG 互动：一滴雨的城市旅程", "category": "交互可视化", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "用自绘 SVG 解释一滴雨从屋顶、排水沟、蓄水池到公园浇灌的虚构城市路径。至少提供两步可点选的解释状态，图中箭头与文字顺序必须一致；不把示意图写成真实城市工程事实。风格可自由发挥，键盘和手机均能探索。",
+    "reviewFocus": ["路径与解释次序是否一致", "交互状态和箭头图例", "事实边界、移动端与键盘"]
+  },
+  {
+    "id": "constellation-fable-v1", "title": "SVG 互动：自创星座的两种连线", "category": "交互可视化", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "设计一页夜空 SVG：同一组自创星点可切换成两种不同的想象星座，切换后连线、名称和简短故事一起变化。明确这是虚构创作，不冒充真实天文学知识；星点在手机上可辨，切换控件有键盘焦点与文字状态。",
+    "reviewFocus": ["两套连线与故事是否分别自洽", "星空层次和视觉创意", "状态提示、键盘及手机辨识度"]
+  },
+  {
+    "id": "comic-scroll-v1", "title": "网页叙事：四格可滚动城市小故事", "category": "品牌、排版与响应式网页", "profile": "page", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "communication"],
+    "prompt": "用 CSS 或自绘 SVG 做一页四格短故事，主题是“陌生人归还遗失的手套”。四格要有开端、发现、寻找和交还，文字与画面共同叙事；画风、角色和滚动方式自由。禁用动画时故事仍按正确顺序可读，手机上一格一格看得清。",
+    "reviewFocus": ["四格叙事是否完整且顺序清楚", "图文关系、排版与原创风格", "小屏和减少动态效果"]
+  },
+  {
+    "id": "type-poster-v1", "title": "字体实验：一张会响应宽度的活动海报", "category": "品牌、排版与响应式网页", "profile": "page", "difficulty": "Short",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "为虚构“城市声音节”设计纯本地网页海报。必须清晰呈现名称、日期、地点、三项活动与行动入口；主要视觉靠排版、CSS 图形或自绘 SVG，不能加载外部图片。宽屏与 390px 窄屏应有不同但一致的布局，避免缩小整张海报导致文字不可读。",
+    "reviewFocus": ["信息层级与海报气质", "两种宽度的排版变化与可读性", "必要活动信息是否完整"]
+  },
+  {
+    "id": "artifact-explorer-v1", "title": "展品探索：可切换细节的数字展柜", "category": "状态、反馈与微交互", "profile": "interactive", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements"],
+    "prompt": "为三件虚构展品做离线数字展柜。每件展品有名称、年代设定、材料和一段故事；用户能切换展品并展开至少一个细节视图，视觉可用 CSS/SVG 自制。当前选中与展开状态必须明确，不能把虚构设定冒充真实博物馆藏品。键盘、手机都可操作。",
+    "reviewFocus": ["切换和详情状态是否一致", "图文展示与展品差异", "虚构标注、键盘与移动端"]
+  },
+  {
+    "id": "responsive-compare-v1", "title": "建筑方案：可比较两种空间布局", "category": "状态、反馈与微交互", "profile": "interactive", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "为虚构社区阅览室做一个双方案比较页。用自绘平面示意或 CSS/SVG 图展示“开放交流”和“安静阅读”两种布局，用户可切换方案并看到对应的优点、代价与动线。不要把虚构尺寸写成测量事实；键盘可切换，手机上仍能比较关键差异。",
+    "reviewFocus": ["示意图与优缺点是否对应", "切换后的状态和比较路径", "文本事实边界与小屏可读性"]
+  },
+  {
+    "id": "transit-departures-v1", "title": "出行看板：可筛选的虚构车站时刻表", "category": "数据叙事与可视化", "profile": "data", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "data", "requirements"],
+    "prompt": "制作一个离线车站发车看板，使用这组虚构班次：A1 09:10 站台2 准点、B4 09:25 站台1 延误10分钟、A2 09:40 站台3 准点、C7 10:05 站台2 取消。可按状态筛选，并同时保留原定时间、站台和清楚的状态文字；空结果可恢复。不要暗示是真实交通数据，手机和键盘可用。",
+    "reviewFocus": ["班次、筛选与状态是否准确", "延误和取消是否明显且不只靠颜色", "密集数据在小屏的阅读与操作"]
+  },
+  {
+    "id": "recipe-substitute-v1", "title": "食谱助手：人数与食材替换演示", "category": "表单与真实用户流程", "profile": "form", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "为虚构家庭菜谱做离线演示：原配方供 2 人，面粉 200 g、水 120 ml、油 20 ml；用户可选 2、4、6 人，看到按比例计算的新用量，并在面粉缺货时切换到明确标为“示意替代”的建议。不要给未经验证的营养或过敏安全保证。表单、计算和说明在手机上易懂。",
+    "reviewFocus": ["人数换算是否正确", "替代建议与食品安全边界", "表单反馈、单位与移动端"]
+  },
+  {
+    "id": "lab-notebook-v1", "title": "观察日志：可比较的植物生长记录", "category": "数据叙事与可视化", "profile": "data", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "data", "reasoning"],
+    "prompt": "用虚构观测数据制作植物生长日志：第1、3、5、7天高度为 2、3、5、6 cm，另记录第5天开始长出新叶。显示时间线、单位、至少一种自绘图形及一条可证实观察；解释样本太少不能推断所有植物生长速度。读者可以选择查看高度或事件，图表、文字和数值必须一致。",
+    "reviewFocus": ["图表与四个数据点是否一致", "观察和推断边界", "事件切换、图例及小屏阅读"]
+  },
+  {
+    "id": "community-repair-board-v1", "title": "社区修理站：报修与状态看板", "category": "表单与真实用户流程", "profile": "form", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "requirements", "reliability"],
+    "prompt": "制作虚构社区修理站的离线演示：用户能填写物品、问题和优先级，提交后在本地看板看到“待确认”记录，并能把它改为“处理中”或“已完成”。要明确数据只保存在当前浏览器、没有真的派工；无效输入有提示，刷新后的行为须说明。视觉和信息架构自由，键盘及手机可用。",
+    "reviewFocus": ["表单与状态流转是否真正可用", "本地演示边界、刷新后的状态说明", "错误反馈、键盘和小屏布局"]
+  },
+  {
+    "id": "heron-drawbridge-v1", "title": "SVG 机械：苍鹭拉起双滑轮吊桥", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "用内联 SVG 画一只苍鹭通过两组滑轮拉起小河上的吊桥，让绳索、定滑轮、动滑轮、桥的转轴和拉力方向在画面里能追踪。桥一端升起而另一端仍与岸相连；不要求工程计算，但各物件相互连接不能凭空悬浮。你决定画风、角色和故事，附简短图注，手机上看得清，不用网络图片。",
+    "reviewFocus": ["绳索路径、滑轮与桥面运动方向是否自洽", "主要动作与空间遮挡是否清楚", "原创表达、图注和小屏辨识度"]
+  },
+  {
+    "id": "seal-loop-path-v1", "title": "SVG 空间：海豹穿越立体环形步道", "category": "矢量插画与空间构图", "profile": "svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "设计一幅海豹推着小车沿立体环形步道送灯的 SVG 插画。用遮挡、投影或线宽表达环的前段与后段，小车始终落在步道上，不能在交叉处突然改变路线。至少标出起点、终点与一次前后穿越，画风自由；用一段文字说明路径，窄屏不裁掉关键关系。",
+    "reviewFocus": ["环形路径的前后层次及交叉连续性", "角色、小车与路面的接触关系", "插画审美和手机可读性"]
+  },
+  {
+    "id": "observatory-capsule-v1", "title": "三维交互：深海观测舱探索页", "category": "三维与空间交互", "profile": "interactive", "difficulty": "Long",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "制作一个离线可开的深海观测舱探索页，用自制 CSS 3D、SVG 或 Canvas 呈现有前后关系的舱体。用户可以旋转视角，并点选至少三处舱内装置看到功能说明；视角变化要真正改变可见空间，不是切换一张背景图。允许简化为风格化模型，但须有键盘替代操作、减少动态效果支持及手机布局。",
+    "reviewFocus": ["旋转后前后遮挡与空间关系是否连续", "三个装置热点与说明是否对应", "操控、键盘和小屏表现"]
+  },
+  {
+    "id": "mini-exhibit-3d-v1", "title": "三维模型：可旋转的迷你展台", "category": "三维与空间交互", "profile": "interactive", "difficulty": "Short",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "做一个离线单页的迷你展台，只需一个底座和一件由至少三个可区分立体部分组成的虚构展品。用 CSS 3D、Canvas 或 WebGL 自行建立透视与遮挡；提供左右旋转按钮，让观众能从不同角度看见侧面和前后关系，不能只切换两张平面图。给展品一段简短说明，按钮可用键盘操作，390px 手机视口不横向溢出。无需加载外部模型、贴图或三维库。",
+    "reviewFocus": ["旋转前后是否呈现连续、可信的立体结构与遮挡，而非两张平面图", "左右控制是否改变实际视角，能否通过键盘操作", "展品说明、视觉完成度和手机布局"]
+  },
+  {
+    "id": "orbital-lantern-v1", "title": "SVG 动态：环轨运灯与暂停回放", "category": "三维与空间交互", "profile": "interactive-svg", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements"],
+    "prompt": "用自绘 SVG 做一段短小的环轨运灯演示：一盏灯沿环形线路从站 A 走到站 B，再返回 A。线路有明显前段和后段，灯经过遮挡处仍应沿同一线路继续。提供开始、暂停、重播和当前站点文字；在减少动态效果模式下允许分步切换。不要把无限旋转当成完成了路线。",
+    "reviewFocus": ["运动轨迹、遮挡和站点顺序是否连续", "暂停与重播是否控制真实状态", "减弱动效、文字状态和手机适配"]
+  },
+  {
+    "id": "expedition-desktop-v1", "title": "浏览器桌面：探险队任务控制台", "category": "浏览器工具与生产力", "profile": "interactive", "difficulty": "Long",
+    "tags": ["frontend", "browser", "requirements", "reliability"],
+    "prompt": "做一个离线的探险队控制台，至少有地图、日志、装备三扇可打开和关闭的窗口。窗口可以移动或通过明确的布局控件排列，前后层级、当前焦点与关闭后的恢复入口清晰；刷新后的状态由你决定并写明。它应是可操作工具，不是一张桌面截图；手机上提供可用的单窗口或卡片替代，键盘可以完成主要流程。",
+    "reviewFocus": ["窗口打开、关闭、前置与恢复状态是否可靠", "桌面和手机的信息架构", "键盘、焦点与刷新状态说明"]
+  },
+  {
+    "id": "film-kanban-v1", "title": "协作看板：短片拍摄任务流", "category": "浏览器工具与生产力", "profile": "interactive", "difficulty": "Long",
+    "tags": ["frontend", "browser", "requirements", "reliability", "collaboration"],
+    "prompt": "为一部虚构短片做离线任务看板，包含待拍、拍摄中、待剪辑、完成四列与至少六张内容不同的卡。用户可把卡移动到合理列并撤销上一次移动；拖拽之外要有键盘/按钮替代。提供筛选或搜索，空态能恢复；说明数据是否持久化。视觉可自由设计，但状态变化必须真实发生。",
+    "reviewFocus": ["移动、撤销、筛选与卡片数目是否一致", "拖拽和键盘替代流程", "列与卡的信息密度、手机使用"]
+  },
+  {
+    "id": "pixel-postcard-v1", "title": "像素编辑器：可导出的夜景明信片", "category": "浏览器工具与生产力", "profile": "interactive", "difficulty": "Long",
+    "tags": ["frontend", "browser", "requirements", "reliability"],
+    "prompt": "制作离线像素明信片编辑器，提供至少 12×12 的画布、四种以上颜色、橡皮擦、撤销、清空与本地导出 PNG 或 SVG。用户可以给虚构港口夜景自由绘制；导出结果须反映当前画布，撤销与清空要可验证。鼠标/触控都可画，键盘至少能选色和操作按钮；说明刷新后图像会怎样。",
+    "reviewFocus": ["绘制、撤销、清空、导出的状态一致性", "画布与调色板的可发现性", "触控、小屏和导出结果"]
+  },
+  {
+    "id": "balcony-plan-v1", "title": "微型 CAD：阳台花园平面规划", "category": "浏览器工具与生产力", "profile": "interactive", "difficulty": "Long",
+    "tags": ["frontend", "browser", "reasoning", "requirements", "reliability"],
+    "prompt": "做一个离线阳台花园平面规划器，给定阳台 4m×2m，用户能在俯视图放置、移动、删除花箱与座椅，并显示每件物品占用尺寸和当前剩余通行带。可以自己设定网格与简化碰撞规则，但要在页面解释，越界或重叠给出可理解反馈；支持保存或导出当前方案。手机不要求精密拖动，但要有按钮或表单替代操作。",
+    "reviewFocus": ["尺寸、边界与重叠规则是否自洽", "放置、移动、删除、保存/导出是否可靠", "空间图与文字信息的对应及移动端替代"]
+  },
+  {
+    "id": "meteor-rescue-v1", "title": "可玩游戏：流星雨中的救援艇", "category": "可玩游戏与状态系统", "profile": "interactive", "difficulty": "Long",
+    "tags": ["frontend", "browser", "requirements", "reliability"],
+    "prompt": "做一款离线浏览器小游戏：驾驶救援艇在流星雨中接回漂流舱。必须能开始、移动、得分或记录成功次数、失败、暂停和重新开始；输赢或回合结束条件写清楚，结束后状态能复位。画风与具体玩法自由，不准只交一张海报。键盘和触屏都能玩，减少动态效果时仍可理解规则与结果。",
+    "reviewFocus": ["实际可玩性、碰撞/计分与失败条件", "暂停、重开和状态复位", "控制反馈、触控与视觉表达"]
+  },
+  {
+    "id": "greenhouse-turns-v1", "title": "策略小游戏：温室三天的灌溉选择", "category": "可玩游戏与状态系统", "profile": "interactive", "difficulty": "Medium",
+    "tags": ["frontend", "browser", "reasoning", "requirements", "reliability"],
+    "prompt": "做一个可离线玩的三回合温室小游戏：玩家每天给两种植物分配有限的水，天气和需水量由页面清楚说明，第三天结束给出可解释的结果。至少允许重新开始，并让选择改变后续库存或生长状态；数值规则可以自行设计，但不能出现负库存或无缘由结算。视觉可自定，键盘和手机能操作。",
+    "reviewFocus": ["每回合资源、天气与结果计算是否一致", "选择是否真正影响后续状态", "规则易懂性、重开与手机操作"]
+  }
+]

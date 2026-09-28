@@ -1,0 +1,28 @@
+schema_version = "1.4"
+[metadata]
+name = "web-metrics-v1"
+group = "business-web"
+source_kind = "original"
+license = "MIT"
+status = "repository-source"
+description = "浏览器实测的业务指标网页：时间筛选、图表、键盘、窄屏和 CSV 下载。"
+[agent]
+timeout_sec = 900
+network_mode = "allowlist"
+allowed_hosts = ["chatgpt.com", "*.openai.com"]
+[environment]
+build_timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+network_mode = "public"
+[verifier]
+timeout_sec = 90
+environment_mode = "separate"
+network_mode = "no-network"
+[verifier.environment]
+docker_image = "chb-verifier:web-metrics-v1"
+network_mode = "no-network"
+[[artifacts]]
+source = "/app"
+destination = "candidate"
+exclude = [".git", "node_modules", "__pycache__"]

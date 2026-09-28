@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from .files import safe_path,verify_snapshot,snapshot,hash_bytes,now
 from .machine import dimensions
+from .scoring import UI_RUBRIC_KEYS
 from .service import identifier
 
 
@@ -96,7 +97,7 @@ def operate(app,rid,tid,action,data):
             if not values:raise ValueError('至少填写一项已复核的分数。')
             method=data.get('method')
             if method not in {'source','runtime','visual'}:raise ValueError('请选择实际复核方式。')
-            if 'ux' in values and method!='visual':raise ValueError('交互与视觉评分须实际体验界面，请选择界面复核方式；仅阅读源码的项目请留空。')
+            if set(values)&UI_RUBRIC_KEYS and method!='visual':raise ValueError('界面专项评分须实际体验界面，请选择界面复核方式；仅阅读源码的项目请留空。')
             coverage=sum(weights[k] for k in values)/sum(weights.values())*100
             row={'id':'human-'+uuid.uuid4().hex[:12],'at':now(),'captureId':cap['id'],'captureHash':cap['manifest']['sha256'],
                  'method':method,'previewUrl':preview_url(data.get('previewUrl','')),'ratings':values,

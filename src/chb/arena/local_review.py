@@ -101,7 +101,7 @@ class ProcessTree:
         self.process.wait(timeout=10)
 
 
-def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='max',runtime_root=None,service_tier='standard'):
+def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='',runtime_root=None,service_tier='standard'):
     from .review_connection import connection
     route=connection()
     executable=codex_executable()

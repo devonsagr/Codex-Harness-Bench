@@ -4,7 +4,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from chb.arena.upstream_verifier import make_patch,_image,failed_tests
 
@@ -24,8 +24,17 @@ class UpstreamVerifierTests(unittest.TestCase):
 
     def test_unresponsive_docker_is_unknown_with_actionable_error(self):
         with tempfile.TemporaryDirectory() as temp,patch('chb.arena.upstream_verifier.shell',side_effect=subprocess.TimeoutExpired('docker',15)):
-            with self.assertRaisesRegex(ValueError,'15秒内响应'):
+            with self.assertRaisesRegex(ValueError,'原题验收尚未开始，当前不记零分'):
                 _image(None,'fixed:image',threading.Event(),Path(temp),lambda _:None)
+
+    def test_stopped_docker_is_started_before_image_inspection(self):
+        unavailable=Mock(returncode=1)
+        available=Mock(returncode=0,stdout='28.0')
+        started=Mock(returncode=0)
+        image=Mock(returncode=0)
+        with tempfile.TemporaryDirectory() as temp,patch('chb.arena.upstream_verifier.shell',side_effect=[unavailable,started,available,image]) as commands,patch('chb.arena.upstream_verifier.shutil.which',return_value='docker'),patch('chb.cli.pin_image',return_value='sha256:fixed'):
+            self.assertEqual(_image(None,'fixed:image',threading.Event(),Path(temp),lambda _:None),'sha256:fixed')
+        self.assertEqual(commands.call_args_list[1].args[0],['docker','desktop','start','--detach'])
 
     def test_patch_uses_only_frozen_project_changes_and_applies_cleanly(self):
         with tempfile.TemporaryDirectory() as temp:

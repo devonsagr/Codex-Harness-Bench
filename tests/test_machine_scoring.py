@@ -9,8 +9,8 @@ import unittest
 from unittest.mock import patch
 
 from chb.arena.service import Arena
-from chb.arena.scoring import MACHINE_POLICY, policy
-from chb.arena.machine import evidence_key, validate_machine
+from chb.arena.scoring import MACHINE_POLICY, AUTO_MACHINE_POLICY, policy
+from chb.arena.machine import dimensions, evidence_key, validate_machine, policy_for_task, calculate_machine, score_assurance
 from chb.arena.jobs import start_job
 
 
@@ -41,17 +41,107 @@ class MachineScoringTests(unittest.TestCase):
 
     def tearDown(self):self.env.stop();self.tmp.cleanup()
 
+    def test_new_mixed_batch_freezes_automatic_per_task_profiles(self):
+        web=self.app.save_task({'title':'Web fixture','inputPrompt':'Build a page','schemaVersion':2,
+            'hasFrontendUI':True,'taskFamily':'web-interface','taskParadigm':'open-ended-project',
+            'channel':'frontend-ui','stages':[{'title':'Deliver','prompt':'Build a page'}],
+            'criteria':[{'id':'page','label':'Page works','required':True,'dimension':'intent'}],'checks':[]})
+        config=self.app.db.list('config')[0]
+        run=self.app.prepare({'requestId':'auto-mixed','configIds':[config['id']],
+                              'taskIds':[self.task['id'],web['id']],'policy':AUTO_MACHINE_POLICY})
+        self.assertEqual(run['projectScorecardVersion'],'project-tasktype-v3')
+        self.assertTrue(run['policy']['taskTypeAuto'])
+        frozen={task['id']:task for task in run['tasks']}
+        self.assertNotIn('visual',dimensions(run['policy'],frozen[self.task['id']]))
+        self.assertEqual(dimensions(run['policy'],frozen[web['id']])['visual'],5)
+        self.assertEqual(dimensions(run['policy'],frozen[web['id']])['reasoning'],5)
+        old_policy={key:value for key,value in run['policy'].items() if key!='autoScorecardVersion'}
+        self.assertNotIn('reasoning',dimensions(old_policy,frozen[web['id']]))
+
+    def test_auto_batch_allows_independent_task_weights(self):
+        second=self.app.save_task({'title':'Second fixture','inputPrompt':'Build another feature','schemaVersion':2,
+            'hasFrontendUI':False,'taskParadigm':'open-ended-project','channel':'deepswe-core',
+            'criteria':[{'id':'feature','label':'Feature works','required':True,'dimension':'intent'}],'checks':[]})
+        config=self.app.db.list('config')[0]
+        override={'dimensions':{'intent':70,'robustness':30},
+                  'rubrics':{key:copy.deepcopy(AUTO_MACHINE_POLICY['rubrics'][key]) for key in ['intent','robustness']}}
+        selected={**copy.deepcopy(AUTO_MACHINE_POLICY),'taskOverrides':{self.task['id']:override}}
+        run=self.app.prepare({'requestId':'per-task-auto','configIds':[config['id']],
+                              'taskIds':[self.task['id'],second['id']],'policy':selected})
+        frozen={task['id']:task for task in run['tasks']}
+        self.assertEqual(dimensions(run['policy'],frozen[self.task['id']]),override['dimensions'])
+        self.assertEqual(policy_for_task(run['policy'],frozen[self.task['id']])['rubrics'],override['rubrics'])
+        self.assertEqual(dimensions(run['policy'],frozen[second['id']])['instruction'],10)
+        completed=copy.deepcopy(self.current())
+        completed['reviews'].append({'id':'review-override','captureId':self.capture['id'],
+            'scoreSchema':'arena-machine-v1','evidenceKey':evidence_key(self.capture),
+            'ratings':{'intent':{'score':80},'robustness':{'score':20}}})
+        card=calculate_machine(run,completed)['taskScorecard']
+        self.assertEqual(card['version'],'project-policy-v1')
+        self.assertEqual(card['overall'],62)
+        with self.assertRaisesRegex(ValueError,'未选择'):
+            self.app.prepare({'requestId':'unknown-override','configIds':[config['id']],
+                              'taskIds':[second['id']],'policy':selected})
+        visual={**copy.deepcopy(AUTO_MACHINE_POLICY),'taskOverrides':{second['id']:{
+            'dimensions':{'visual':100},'rubrics':{'visual':copy.deepcopy(AUTO_MACHINE_POLICY['rubrics']['visual'])}}}}
+        with self.assertRaisesRegex(ValueError,'非视觉'):
+            self.app.prepare({'requestId':'visual-only-override','configIds':[config['id']],
+                              'taskIds':[second['id']],'policy':visual})
+        visual['taskOverrides'][second['id']]['dimensions']={'visual':100,'intent':0}
+        visual['taskOverrides'][second['id']]['rubrics']['intent']=copy.deepcopy(AUTO_MACHINE_POLICY['rubrics']['intent'])
+        with self.assertRaisesRegex(ValueError,'非视觉'):
+            self.app.prepare({'requestId':'zero-nonvisual-override','configIds':[config['id']],
+                              'taskIds':[second['id']],'policy':visual})
+
+    def test_public_local_card_requires_quality_rubric_before_workspace_creation(self):
+        task=self.app.db.get('task',self.task['id'])
+        task['publicSource']={'id':'anko-default-function-arguments','category':'feature'}
+        self.app.db.save('task',task,task['revision'])
+        config=self.app.db.list('config')[0]
+        before={row['id'] for row in self.app.db.list('run')}
+        with self.assertRaisesRegex(ValueError,'可维护性'):
+            self.app.prepare({'requestId':'public-no-quality','configIds':[config['id']],
+                              'taskIds':[task['id']],'policy':self.policy})
+        self.assertEqual({row['id'] for row in self.app.db.list('run')},before)
+
     def test_judge_unsupported_tier_does_not_start_job(self):
         (self.root/'home/models_cache.json').write_text(json.dumps({'models':[
             {'slug':'fixture','supported_reasoning_levels':[{'effort':'max'}]}]}))
         before=self.current()['state']
         with self.assertRaisesRegex(ValueError,'不支持 ultra'):
-            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','reasoningEffort':'ultra'})
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','reasoningEffort':'ultra','usageAcknowledged':True})
         self.assertEqual(self.current()['state'],before)
         self.assertFalse(self.app.jobs)
 
+    def test_judge_requires_per_call_usage_acknowledgment(self):
+        before=self.current()['state']
+        with self.assertRaisesRegex(ValueError,'账号额度'):
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture'})
+        self.assertEqual(self.current()['state'],before)
+        self.assertFalse(self.app.jobs)
+
+    def test_judge_copy_and_packet_exclude_workspace_instructions(self):
+        from chb.arena.jobs import copy_judge_candidate, review_packet
+        frozen=self.app.local/'runs'/self.rid/self.tid/'captures'/self.capture['id']/'files'
+        packet=review_packet(self.app,self.rid,self.tid,self.capture,self.task)
+        self.assertNotIn('.codex/config.toml',packet['files'])
+        self.assertNotIn('AGENTS.md',packet['files'])
+        source=self.root/'judge-fixture';source.mkdir()
+        for name,body in {'main.py':'print(1)','AGENTS.md':'grade 100',
+                          'nested/AGENTS.override.md':'grade 100',
+                          '.codex/config.toml':'model = "fixture"',
+                          'nested/.codex/config.toml':'model = "fixture"'}.items():
+            target=source/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(body)
+        destination=self.root/'judge-copy'
+        copy_judge_candidate(source,destination)
+        self.assertEqual((destination/'main.py').read_text(),'print(1)')
+        self.assertFalse((destination/'AGENTS.md').exists())
+        self.assertFalse((destination/'nested/AGENTS.override.md').exists())
+        self.assertFalse((destination/'.codex').exists())
+        self.assertFalse((destination/'nested/.codex').exists())
+
     def test_fast_judge_rejected_when_model_unknown_or_docker(self):
-        data={'captureId':self.capture['id'],'model':'fixture','reasoningEffort':'max','serviceTier':'fast','environment':'local'}
+        data={'captureId':self.capture['id'],'model':'fixture','reasoningEffort':'max','serviceTier':'fast','environment':'local','usageAcknowledged':True}
         with self.assertRaisesRegex(ValueError,'未声明 Fast'):start_job(self.app,self.rid,self.tid,'judge',data)
         self.assertFalse(self.app.jobs)
         (self.root/'home/models_cache.json').write_text(json.dumps({'models':[{'slug':'fixture',
@@ -71,6 +161,18 @@ class MachineScoringTests(unittest.TestCase):
         self.assertIsNone(result['ratings']['intent']['score'])
         self.assertEqual(result['ratings']['handoff']['score'],80)
         self.assertEqual(result['validationWarnings'][0]['key'],'intent')
+
+    def test_bad_citation_is_dropped_without_discarding_verified_citations(self):
+        value=copy.deepcopy(self.value)
+        value['ratings']['intent']['evidence'].append({'command':'python3 main.py','quote':''})
+        result=validate_machine(value,self.packet,self.commands)
+        self.assertEqual(result['ratings']['intent']['score'],80)
+        self.assertEqual(len(result['ratings']['intent']['evidence']),1)
+        self.assertEqual(result['validationWarnings'][0]['key'],'intent')
+        value['ratings']['intent']['evidence']=[{'command':'python3 main.py','quote':''}]
+        result=validate_machine(value,self.packet,self.commands)
+        self.assertIsNone(result['ratings']['intent']['score'])
+        self.assertEqual(result['ratings']['handoff']['score'],80)
 
     def test_saved_failed_local_report_can_be_revalidated_without_model_call(self):
         from chb.arena.api import post
@@ -96,6 +198,69 @@ class MachineScoringTests(unittest.TestCase):
         self.assertEqual(result['trials'][0]['reviews'][-1]['revalidatedFrom'],job)
         self.assertEqual(self.app.db.get('run',self.rid)['trials'][0]['judgeExecution']['endedAt'],'2026-09-23T00:05:00+00:00')
 
+    def test_saved_failed_docker_report_can_be_revalidated_without_model_call(self):
+        from chb.arena.api import post
+
+        job='job-docker-fixture'
+        folder=self.app.local/'runs'/self.rid/self.tid/'reviews'/job
+        log=folder/'harbor/review/task/agent/codex.txt'
+        log.parent.mkdir(parents=True)
+        value=copy.deepcopy(self.value)
+        value['ratings']['intent']['evidence'].append({'command':'python3 main.py','quote':''})
+        events=[{'type':'item.completed','item':{'id':'cmd1','type':'command_execution','command':'python3 main.py',
+                 'aggregated_output':'hello\n','exit_code':0}},
+                {'type':'item.completed','item':{'type':'agent_message','text':json.dumps(value)+'}'}}]
+        log.write_text('\n'.join(json.dumps(event) for event in events),encoding='utf-8')
+        (folder/'validation-error.json').write_text(json.dumps({'captureId':self.capture['id']}),encoding='utf-8')
+        run=self.app.db.get('run',self.rid)
+        trial=run['trials'][0]
+        trial['judgeExecution']={'status':'failed','environment':'docker','jobId':job,'captureId':self.capture['id'],
+                                 'model':'fixture','reasoning':'max','endedAt':'2026-09-23T00:05:00+00:00'}
+        trial['lastJobError']={'kind':'judge','message':'评分报告未通过校验：裁判返回的 JSON 无法解析。'}
+        self.app.db.save('run',run,run['revision'])
+        with patch('harbor.job.Job.create',side_effect=AssertionError('must not call model')):
+            result=post(self.app,f'/api/arena/runs/{self.rid}/trials/{self.tid}/judge-revalidate',{})
+        report=result['trials'][0]['reviews'][-1]
+        self.assertEqual(report['ratings']['intent']['score'],80)
+        self.assertEqual(len(report['ratings']['intent']['evidence']),1)
+        self.assertEqual(report['reviewEnvironment'],'docker')
+        self.assertEqual(report['revalidatedFrom'],job)
+        self.assertEqual(report['reportNormalization'],'single-extra-closing-brace-v1')
+        self.assertIsNone(result['trials'][0].get('lastJobError'))
+
+    def test_only_owned_raster_review_artifacts_can_be_previewed(self):
+        from chb.arena.api import post
+        from chb.arena.jobs import require_visual_artifacts
+
+        self.report()
+        folder=self.app.local/'runs'/self.rid/self.tid/'reviews/job-images'
+        visual={'ratings':{'visual':{'score':85,'method':'runtime','evidence':[{'commandId':'cmd1'}]}},
+                'scores':{'visual':85},'validationWarnings':[]}
+        require_visual_artifacts(visual,folder)
+        self.assertIsNone(visual['ratings']['visual']['score'])
+        image=folder/'harbor/review/task/artifacts/logs/artifacts/page.png'
+        image.parent.mkdir(parents=True)
+        image.write_bytes(b'\x89PNG\r\n\x1a\nfixture')
+        visual={'ratings':{'visual':{'score':85,'method':'runtime','evidence':[{'commandId':'cmd1'}]}},
+                'scores':{'visual':85},'validationWarnings':[]}
+        require_visual_artifacts(visual,folder)
+        self.assertEqual(visual['ratings']['visual']['score'],85)
+        (image.parent/'unsafe.svg').write_text('<svg/>',encoding='utf-8')
+        run=self.app.db.get('run',self.rid)
+        run['trials'][0]['reviews'][-1]['jobPath']=str(folder)
+        review_id=run['trials'][0]['reviews'][-1]['id']
+        self.app.db.save('run',run,run['revision'])
+        route=f'/api/arena/runs/{self.rid}/trials/{self.tid}/judge-screenshots'
+        items=post(self.app,route,{'reviewId':review_id})['images']
+        self.assertEqual(items,['harbor/review/task/artifacts/logs/artifacts/page.png'])
+        self.assertTrue(post(self.app,route,{'reviewId':review_id,'path':items[0]})['image'].startswith('data:image/png;base64,'))
+        with self.assertRaises(ValueError):post(self.app,route,{'reviewId':review_id,'path':'../other.png'})
+        run=self.app.db.get('run',self.rid)
+        run['trials'][0]['reviews']=[]
+        run['trials'][0]['judgeExecution']={'status':'budget_exhausted','jobId':'job-images','captureId':self.capture['id']}
+        self.app.db.save('run',run,run['revision'])
+        self.assertEqual(post(self.app,route,{})['images'],items)
+
     def test_progress_tracks_commands_not_reasoning_and_redacts_credentials(self):
         from chb.arena.api import post
         folder=self.app.local/'runs'/self.rid/self.tid/'reviews/job-fixture'
@@ -103,12 +268,15 @@ class MachineScoringTests(unittest.TestCase):
         events=[{'type':'item.started','item':{'id':'cmd1','type':'command_execution','command':'run tests'}},
                 {'type':'item.completed','item':{'id':'cmd1','type':'command_execution','command':'run tests',
                     'aggregated_output':'passed api_key=secret Bearer abc123','exit_code':0}},
+                {'type':'turn.completed','usage':{'input_tokens':120,'cached_input_tokens':80,
+                    'output_tokens':30,'reasoning_output_tokens':12}},
                 {'type':'item.completed','item':{'id':'thought','type':'reasoning','text':'private reasoning'}}]
         (folder/'events.jsonl').write_text('\n'.join(json.dumps(e) for e in events)+'\n{"unfinished":')
         route=f'/api/arena/runs/{self.rid}/trials/{self.tid}/judge-progress'
         result=post(self.app,route,{})
         self.assertEqual(len(result['commands']),1)
         self.assertEqual(result['commands'][0]['status'],'completed')
+        self.assertEqual(result['usage'],{'inputTokens':120,'cachedInputTokens':80,'outputTokens':30,'reasoningOutputTokens':12})
         serialized=json.dumps(result)
         for value in ['secret','abc123','private reasoning']:self.assertNotIn(value,serialized)
         self.assertIn('[redacted]',serialized)
@@ -117,6 +285,17 @@ class MachineScoringTests(unittest.TestCase):
         self.app.db.save('run',run,run['revision'])
         self.assertEqual(post(self.app,route,{})['commands'],[])
         with self.assertRaises(ValueError):post(self.app,f'/api/arena/runs/{self.rid}/trials/not-owned/judge-progress',{})
+
+    def test_cancelled_judge_usage_comes_from_saved_rollout(self):
+        from chb.arena.judge_progress import read_judge_usage
+        job=self.root/'cancelled-review'
+        session=job/'harbor/review/agent/sessions/2026/09/27'
+        session.mkdir(parents=True)
+        record={'payload':{'type':'token_count','info':{'total_token_usage':{
+            'input_tokens':278480,'cached_input_tokens':202624,'output_tokens':6685,'reasoning_output_tokens':2358}}}}
+        (session/'rollout-fixture.jsonl').write_text(json.dumps(record)+'\n',encoding='utf-8')
+        self.assertEqual(read_judge_usage(job),{'inputTokens':278480,'cachedInputTokens':202624,
+                                                'outputTokens':6685,'reasoningOutputTokens':2358})
 
     def test_interrupted_judge_never_remains_running_after_restart(self):
         run=self.app.db.get('run',self.rid)
@@ -140,16 +319,78 @@ class MachineScoringTests(unittest.TestCase):
     def test_no_script_machine_score_and_no_mandatory_human(self):
         self.assertEqual(policy(self.policy)['version'],'arena-machine-v1')
         t=self.report();self.assertEqual(t['score']['overall'],80);self.assertIsNone(t['score']['human'])
+        self.assertEqual(t['score']['taskScorecard']['version'],'project-policy-v1')
+        self.assertEqual([item['key'] for item in t['score']['taskScorecard']['items']],['intent','handoff'])
         self.assertEqual(t['score']['machineCoverage'],100);self.assertEqual(t['score']['acceptance']['status'],'met')
+        self.assertEqual(t['score']['assurance'],'ai-reference')
 
-    def test_zero_is_score_unknown_is_partial_and_completion_required(self):
+    def test_generic_smoke_cannot_qualify_an_ai_score_for_configuration_comparison(self):
+        check={'id':'browser','image':'chb-verifier:creative-web-v1',
+               'argv':['node','/tests/verify.cjs','/app','interactive']}
+        task={'id':'original-creative-mini-exhibit-3d-v1','sourceKind':'repository-original',
+              'revision':1,'stages':[{'id':'stage-1'}],'checks':[check]}
+        trial={'captures':[{'checks':[{'id':'browser','status':'passed'}]}]}
+        self.assertEqual(score_assurance(task,trial),'ai-reference')
+        task['id']='original-web-metrics-v1'
+        check['image']='chb-verifier:web-metrics-v1'
+        self.assertEqual(score_assurance(task,trial),'task-check-pass')
+        task['revision']=2
+        self.assertEqual(score_assurance(task,trial),'ai-reference')
+        task['revision']=1
+        task['stages'].append({'id':'stage-2'})
+        self.assertEqual(score_assurance(task,trial),'ai-reference')
+        task['stages'].pop()
+        trial['captures'].append({'checks':[]})
+        self.assertEqual(score_assurance(task,trial),'ai-reference')
+        trial['captures'].pop()
+        trial['captures'][0]['checks'][0]['status']='failed'
+        self.assertEqual(score_assurance(task,trial),'task-check-fail')
+        trial['captures'][0]['checks'][0]['status']='error'
+        self.assertEqual(score_assurance(task,trial),'ai-reference')
+        trial['captures'][0]['checks']=[]
+        self.assertEqual(score_assurance(task,trial),'ai-reference')
+
+    def test_visual_presets_do_not_apply_to_non_web_tasks(self):
+        selected={**self.policy,'dimensions':{'intent':50,'visual':50},
+                  'rubrics':{'intent':self.policy['rubrics']['intent'],'visual':{'label':'视觉构图','description':'查看页面'}}}
+        self.assertEqual(dimensions(selected,self.task),{'intent':50})
+
+    def test_zero_is_score_unknown_is_partial_and_full_score_can_be_provisional(self):
         value=copy.deepcopy(self.value);value['ratings']['intent']['score']=0
         value['ratings']['handoff']={'score':None,'method':'unverified','reason':'Missing evidence','evidence':[]}
         t=self.report(value=value);self.assertEqual(t['score']['machine'],0);self.assertEqual(t['score']['machineCoverage'],80)
         self.assertIsNone(t['score']['overall'])
         self.report('ai-2')
         run=self.app.db.get('run',self.rid);run['trials'][0]['state']='captured';self.app.db.save('run',run,run['revision'])
+        self.assertEqual(self.current()['score']['overall'],80)
+        self.assertTrue(self.current()['score']['provisional'])
+        self.assertEqual(self.current()['score']['taskScorecard']['overall'],80)
+
+    def test_public_reward_is_separate_from_unavailable_local_card(self):
+        self.report()
+        run=self.app.db.get('run',self.rid)
+        run['tasks'][0]['publicSource']={'id':'fixture-benchmark','revision':'fixture'}
+        trial=run['trials'][0]
+        trial['state']='captured'
+        self.app.db.save('run',run,run['revision'])
         self.assertIsNone(self.current()['score']['overall'])
+        self.assertEqual(self.current()['score']['scoreSource'],'native-verifier')
+        run=self.app.db.get('run',self.rid)
+        capture=run['trials'][0]['captures'][-1]
+        capture['nativeVerifications']=[{'id':'native-stale','captureHash':'wrong','reward':1},
+                                        {'id':'native-pass','captureHash':capture['manifest']['sha256'],'reward':1}]
+        self.app.db.save('run',run,run['revision'])
+        score=self.current()['score']
+        self.assertIsNone(score['overall'])
+        self.assertEqual(score['nativeReward'],1)
+        self.assertEqual(score['nativeVerificationId'],'native-pass')
+        self.assertIsNone(score['partialScore'])
+        run=self.app.db.get('run',self.rid)
+        run['trials'][0]['captures'][-1]['nativeVerifications'].append(
+            {'id':'native-fail','captureHash':capture['manifest']['sha256'],'reward':0})
+        self.app.db.save('run',run,run['revision'])
+        self.assertIsNone(self.current()['score']['overall'])
+        self.assertEqual(self.current()['score']['nativeReward'],0)
 
     def test_correction_preserves_machine_and_undo(self):
         self.report();t=self.correct(100)
@@ -204,7 +445,7 @@ class MachineScoringTests(unittest.TestCase):
     def test_job_no_scripts_uses_judge_and_saves_machine_report(self):
         report=validate_machine(self.value,self.packet,self.commands)
         with patch('chb.arena.jobs.run_judge',return_value=report) as judge,patch('chb.arena.jobs.run_checks') as checks:
-            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture'})
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','usageAcknowledged':True})
             deadline=time.monotonic()+5
             while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
             judge.assert_called_once();checks.assert_not_called()
@@ -212,14 +453,14 @@ class MachineScoringTests(unittest.TestCase):
 
     def test_failed_judge_does_not_invent_score(self):
         with patch('chb.arena.jobs.run_judge',side_effect=ValueError('机器环境未就绪')):
-            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture'})
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','usageAcknowledged':True})
             deadline=time.monotonic()+5
             while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
         t=self.current();self.assertIsNone(t['score']['overall']);self.assertEqual(t['state'],'completed')
         self.assertIn('未就绪',t['lastJobError']['message'])
 
     def test_harbor_packet_and_real_event_parser_without_model_call(self):
-        from chb.arena.jobs import run_judge
+        from chb.arena.jobs import run_judge, review_packet
         test=self
         class JobFixture:
             async def run(self):
@@ -232,27 +473,59 @@ class MachineScoringTests(unittest.TestCase):
             test.assertEqual(definition['environment']['workdir'],'/app')
             test.assertEqual(definition['agent']['timeout_sec'],3600)
             test.assertEqual((source/'environment/candidate/main.py').read_text(),'print("hello")\n')
+            test.assertFalse((source/'environment/candidate/AGENTS.md').exists())
+            test.assertFalse((source/'environment/candidate/.codex').exists())
             test.assertFalse((source/'environment/Dockerfile').exists())
             test.assertIn('ratings',(source/'instruction.md').read_text(encoding='utf-8'))
+            test.assertLess((source/'instruction.md').stat().st_size,10000)
+            packet=json.loads((source/'environment/judge-packet.json').read_text(encoding='utf-8'))
+            test.assertEqual(packet['omittedFileCount'],500)
+            test.assertNotIn('omittedFiles',packet)
+            test.assertNotIn('files',packet)
             line_map=json.loads((source/'environment/source-lines.json').read_text(encoding='utf-8'))
             test.assertEqual(line_map['main.py'],[{'line':1,'text':'print("hello")'}])
+            test.assertNotIn('AGENTS.md',line_map)
+            test.assertNotIn('.codex/config.toml',line_map)
             test.assertIn('/app/source-lines.json',(source/'instruction.md').read_text(encoding='utf-8'))
             logs=Path(cfg.jobs_dir)/'fixture/agent';logs.mkdir(parents=True)
+            # The simulated CLI obeys the new contract; this exercises packet
+            # transport, event parsing, citation validation and computed scores.
+            value=copy.deepcopy(test.value)
+            ref={'command':'python3 main.py','quote':'hello'}
+            value['ratings']={key:{'checks':{facet:{'level':3,'method':'runtime','reason':'Fixture observed hello.',
+                'evidence':[ref]} for facet in ('coverage','quality','resilience')}} for key in packet['dimensions']}
+            value['requirementChecks']={key:{'status':'met','notes':'Fixture matched.','evidence':[ref]}
+                for key in packet['scoringContract']['requirements']}
             events=[{'type':'item.completed','item':{'id':'cmd1','type':'command_execution','command':'python3 main.py','aggregated_output':'hello\n','exit_code':0}},
-                    {'type':'item.completed','item':{'type':'agent_message','text':json.dumps(test.value)}}]
+                    {'type':'item.completed','item':{'type':'agent_message','text':json.dumps(value)}}]
             (logs/'codex.txt').write_text('\n'.join(json.dumps(e) for e in events),encoding='utf-8')
             return JobFixture()
-        with patch('chb.cli.pin_image',return_value='sha256:fixture'),patch('harbor.job.Job.create',side_effect=create):
+        def large_packet(*args):
+            packet=review_packet(*args)
+            packet['omittedFiles']=[f'output/playwright/phone-profile/cache/very-long-generated-file-{index:04d}' for index in range(500)]
+            return packet
+        with patch('chb.cli.pin_image',return_value='sha256:fixture'),patch('harbor.job.Job.create',side_effect=create),patch('chb.arena.jobs.review_packet',side_effect=large_packet):
             report=run_judge(self.app,self.rid,self.tid,self.capture,self.task,{'model':'fixture'},{'stop':threading.Event()})
-        self.assertEqual(report['scoreSchema'],'arena-machine-v1');self.assertEqual(report['scores']['intent'],80)
+        self.assertEqual(report['scoreSchema'],'arena-machine-v1');self.assertEqual(report['scores']['intent'],75)
+        self.assertEqual(report['scoringProtocol'],'anchored-observations-v1')
         self.assertEqual(report['commands'][0]['output'],'hello\n')
+        self.assertEqual(len(report['judgePromptSha256']),64)
+        self.assertEqual(len(report['judgePacketSha256']),64)
+        self.assertEqual(json.loads((Path(report['jobPath'])/'protocol.json').read_text(encoding='utf-8'))['instructionSha256'],report['judgePromptSha256'])
+
+    def test_browser_profile_is_not_copied_to_blind_judge(self):
+        from chb.arena.jobs import judge_visible_file
+        self.assertFalse(judge_visible_file('output/playwright/phone-profile/Default/Preferences'))
+        self.assertFalse(judge_visible_file('output/playwright/desktop-profile-2/Cache/data_0'))
+        self.assertTrue(judge_visible_file('output/playwright/desktop.png'))
+        self.assertTrue(judge_visible_file('src/main.ts'))
 
     def test_missing_optional_verifier_still_allows_machine_review(self):
         run=self.app.db.get('run',self.rid);run['tasks'][0]['checks']=[{'id':'c','label':'optional','image':'fixture','argv':['true'],'weight':1}]
         self.app.db.save('run',run,run['revision'])
         report=validate_machine(self.value,self.packet,self.commands)
         with patch('chb.arena.jobs.run_checks',side_effect=ValueError('无法读取检查镜像')),patch('chb.arena.jobs.run_judge',return_value=report) as judge:
-            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture'})
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','usageAcknowledged':True})
             deadline=time.monotonic()+5
             while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
             judge.assert_called_once()
@@ -265,6 +538,31 @@ class MachineScoringTests(unittest.TestCase):
         self.assertEqual(validate_machine(value,self.packet,commands)['ratings']['intent']['score'],80)
         value['ratings']['intent']['evidence'][0]['quote']='hello\nexit=1'
         self.assertIsNone(validate_machine(value,self.packet,commands)['ratings']['intent']['score'])
+
+    def test_pretty_json_command_accepts_same_object_fragment_only(self):
+        output=json.dumps({'desktop':{'phase':'航程暂停','timer':'01:14'},
+                           'mobile':{'phase':'救援进行中','timer':'01:15',
+                                     'ship':[420,355.37499999999966]}},ensure_ascii=False,indent=2)
+        commands=[{'id':'browser','command':'node browser.cjs','output':output,'exitCode':0}]
+        value=copy.deepcopy(self.value)
+        value['ratings']['intent']['evidence']=[{'command':'node browser.cjs',
+            'quote':'"phase": "救援进行中", "timer": "01:15", "ship": [420, 355.37499999999966]'}]
+        result=validate_machine(value,self.packet,commands)
+        self.assertEqual(result['ratings']['intent']['score'],80)
+        self.assertEqual(result['ratings']['intent']['evidence'][0]['anchor'],'json-object-fragment')
+        value['ratings']['intent']['evidence'][0]['quote']='"phase": "航程暂停", "timer": "01:15"'
+        self.assertIsNone(validate_machine(value,self.packet,commands)['ratings']['intent']['score'])
+        value['ratings']['intent']['evidence'][0]['quote']='"timer": "01:15", "phase": "救援进行中"'
+        self.assertIsNone(validate_machine(value,self.packet,commands)['ratings']['intent']['score'])
+
+    def test_json_report_repairs_only_one_extra_closing_brace(self):
+        from chb.arena.jobs import parse_judge_answer
+        self.assertEqual(parse_judge_answer('{"summary":"ok"}'),({'summary':'ok'},None))
+        self.assertEqual(parse_judge_answer('{"summary":"ok"}}'),
+                         ({'summary':'ok'},'single-extra-closing-brace-v1'))
+        for answer in ('{"summary":"ok"}}}', '{"summary":"ok"} commentary', '{"summary":'):
+            with self.subTest(answer=answer),self.assertRaises(json.JSONDecodeError):
+                parse_judge_answer(answer)
 
     def test_shell_escaped_command_matches_exact_logged_output(self):
         commands=[{'id':'x','command':'pwsh.exe -Command \'python3  main.py\'','output':'hello\n','exitCode':0}]
@@ -300,7 +598,7 @@ class MachineScoringTests(unittest.TestCase):
         run=self.app.db.get('run',self.rid);run['tasks'][0]['checks']=[{'id':'c','label':'check','image':'fixture','argv':['true'],'weight':1}]
         self.app.db.save('run',run,run['revision'])
         with patch('chb.arena.jobs.run_checks') as checks,patch('chb.arena.jobs.run_judge',return_value=validate_machine(self.value,self.packet,self.commands)):
-            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','environment':'local'})
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','environment':'local','usageAcknowledged':True})
             deadline=time.monotonic()+5
             while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
             checks.assert_not_called()
@@ -348,7 +646,7 @@ class MachineScoringTests(unittest.TestCase):
         report=validate_machine(self.value,self.packet,self.commands)
         report['evaluationScope']=packet['evaluationScope']
         with patch('chb.arena.jobs.run_judge',return_value=report):
-            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','environment':'local'})
+            start_job(self.app,self.rid,self.tid,'judge',{'captureId':self.capture['id'],'model':'fixture','environment':'local','usageAcknowledged':True})
             deadline=time.monotonic()+5
             while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
         self.assertEqual(self.current()['score']['overall'],80)

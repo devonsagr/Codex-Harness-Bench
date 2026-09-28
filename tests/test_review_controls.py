@@ -1,5 +1,7 @@
 import json
 import os
+import stat
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -10,9 +12,10 @@ from chb.arena.review_options import timeout_seconds,ReviewBudgetExceeded
 from chb.arena.review_connection import connection
 from chb.arena.models import capabilities
 from chb.arena.initial_config import ensure,restore
-from chb.arena.delete_run import delete
+from chb.arena.delete_run import delete,delete_workspaces
 from chb.arena.local_review import execute_local
 from chb.arena.judge_progress import read_progress
+from chb.arena.jobs import judge_empty_result_reason
 
 class ReviewControlTests(unittest.TestCase):
     def setUp(self):
@@ -27,11 +30,48 @@ class ReviewControlTests(unittest.TestCase):
         t=app.save_task({'title':'fixture','inputPrompt':'hello','taskParadigm':'open-ended-project','channel':'deepswe-core','checks':[]})
         r=app.prepare({'requestId':'fixture','configIds':[c['id']],'taskIds':[t['id']]})
         return app,r,r['trials'][0]
+    def remove_workspaces(self,app,run):
+        rid=run['id']
+        delete_workspaces(app,{'runId':rid,'revision':run['revision'],'desktopStopped':True,
+                               'confirmation':'删除工作区 '+rid,'sessionIds':[]})
+        return app.db.get('run',rid)
     def test_budget_is_explicit_and_bounded(self):
         self.assertEqual(timeout_seconds({}),3600)
         self.assertEqual(timeout_seconds({'timeoutSeconds':28800}),28800)
         for value in [True,0,-1,28801,'3600']:
             with self.assertRaises(ValueError):timeout_seconds({'timeoutSeconds':value})
+    def test_unavailable_account_model_is_reported_before_generic_empty_result(self):
+        diagnostics=["The 'gpt-6-luna' model is not supported when using Codex with a ChatGPT account."]
+        self.assertIn('不支持当前 Codex 登录账号',judge_empty_result_reason(diagnostics))
+        self.assertIn('裁判 CLI 未识别',judge_empty_result_reason(diagnostics+['Model metadata for `gpt-6-luna` not found']))
+        self.assertIn('没有足够证据认定为超时',judge_empty_result_reason([]))
+        app,run,trial=self.run_fixture()
+        stored=app.db.get('run',run['id'])
+        stored_trial=stored['trials'][0]
+        stored_trial['lastJobError']={'kind':'judge','message':'AI 审查未返回有效结果（没有足够证据认定为超时）；未生成评分。'}
+        stored_trial['judgeExecution']={'jobId':'job-fixture'}
+        stored=app.db.save('run',stored,stored['revision'])
+        log=app.local/'runs'/run['id']/trial['id']/'reviews/job-fixture/harbor/trial/agent/codex.txt'
+        log.parent.mkdir(parents=True)
+        log.write_text(diagnostics[0],encoding='utf-8')
+        shown=app.present_run(stored)['trials'][0]['lastJobError']['message']
+        self.assertIn('不支持当前 Codex 登录账号',shown)
+        self.assertIn('未返回有效结果',app.db.get('run',run['id'])['trials'][0]['lastJobError']['message'])
+    def test_harbor_spawn_failure_is_diagnosed_without_changing_saved_run(self):
+        self.assertIn('Windows 长度限制',judge_empty_result_reason(['[WinError 206] 文件名或扩展名太长']))
+        app,run,trial=self.run_fixture()
+        stored=app.db.get('run',run['id'])
+        stored['trials'][0]['lastJobError']={'kind':'judge','message':'AI 审查未完成：未返回有效结果（没有足够证据认定为超时）；未生成评分。'}
+        stored['trials'][0]['judgeExecution']={'jobId':'job-fixture'}
+        stored=app.db.save('run',stored,stored['revision'])
+        result=app.local/'runs'/run['id']/trial['id']/'reviews/job-fixture/harbor/trial/result.json'
+        result.parent.mkdir(parents=True)
+        result.write_text(json.dumps({'exception_info':{'exception_type':'FileNotFoundError',
+            'exception_message':'[WinError 206] 文件名或扩展名太长'}}),encoding='utf-8')
+        shown=app.present_run(stored)['trials'][0]
+        self.assertIn('Windows 长度限制',shown['lastJobError']['message'])
+        self.assertIsNone(shown['score']['overall'])
+        self.assertIn('未返回有效结果',app.db.get('run',run['id'])['trials'][0]['lastJobError']['message'])
     def test_native_connection_and_custom_catalog_do_not_invent_efforts(self):
         (self.home/'config.toml').write_text('model="deepseek-test"\nmodel_provider="proxy"\n[model_providers.proxy]\nbase_url="http://127.0.0.1:9000/v1"\nenv_key="FIXTURE_PROXY_KEY"\n')
         public=connection()['public'];self.assertEqual(public['provider'],'proxy')
@@ -66,7 +106,9 @@ class ReviewControlTests(unittest.TestCase):
         app.db.save('preparation_job',{'id':'prep','runId':rid,'status':'completed'})
         data={'runId':rid,'revision':r['revision'],'desktopStopped':True,'confirmation':'永久删除评测 '+rid}
         with self.assertRaises(ValueError):delete(app,{**data,'confirmation':'wrong'})
-        delete(app,data)
+        with self.assertRaisesRegex(ValueError,'第一步'):delete(app,data)
+        current=self.remove_workspaces(app,r)
+        delete(app,{**data,'revision':current['revision']})
         self.assertFalse((app.local/'runs'/rid).exists());self.assertFalse(runtime.exists());self.assertFalse(home.exists())
         self.assertTrue((shared/'keep').exists())
         with app.db.connect() as db:
@@ -89,7 +131,8 @@ class ReviewControlTests(unittest.TestCase):
         record=app.db.save('run',record,record['revision'])
         from chb.arena.storage import status
         self.assertTrue(status(app)['workspaces'][0]['canDeleteRun'])
-        delete(app,{'runId':r['id'],'revision':record['revision'],'desktopStopped':True,
+        current=self.remove_workspaces(app,record)
+        delete(app,{'runId':r['id'],'revision':current['revision'],'desktopStopped':True,
                     'confirmation':'永久删除评测 '+r['id']})
         with self.assertRaises(ValueError):app.db.get('run',r['id'])
     def test_progress_shows_sent_prompt_and_public_messages_not_reasoning(self):
@@ -126,13 +169,80 @@ class ReviewControlTests(unittest.TestCase):
 
     def test_partial_delete_keeps_history_for_retry_then_removes_it(self):
         app,r,t=self.run_fixture();rid=r['id']
-        data={'runId':rid,'revision':r['revision'],'desktopStopped':True,'confirmation':'永久删除评测 '+rid}
+        current=self.remove_workspaces(app,r)
+        data={'runId':rid,'revision':current['revision'],'desktopStopped':True,'confirmation':'永久删除评测 '+rid}
         with patch('chb.arena.delete_run.shutil.rmtree',side_effect=PermissionError('fixture locked')):
-            with self.assertRaises(PermissionError):delete(app,data)
-        current=app.db.get('run',rid);self.assertTrue(current['deletionPending'])
+            with self.assertRaisesRegex(ValueError,'文件仍被占用'):delete(app,data)
+        current=app.db.get('run',rid);self.assertTrue(current['recordDeletionPending'])
         with self.assertRaises(ValueError):app.mutate(rid,t['id'],'capture',{})
-        delete(app,{**data,'revision':current['revision']})
+        delete(app,data)
         with self.assertRaises(ValueError):app.db.get('run',rid)
+
+    def test_workspace_delete_resumes_after_locked_file_without_a_new_revision(self):
+        app,run,trial=self.run_fixture();rid=run['id']
+        Path(trial['workspacePath'],'result.txt').write_text('captured fixture')
+        app.mutate(rid,trial['id'],'capture',{})
+        run=app.db.get('run',rid)
+        data={'runId':rid,'revision':run['revision'],'desktopStopped':True,
+              'confirmation':'删除工作区 '+rid,'sessionIds':[]}
+        with patch('chb.arena.delete_run.shutil.rmtree',side_effect=PermissionError('locked')):
+            with self.assertRaisesRegex(ValueError,'工作区删除未完成'):delete_workspaces(app,data)
+        current=app.db.get('run',rid)
+        self.assertEqual(current['workspaceDeletion']['status'],'deleting')
+        self.assertTrue(Path(trial['workspacePath']).exists())
+        delete_workspaces(app,data)
+        retained=app.db.get('run',rid)
+        self.assertEqual(retained['workspaceDeletion']['status'],'deleted')
+        self.assertFalse(retained['deletionPending'])
+        self.assertTrue(retained['trials'][0]['captures'])
+        self.assertFalse(Path(trial['workspacePath']).exists())
+
+    def test_new_workspace_after_first_stage_requires_reconfirmation(self):
+        app,run,trial=self.run_fixture();rid=run['id']
+        current=self.remove_workspaces(app,run)
+        Path(trial['workspacePath']).mkdir()
+        with self.assertRaisesRegex(ValueError,'重新核对第一步'):
+            delete(app,{'runId':rid,'revision':current['revision'],'confirmation':'永久删除评测 '+rid})
+        self.assertEqual(app.db.get('run',rid)['workspaceDeletion']['status'],'recheck')
+        self.assertTrue(Path(trial['workspacePath']).exists())
+
+    def test_readonly_git_object_does_not_trap_workspace_deletion(self):
+        app,run,trial=self.run_fixture();rid=run['id']
+        git_object=Path(trial['workspacePath'])/'.git'/'objects'/'ab'/'readonly'
+        git_object.parent.mkdir(parents=True,exist_ok=True)
+        git_object.write_bytes(b'fixture')
+        os.chmod(git_object,stat.S_IREAD)
+        delete_workspaces(app,{'runId':rid,'revision':run['revision'],'desktopStopped':True,
+                               'confirmation':'删除工作区 '+rid,'sessionIds':[]})
+        self.assertFalse(Path(trial['workspacePath']).exists())
+
+    def test_workspace_delete_removes_nested_link_without_following_target(self):
+        app,run,trial=self.run_fixture();rid=run['id']
+        target=self.root/'outside-workspace';target.mkdir()
+        sentinel=target/'keep.txt';sentinel.write_text('keep',encoding='utf-8')
+        link=Path(trial['workspacePath'])/'node_modules'/'package-link'
+        link.parent.mkdir()
+        try:os.symlink(target,link,target_is_directory=True)
+        except OSError as exc:self.skipTest(f'directory symlinks unavailable: {exc}')
+        delete_workspaces(app,{'runId':rid,'revision':run['revision'],'desktopStopped':True,
+                               'confirmation':'删除工作区 '+rid,'sessionIds':[]})
+        self.assertFalse(Path(trial['workspacePath']).exists())
+        self.assertEqual(sentinel.read_text(encoding='utf-8'),'keep')
+
+    @unittest.skipUnless(os.name=='nt','Windows directory junctions')
+    def test_workspace_delete_removes_nested_junction_without_following_target(self):
+        app,run,trial=self.run_fixture();rid=run['id']
+        target=self.root/'outside-junction';target.mkdir()
+        sentinel=target/'keep.txt';sentinel.write_text('keep',encoding='utf-8')
+        link=Path(trial['workspacePath'])/'node_modules'/'package-junction'
+        link.parent.mkdir()
+        created=subprocess.run(['cmd','/c','mklink','/J',str(link),str(target)],capture_output=True,text=True)
+        if created.returncode:self.skipTest('junction creation unavailable')
+        self.assertTrue(link.is_junction())
+        delete_workspaces(app,{'runId':rid,'revision':run['revision'],'desktopStopped':True,
+                               'confirmation':'删除工作区 '+rid,'sessionIds':[]})
+        self.assertFalse(Path(trial['workspacePath']).exists())
+        self.assertEqual(sentinel.read_text(encoding='utf-8'),'keep')
 
     def test_unknown_model_can_use_native_default_without_an_invented_tier(self):
         from chb.arena.models import validate_effort

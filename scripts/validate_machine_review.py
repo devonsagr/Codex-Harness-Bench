@@ -48,7 +48,7 @@ def main():
         if args.frontend:
             Path(trial['workspacePath'],'index.html').write_text("""<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Theme fixture</title><style>body{font:18px system-ui;margin:0;padding:24px;background:#f7f8fb;color:#15213a}body.dark{background:#15213a;color:#f7f8fb}main{max-width:600px;margin:auto}button{padding:12px 20px;font:inherit;border-radius:8px}button:focus-visible{outline:3px solid #3778ff;outline-offset:4px}</style><main><h1>Theme preview</h1><p>Switch between light and dark.</p><button type="button" aria-pressed="false">Toggle theme</button></main><script>const b=document.querySelector('button');function update(d){document.body.classList.toggle('dark',d);b.setAttribute('aria-pressed',String(d));localStorage.setItem('dark',String(d));}update(localStorage.getItem('dark')==='true');b.onclick=()=>update(!document.body.classList.contains('dark'));</script></html>""",encoding='utf-8')
         run=app.mutate(rid,tid,'capture',{});run=app.mutate(rid,tid,'complete',{})
-        start_job(app,rid,tid,'judge',{'captureId':run['trials'][0]['captures'][-1]['id'],'model':args.judge_model,'environment':args.environment})
+        start_job(app,rid,tid,'judge',{'captureId':run['trials'][0]['captures'][-1]['id'],'model':args.judge_model,'environment':args.environment,'usageAcknowledged':True})
         deadline=time.monotonic()+660
         while app.jobs and time.monotonic()<deadline:time.sleep(.5)
         if app.jobs:

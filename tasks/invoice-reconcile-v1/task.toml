@@ -1,0 +1,28 @@
+schema_version = "1.4"
+[metadata]
+name = "invoice-reconcile-v1"
+group = "business-data"
+source_kind = "original"
+license = "MIT"
+status = "repository-source"
+description = "真实业务数据任务：逐笔核对收费与退款，给出可追溯异常清单。"
+[agent]
+timeout_sec = 600
+network_mode = "allowlist"
+allowed_hosts = ["chatgpt.com", "*.openai.com"]
+[environment]
+build_timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+network_mode = "public"
+[verifier]
+timeout_sec = 45
+environment_mode = "separate"
+network_mode = "no-network"
+[verifier.environment]
+docker_image = "chb-verifier:invoice-reconcile-v1"
+network_mode = "no-network"
+[[artifacts]]
+source = "/app"
+destination = "candidate"
+exclude = [".git", "__pycache__", ".pytest_cache"]
