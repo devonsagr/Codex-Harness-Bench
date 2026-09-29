@@ -280,3 +280,11 @@ U54 的新增开放题使用**已有** task、baseline、run、trial、capture�
 机器packet新增scoringContract（version、facets、anchors、requirements、formula、calibrated、sha256）；protocol.json新增scoringProtocol，历史无此字段使用旧校验。报告包含ratings[dimension].checks[coverage|quality|resilience]及score/level/method/reason/evidence/counterEvidence/可选constraint，另含requirementChecks、scoringProtocol、scoringContractSha256、calibrated=false。报告与命令、截图仍归属于同一冻结capture。缺失细项null保留，不把错误消息转成数值。
 
 抽题备注保存balanced-v2、seed、候选池数和实际所选task IDs。相同版本题库/分组/seed可重放，允许用户手调且实际清单为准；种子不是跨题库版本的唯一复现依据。
+
+## U65：配对实验数据与接口
+
+- POST /api/arena/configs/minimal-copy：configId、revision；返回新配置。只写配置库，不改源版本或宿主。
+- prepare与prepare-async接受可选experiment={hypothesis,repeats,activeMinutes,maxTokens}以及两个configIds。普通单配置请求保持原行为。现有requestId幂等、准备进度和恢复继续适用。
+- run.experiment保存完整冻结计划；trial增加pairId、repeat、experimentArm。实际全局应用增加experimentHostContext，用哈希记录未列入实验变量的宿主设置；回收时再采集比较，不返回私有正文。
+- present_run只读生成experimentReport，包含arms、pairs、条件、资源、原始差与可比较差。旧run不追加伪计划或改历史分。原生日志usage新增serviceTiers，缺失为空数组。
+- ZIP record.json含计划及报告，仍只由本机用户下载；不得上传私有配置、工作区或轨迹。

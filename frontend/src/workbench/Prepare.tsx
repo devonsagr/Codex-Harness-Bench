@@ -1,3 +1,4 @@
+import {ExperimentSetup,defaultExperiment} from './HarnessExperiment';
 import {ArrowRight,BookOpen,Check,Code2,ExternalLink,Filter,Lightbulb,Search,ShieldCheck} from 'lucide-react';
 import {ScoringSettings,percentPolicy,validPercentPolicy} from './Scoring';
 import {useEffect,useRef,useState} from 'react';
@@ -26,6 +27,9 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
   const [pane,setPane]=useState<'tasks'|'config'|'scoring'>('tasks');
   const seedConfigId=initialRun?.configs[0]?.id;
   const [configId,setConfigId]=useState<string>(seedConfigId&&state.configs.some(c=>c.id===seedConfigId)?seedConfigId:selectedConfigId&&state.configs.some(c=>c.id===selectedConfigId)?selectedConfigId:state.configs[0]?.id||'');
+  const [experimentEnabled,setExperimentEnabled]=useState(!!initialRun?.experiment);
+  const [candidateId,setCandidateId]=useState(initialRun?.configs[1]?.id||'');
+  const [experimentSettings,setExperimentSettings]=useState(initialRun?.experiment?{hypothesis:initialRun.experiment.hypothesis,repeats:initialRun.experiment.repeats,activeMinutes:initialRun.experiment.activeMinutes,maxTokens:initialRun.experiment.maxTokens}:{...defaultExperiment});
   const catalog=availableTasks(state);
   const initial=catalog.find(t=>t.id===selectedTaskId);
   const coreTasks=catalog.filter(t=>inFamilyGroup(t,'core')&&canStartTask(t,state.baselines)).sort(taskLibraryOrder);
@@ -51,6 +55,8 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
   const [channel,setChannel]=useState('');const [difficulty,setDifficulty]=useState('');
   const [policy,setPolicy]=useState(percentPolicy(structuredClone(initialRun?.policy||state.defaultPolicy)));const [notes,setNotes]=useState(initialRun?.notes||'');
   const config=state.configs.find(c=>c.id===configId);
+  const candidate=state.configs.find(c=>c.id===candidateId);
+  const experimentInvalid=experimentEnabled&&(!config||!candidate||candidate.id===config.id||candidate.baseModel!==config.baseModel||candidate.reasoning!==config.reasoning||(candidate.serviceTier||'')!==(config.serviceTier||'')||experimentSettings.hypothesis.trim().length<5||taskIds.length*experimentSettings.repeats*2>60);
   const [preview,setPreview]=useState<Config|null>(null);
   const invalid=!!config&&(config.skills.length>30||new Set(state.skills.filter(s=>config.skills.includes(s.id)).map(s=>s.name.toLowerCase())).size!==config.skills.length);
   const sourceCandidates=catalog.filter(t=>matchTask(t,paradigm,query,'','')&&(sourceFilter==='all'||(sourceFilter==='deepswe'?!!t.publicSource:sourceFilter==='webgen'?t.sourceKind==='webgen-bench-local':!t.publicSource&&t.sourceKind!=='webgen-bench-local')));
@@ -100,10 +106,12 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
     if(!ids.length)return;
     setTasks(ids);setBatch(ids.length>1);setFocusedTaskId(ids[0]);setShowPending(false);
     const request=previous.requestData;
-    const usable=!!request&&request.configIds?.length===1&&request.taskIds.length===ids.length&&state.configs.some(config=>config.id===request.configIds[0]);
+    const usable=!!request&&[1,2].includes(request.configIds?.length)&&request.taskIds.length===ids.length&&state.configs.some(config=>config.id===request.configIds[0]);
     if(usable){
+      setExperimentEnabled(!!request.experiment);setCandidateId(request.configIds[1]||'');if(request.experiment)setExperimentSettings(request.experiment);
       setConfigId(request.configIds[0]);setPolicy(request.policy);setNotes(request.notes||'');setDeliveryMode(request.deliveryMode||'single-delivery');
-      pending.current={requestId:previous.id,payload:JSON.stringify({configIds:request.configIds,taskIds:request.taskIds,policy:request.policy,notes:request.notes||'',deliveryMode:request.deliveryMode||'single-delivery'})};
+      setRandomSeed(null);
+      pending.current={requestId:previous.id,payload:JSON.stringify({...(request.experiment?{experiment:request.experiment}:{}),configIds:request.configIds,taskIds:request.taskIds,policy:request.policy,notes:request.notes||'',deliveryMode:request.deliveryMode||'single-delivery'})};
     }else pending.current=null;
     setJobId(previous.id);setPane(usable?'scoring':'config');
   };
@@ -111,7 +119,7 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
     setCreateError('');
     const frozenPolicy=policy.taskTypeAuto?{...policy,taskOverrides:Object.fromEntries(Object.entries(policy.taskOverrides||{}).filter(([id])=>taskIds.includes(id)))}:policy;
     const selectionNote=randomSeed===null?'':`\n抽题记录 balanced-v2：种子 ${randomSeed}；代码池 ${swePool.length}，界面池 ${webPool.length}；创建时选题 ${taskIds.join(',')}（可含手动调整）。`;
-    const data={configIds:[configId],taskIds,policy:frozenPolicy,notes:notes+selectionNote,deliveryMode:effectiveDelivery};
+    const data={...(experimentEnabled?{experiment:experimentSettings}:{}),configIds:experimentEnabled?[configId,candidateId]:[configId],taskIds,policy:frozenPolicy,notes:notes+selectionNote,deliveryMode:effectiveDelivery};
     const payload=JSON.stringify(data);if(pending.current?.payload!==payload)pending.current={payload,requestId:crypto.randomUUID()};
     try{const job=await act<PreparationJob>('/runs/prepare-async',{...data,requestId:pending.current.requestId});setJobId(job.id);}catch(error){setCreateError((error as Error).message);}
   };
@@ -145,8 +153,9 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
           {config&&<section className="prepare-config-summary"><div><strong>{config.name} · v{config.revision}</strong><p>{config.baseModel} · {config.reasoning||'模型默认'} · {config.serviceTier==='fast'?'Fast':config.serviceTier==='standard'?'标准速度':'沿用速度'}</p><p>{config.skills.length} 个 Skills · {config.skillMode==='explicit'?'每轮明确请求':'按任务需要使用'}</p></div><button type="button" className="btn-secondary" onClick={()=>onEditConfig(config.id)}>到配置库修改模型、规则或 Skills</button></section>}
           <p className="muted">这里仅选择已保存的配置版本。改动请到配置库保存新版本；创建后本次版本会冻结。</p>
           </div>
+          {pane==='config'&&<><label className="check-row"><input type="checkbox" checked={experimentEnabled} onChange={e=>setExperimentEnabled(e.target.checked)}/>比较两套 Harness 的交付与效率</label>{experimentEnabled&&config&&<ExperimentSetup state={state} act={act} config={config} candidateId={candidateId} onCandidate={setCandidateId} settings={experimentSettings} onChange={setExperimentSettings} taskCount={taskIds.length}/>}</>}
           {pane==='config'&&config&&<CodexApply config={config} act={act}/>}
-          <div hidden={pane!=='scoring'}><ScoringSettings state={state} tasks={selected} policy={policy} onChange={setPolicy}/><Field label="本次备注"><input value={notes} onChange={e=>setNotes(e.target.value)}/></Field></div>
+          <div hidden={pane!=='scoring'}>{experimentEnabled&&<p className="score-notice">本次对照：A {config?.name} / B {candidate?.name}；每题各 {experimentSettings.repeats} 次，每次活动预算 {experimentSettings.activeMinutes} 分钟。验收通过率与执行资源为主要结果；以下 AI 分项作为辅助诊断。</p>}<ScoringSettings state={state} tasks={selected} policy={policy} onChange={setPolicy}/><Field label="本次备注"><input value={notes} onChange={e=>setNotes(e.target.value)}/></Field></div>
         </div>
       </section>
       <footer className="prepare-action" hidden={pane==='tasks'}>
@@ -154,7 +163,7 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
         {job&&<div className="preparation-status" role="status"><strong>{job.phase}</strong>{job.totalTasks!=null&&<><progress aria-label="题目源码准备进度" max={job.totalTasks+1} value={job.status==='completed'?job.totalTasks+1:job.completedTasks||0}/><p>{job.stage==='workspace'?'源码与环境已准备，正在复制独立工作区':`已准备 ${job.completedTasks||0}/${job.totalTasks} 道题${job.status==='running'?'；当前题目可能正在下载或配置环境':''}`}</p></>}{job.error&&<><p role="alert" className="alert-error">{blockedTask?`第 ${(job.completedTasks||0)+1} 道“${blockedTask.title}”准备失败：`:''}{job.error}</p><p className="muted">前面已完成的源码缓存会校验复用；本次尚未创建评测工作区，也没有生成分数。{!job.requestData&&'这份旧准备记录未保存原配置；重试前请重新选择当时使用的配置与评分方案。'}</p><div className="source-actions">{pane==='scoring'?<button type="button" className="btn-primary" onClick={()=>void create()}>重试这批题</button>:<span className="muted">先核对配置和评分方案，再重试。</span>}<button type="button" className="btn-secondary" onClick={()=>setPane('tasks')}>返回选题调整批次</button></div></>}{!job.error&&<p className="muted">只下载缺失的固定源码与必要环境，校验缓存后复制到每题独立目录。这个进度按题计数，不代表当前下载的字节百分比。</p>}{job.runId&&<button className="btn-secondary" onClick={()=>onCreated(job.runId!)}>进入已创建的评测</button>}{job.status==='interrupted'&&<p>重新选择题目后创建即可；已下载文件会校验复用。</p>}</div>}
 
         {pane==='scoring'&&<div className="space-y-2"><p className="score-notice">创建时会自动冻结本次配置版本。若希望新 Codex 对话也默认使用所选模型和档位，可在上一步显式点击“应用到 Codex”；这会备份并写入全局配置。每道题的项目配置仍会写入独立工作区，打开后请核对桌面实际设置。</p>
-          {taskIds.length>1&&<p className="score-notice">将创建 {taskIds.length} 个独立工作区，列成待办队列。准备过程顺序处理源码，不自动运行；每题的项目配置已写入各自目录，可分别打开 Codex 对话。每题分别回收与评分；打开时仍要核对桌面实际模型和工作区。</p>}
+          {taskIds.length>1&&<p className="score-notice">将创建 {taskIds.length*(experimentEnabled?2*experimentSettings.repeats:1)} 个独立工作区，列成待办队列。准备过程顺序处理源码，不自动运行；每题的项目配置已写入各自目录，可分别打开 Codex 对话。每题分别回收与评分；打开时仍要核对桌面实际模型和工作区。</p>}
           {policy.objectiveWeight>0&&selected.some(t=>!t.checks.length)&&<p className="score-notice">所选题目缺少脚本检查，可新建机器评分方案。</p>}
           {!validPercentPolicy(policy)&&<p role="alert" className="alert-error">人工内部占比须合计100%。</p>}
           {publicQualityMissing&&<p role="alert" className="alert-error">公开题本地连续分需要“可维护性”评分项；请换一套适用方案或添加该项。</p>}
@@ -162,7 +171,7 @@ export function Prepare({state,act,onCreated,onEditConfig,selectedTaskId,selecte
         {invalid&&<p role="alert" className="alert-error">技能同名、不可用或超过30个，请调整选择。</p>}
         <div className="prepare-footer-row"><div className="selection-summary"><span>{taskIds.length?`${taskIds.length} 道题已选`:'尚未选择题目'}</span><small>{config?'配置 '+config.name+' v'+config.revision:'未选配置'} · {effectiveDelivery==='single-delivery'?'完整需求':'分步提供需求'}</small></div><div className="prepare-footer-buttons">
           {pane!=='tasks'&&<button type="button" className="btn-secondary" onClick={()=>setPane(pane==='scoring'?'config':'tasks')}>上一步</button>}
-          {pane==='tasks'?<button type="button" className="btn-primary" disabled={!taskIds.length||selected.some(t=>!canStartTask(t,state.baselines))} onClick={()=>setPane('config')}>选择已保存配置 <ArrowRight size={16}/></button>:pane==='config'?<button type="button" className="btn-primary" disabled={!config||invalid} onClick={()=>setPane('scoring')}>确认评分方案 <ArrowRight size={16}/></button>:<button type="button" className="btn-primary" disabled={preparing||!taskIds.length||!config||invalid||publicQualityMissing||(policy.objectiveWeight>0&&selected.some(t=>!t.checks.length))||!validPercentPolicy(policy)} onClick={()=>void create()}>{preparing?'正在准备所选题目…':'创建评测工作区'}</button>}
+          {pane==='tasks'?<button type="button" className="btn-primary" disabled={!taskIds.length||selected.some(t=>!canStartTask(t,state.baselines))} onClick={()=>setPane('config')}>选择已保存配置 <ArrowRight size={16}/></button>:pane==='config'?<button type="button" className="btn-primary" disabled={!config||invalid||experimentInvalid} onClick={()=>setPane('scoring')}>确认评分方案 <ArrowRight size={16}/></button>:<button type="button" className="btn-primary" disabled={preparing||!taskIds.length||!config||invalid||experimentInvalid||publicQualityMissing||(policy.objectiveWeight>0&&selected.some(t=>!t.checks.length))||!validPercentPolicy(policy)} onClick={()=>void create()}>{preparing?'正在准备所选题目…':'创建评测工作区'}</button>}
         </div></div>
       </footer>
       <Dialog title={preview?preview.name+' · v'+preview.revision:'配置预览'} open={!!preview} onClose={()=>setPreview(null)}>{preview&&<div className="space-y-4"><dl className="config-facts"><dt>模型</dt><dd>{preview.baseModel}</dd><dt>推理档位</dt><dd>{preview.reasoning||'模型默认'}</dd><dt>执行速度</dt><dd>{preview.serviceTier==='fast'?'Fast':preview.serviceTier==='standard'?'标准':'沿用已有设置'}</dd><dt>交互</dt><dd>{preview.interactiveMode}</dd><dt>Skills</dt><dd>{preview.skills.map(id=>state.skills.find(s=>s.id===id)?.name||'不可用').join('、')||'未选择'}</dd></dl><h3>规则正文</h3><pre className="source">{preview.agentsPrompt||'未附加规则'}</pre><h3>原生设置与工具开关</h3><pre className="source">{JSON.stringify({settings:preview.nativeSettings||{},tools:preview.integrations||{}},null,2)}</pre>{preview.customConstraints.filter(c=>c.isActive).map(c=><p key={c.id}>{c.title}：{c.ruleDesc}</p>)}</div>}</Dialog>

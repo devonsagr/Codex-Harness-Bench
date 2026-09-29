@@ -52,8 +52,19 @@ def output_schema(packet):
     result=obj({'summary':text,'findings':{'type':'array','items':obj({'path':text,'line':{'type':'integer'},'quote':text,'comment':text,'severity':text})}})
     if 'policy' in packet:
         from .machine import dimensions
-        result['properties']['ratings']=obj({key:obj({'score':{'type':['number','null']},'method':{'type':'string','enum':['static','runtime','unverified']},'reason':text,'evidence':refs}) for key in dimensions(packet['policy'],packet['task'])})
-        result['properties']['criteria']=obj({c['id']:obj({'status':{'type':'string','enum':['met','partial','unmet','unverified']},'notes':text,'evidence':refs}) for c in packet['task'].get('criteria',[])})
+        from .judge_protocol import VERSION, FACETS
+        criterion=obj({'status':{'type':'string','enum':['met','partial','unmet','unverified']},'notes':text,'evidence':refs})
+        observation={'method':{'type':'string','enum':['static','runtime','unverified']},'reason':text,'evidence':refs}
+        contract=packet.get('scoringContract')
+        if contract:
+            if contract.get('version')!=VERSION:raise ValueError('不支持此裁判输出协议。')
+            check=obj({'level':{'type':['integer','null'],'enum':[0,1,2,3,4,None]},**observation,'counterEvidence':refs})
+            rating=obj({'checks':obj({facet:check for facet in FACETS})})
+            result['properties']['requirementChecks']=obj({key:criterion for key in contract.get('requirements',{})})
+        else:
+            rating=obj({'score':{'type':['number','null']},**observation})
+        result['properties']['ratings']=obj({key:rating for key in dimensions(packet['policy'],packet['task'])})
+        result['properties']['criteria']=obj({c['id']:criterion for c in packet['task'].get('criteria',[])})
         result['required']=list(result['properties'])
     return result
 

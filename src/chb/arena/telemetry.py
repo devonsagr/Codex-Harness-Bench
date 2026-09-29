@@ -27,12 +27,15 @@ def read_trace(raw, workspace, previous_session=None):
     if previous_session and previous_session!=session:raise ValueError('多轮日志的会话编号与此前不同。')
     expected=normalized_path(workspace)
     if any(not isinstance(m.get('cwd'),str) or normalized_path(m['cwd'])!=expected for m in metadata):raise ValueError('日志工作区与本次准备的目录不一致。')
-    totals=[];models=set();efforts=set();errors=[];active=None;seconds=0;observed=False;started=None;ended=None;last_started=None;activity='unknown'
+    totals=[];models=set();efforts=set();tiers=set();errors=[];active=None;seconds=0;observed=False;started=None;ended=None;last_started=None;activity='unknown'
     for row in rows:
         p=row.get('payload') or {}
         if row.get('type')=='turn_context':
             if p.get('model'):models.add(p['model'])
             if p.get('effort'):efforts.add(p['effort'])
+            tier=p.get('service_tier')
+            if tier in {'fast','priority'}:tiers.add('fast')
+            elif tier in {'standard','default'}:tiers.add('standard')
         if row.get('type')!='event_msg':continue
         if p.get('type')=='token_count':
             total=(p.get('info') or {}).get('total_token_usage')
@@ -53,7 +56,7 @@ def read_trace(raw, workspace, previous_session=None):
             seconds+=max(0,(stamp-active).total_seconds());active=None;observed=True;ended=stamp
             activity='interrupted' if p['type']=='turn_aborted' else 'completed'
     last=totals[-1] if totals else None
-    return {'sessionId':session,'source':'codex-native-trace','models':sorted(models),'reasoningLevels':sorted(efforts),
+    return {'sessionId':session,'source':'codex-native-trace','models':sorted(models),'reasoningLevels':sorted(efforts),'serviceTiers':sorted(tiers),
             'inputTokens':last['input_tokens'] if last else None,'outputTokens':last['output_tokens'] if last else None,
             'cacheReadTokens':last['cached_input_tokens'] if last else None,
             'cacheWriteTokens':last.get('cache_write_input_tokens') if last else None,

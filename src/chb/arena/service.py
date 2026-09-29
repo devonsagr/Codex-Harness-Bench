@@ -343,6 +343,8 @@ class Arena:
             for config in configs:
                 if any(self.db.get('skill',sid)['name'].casefold() in existing for sid in config['skills']):
                     raise ValueError('题目起点已有同名技能，请取消重复选择或调整起点后重试。')
+        from .experiments import plan, schedule
+        experiment=plan(data,configs,selected,scoring_policy)
         rid='run-'+uuid.uuid4().hex[:16]
         directory=self.local/'runs'/rid
         directory.mkdir(parents=True)
@@ -355,63 +357,64 @@ class Arena:
         run['projectScorecardVersion']=scoring_policy.get('autoScorecardVersion',AUTO_PROJECT_VERSION) if scoring_policy.get('taskTypeAuto') else PROJECT_POLICY_VERSION
         if len(configs)==2 and (configs[0]['baseModel'],configs[0]['reasoning'])!=(configs[1]['baseModel'],configs[1]['reasoning']):
             run['comparisonWarnings'].append('模型或推理档位不同，不能把差异归因于 Harness。')
-        for task in selected:
-            for config in configs:
-                tid='trial-'+uuid.uuid4().hex[:12]
-                trialdir=directory/tid
-                workspace=trialdir/'workspace'
-                workspace.mkdir(parents=True)
-                baseline_id=task.get('baselineId')
-                if baseline_id:
-                    baseline=self.db.get('baseline',identifier(baseline_id))
-                    source=self.local/'baselines'/baseline_id/'files'
-                    verify_snapshot(source,baseline['manifest'])
-                    for name,body in inventory(source)[0].items():
-                        dest=safe_path(workspace,name);dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(body)
-                original_file=workspace/('AGENTS.override.md' if (workspace/'AGENTS.override.md').exists() else 'AGENTS.md')
-                original=original_file.read_text(encoding='utf-8') if original_file.exists() else ''
-                instructions=original+'\n\n'+config['agentsPrompt']
-                active=[c for c in config.get('customConstraints',[]) if c.get('isActive')]
-                if active:instructions+='\n\n'+ '\n'.join(c['title']+': '+c.get('ruleDesc','') for c in active)
-                if config['interactiveMode']=='step-by-step-confirm':instructions+='\n每个实施阶段结束后先给出结果并等待用户确认，不自动继续下一阶段。\n'
-                if config['interactiveMode']=='one-shot-direct':instructions+='\n根据给定需求完成可交付结果；有必要信息缺口时明确提出，不擅自编造。\n'
-                (workspace/'AGENTS.override.md').write_text(instructions,encoding='utf-8')
-                native_path=safe_path(workspace,'.codex/config.toml')
-                native_bytes=project_settings(config,native_path.read_bytes() if native_path.is_file() else b'')
-                native_path.parent.mkdir(parents=True,exist_ok=True);native_path.write_bytes(native_bytes)
-                skills=[]
-                for sid in config.get('skills',[]):
-                    skill=self.db.get('skill',sid);src=self.local/'skills'/sid/'files'
-                    verify_snapshot(src,skill['manifest'])
-                    snapshot(src,workspace/'.agents/skills'/skill['name']);skills.append(skill)
-                skill_text=invocation(skills,config.get('skillMode','auto'))
-                from .native_verifier import workspace_launcher
-                environment_text=workspace_launcher(self,task,workspace)
-                prompts=[]
-                for index in range(len(task['stages'])):
-                    base=stage_prompt(task,index)
-                    content=base['text']+environment_text+('\n\n'+skill_text if skill_text else '')
-                    prompts.append({'text':content,'sha256':hash_bytes(content.encode()),
-                                    'source':'frozen-trial-v3','stageId':task['stages'][index].get('id')})
-                # A separate repository marks the instruction-discovery boundary.
-                init=shell(['git','init','--quiet','--initial-branch=main',str(workspace)])
-                if init.returncode:raise ValueError('无法创建独立题目 Git 工作区。')
-                if environment_text:
-                    with (workspace/'.git/info/exclude').open('a',encoding='utf-8') as exclude:exclude.write('\n.chb-cache/\n')
-                if task.get('sourceKind')=='deepswe':
-                    # A local baseline commit supports branching/diff without fetching
-                    # future upstream history or shipping the hidden solution.
-                    for command in [['config','core.autocrlf','false'],['add','--all'],
-                        ['-c','user.name=Harness Bench','-c','user.email=bench@localhost','-c','commit.gpgsign=false',
-                         '-c','core.hooksPath='+str(trialdir/'disabled-hooks'),'commit','--quiet','-m','Frozen task starting point']]:
-                        if shell(['git',*command],cwd=workspace,timeout=60).returncode:
-                            raise ValueError('无法保存题目 Git 起点，未创建评测记录。')
-                manifest=snapshot(workspace,trialdir/'baseline')
-                trial={'id':tid,'taskId':task['id'],'configId':config['id'],'state':'prepared','stageIndex':0,
-                       'workspacePath':str(workspace),'baseline':manifest,'captures':[],'reviews':[], 'skills':skills,
-                       'executionPrompts':prompts,'skillMode':config.get('skillMode','auto'),
-                       'preparedAt':now(),'harnessHash':manifest['files']['AGENTS.override.md'],'sessionId':None,'usage':None,'observations':[]}
-                run['trials'].append(trial)
+        if experiment:run['experiment']=experiment
+        for task,config,pair in schedule(selected,configs,experiment):
+            tid='trial-'+uuid.uuid4().hex[:12]
+            trialdir=directory/tid
+            workspace=trialdir/'workspace'
+            workspace.mkdir(parents=True)
+            baseline_id=task.get('baselineId')
+            if baseline_id:
+                baseline=self.db.get('baseline',identifier(baseline_id))
+                source=self.local/'baselines'/baseline_id/'files'
+                verify_snapshot(source,baseline['manifest'])
+                for name,body in inventory(source)[0].items():
+                    dest=safe_path(workspace,name);dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(body)
+            original_file=workspace/('AGENTS.override.md' if (workspace/'AGENTS.override.md').exists() else 'AGENTS.md')
+            original=original_file.read_text(encoding='utf-8') if original_file.exists() else ''
+            instructions=original+'\n\n'+config['agentsPrompt']
+            active=[c for c in config.get('customConstraints',[]) if c.get('isActive')]
+            if active:instructions+='\n\n'+ '\n'.join(c['title']+': '+c.get('ruleDesc','') for c in active)
+            if config['interactiveMode']=='step-by-step-confirm':instructions+='\n每个实施阶段结束后先给出结果并等待用户确认，不自动继续下一阶段。\n'
+            if config['interactiveMode']=='one-shot-direct':instructions+='\n根据给定需求完成可交付结果；有必要信息缺口时明确提出，不擅自编造。\n'
+            (workspace/'AGENTS.override.md').write_text(instructions,encoding='utf-8')
+            native_path=safe_path(workspace,'.codex/config.toml')
+            native_bytes=project_settings(config,native_path.read_bytes() if native_path.is_file() else b'')
+            native_path.parent.mkdir(parents=True,exist_ok=True);native_path.write_bytes(native_bytes)
+            skills=[]
+            for sid in config.get('skills',[]):
+                skill=self.db.get('skill',sid);src=self.local/'skills'/sid/'files'
+                verify_snapshot(src,skill['manifest'])
+                snapshot(src,workspace/'.agents/skills'/skill['name']);skills.append(skill)
+            skill_text=invocation(skills,config.get('skillMode','auto'))
+            from .native_verifier import workspace_launcher
+            environment_text=workspace_launcher(self,task,workspace)
+            prompts=[]
+            for index in range(len(task['stages'])):
+                base=stage_prompt(task,index)
+                content=base['text']+environment_text+('\n\n'+skill_text if skill_text else '')
+                prompts.append({'text':content,'sha256':hash_bytes(content.encode()),
+                                'source':'frozen-trial-v3','stageId':task['stages'][index].get('id')})
+            # A separate repository marks the instruction-discovery boundary.
+            init=shell(['git','init','--quiet','--initial-branch=main',str(workspace)])
+            if init.returncode:raise ValueError('无法创建独立题目 Git 工作区。')
+            if environment_text:
+                with (workspace/'.git/info/exclude').open('a',encoding='utf-8') as exclude:exclude.write('\n.chb-cache/\n')
+            if task.get('sourceKind')=='deepswe':
+                # A local baseline commit supports branching/diff without fetching
+                # future upstream history or shipping the hidden solution.
+                for command in [['config','core.autocrlf','false'],['add','--all'],
+                    ['-c','user.name=Harness Bench','-c','user.email=bench@localhost','-c','commit.gpgsign=false',
+                     '-c','core.hooksPath='+str(trialdir/'disabled-hooks'),'commit','--quiet','-m','Frozen task starting point']]:
+                    if shell(['git',*command],cwd=workspace,timeout=60).returncode:
+                        raise ValueError('无法保存题目 Git 起点，未创建评测记录。')
+            manifest=snapshot(workspace,trialdir/'baseline')
+            trial={'id':tid,'taskId':task['id'],'configId':config['id'],'state':'prepared','stageIndex':0,
+                   'workspacePath':str(workspace),'baseline':manifest,'captures':[],'reviews':[], 'skills':skills,
+                   'executionPrompts':prompts,'skillMode':config.get('skillMode','auto'),
+                   'preparedAt':now(),'harnessHash':manifest['files']['AGENTS.override.md'],'sessionId':None,'usage':None,'observations':[]}
+            if pair:trial.update(pairId=pair['pairId'],repeat=pair['repeat'],experimentArm=pair['arm'])
+            run['trials'].append(trial)
         self.event(run,'独立工作区已创建。尚未启动 Codex 或产生模型用量。')
         return self.present_run(self.db.save('run',run))
 
@@ -450,6 +453,8 @@ class Arena:
             prompt=t['executionPrompts'][t['stageIndex']] if t.get('executionPrompts') else stage_prompt(task,t['stageIndex'])
             t['currentStage']={**task['stages'][t['stageIndex']], 'executionPrompt':prompt['text'],
                                'promptSha256':prompt['sha256'],'promptSource':prompt['source']}
+        from .experiments import report
+        if run.get('experiment'):run['experimentReport']=report(run)
         run['state']='completed' if all(t['state']=='completed' for t in run['trials']) else 'active'
         return run
 
@@ -484,6 +489,9 @@ class Arena:
                         raise ValueError('先前应用的宿主配置已变化；请核对 Codex 当前模型与规则，或用此题新建评测。')
                     if applied:t['codexApplicationId']=applied['id']
                     if not t.get('appliedHostFingerprint'):t['appliedHostFingerprint']=self.host_fingerprint()
+                    if run.get('experiment'):
+                        from .experiments import comparison_host
+                        t['experimentHostContext']=comparison_host(self,run,t)
                 if data.get('draft'):
                     if t['stageIndex']!=0:raise ValueError('后续轮次请继续原对话，不新建任务。')
                     prompt=t['executionPrompts'][0] if t.get('executionPrompts') else stage_prompt(task,0)
@@ -510,6 +518,9 @@ class Arena:
                          'response':text(data.get('response',''),60000,False),'checks':[],
                          'checksConfigured':len(applicable_checks(task,t['stageIndex'])),
                          'harnessUnchanged':harness_files(manifest)==harness_files(t['baseline']),'hostUnchanged':self.host_condition_unchanged(run,t)}
+                if run.get('experiment'):
+                    from .experiments import comparison_host
+                    capture['experimentHostContext']=comparison_host(self,run,t)
                 t['captures'].append(capture);t['state']='captured'
                 t.pop('finalCaptureId',None)
                 self.event(run,'产物已封存，包括新增/删除文件；之后修改工作区不会改写这份证据。',tid)
