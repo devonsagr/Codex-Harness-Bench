@@ -6,6 +6,8 @@
 
 当前U65新增[同模型Harness配对实验](architecture/MEASUREMENT_AND_COMPARISON.md#u65冻结配对实验合同harness-paired-v1)：A/B独立重复、固定预算、程序验收与资源差为主结果。上文数字为历史批次，不代表新对照已执行或视觉裁判已校准。
 
+当前U67补充[人机沟通、过度工程化与开源评测方法](research/harness-interaction-evaluation-20260930.md)：明确对话应如何测，区分已实现的产物/配对流程与尚未上线的对话指标。
+
 ## 阅读顺序
 
 |顺序|文档|审查重点|

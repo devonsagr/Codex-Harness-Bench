@@ -7,13 +7,14 @@ import {BenchmarkMethods} from './BenchmarkMethods';
 export function Guide({state,act,onUse}:{state:State;act:Act;onUse:(id:string)=>void}){
   const [section,setSection]=useState('purpose');
   return <div className="guide-page">
-    <header className="guide-heading"><span className="eyebrow">CODEX HARNESS BENCH</span><h1>真实生产力，是模型与 Harness 的共同交付。</h1><p>规则越写越长，Skills 越装越多。它们究竟在帮你提效，还是让一次简单的改动变得更重？</p></header>
+    <header className="guide-heading"><span className="eyebrow">CODEX HARNESS BENCH</span><h1>让模型更好合作，而不只是更会做题。</h1><p>能听懂你的重点，说清有用的答案，把问题解决。你的规则和 Skills，是否真的让这些事变好了？</p></header>
     <nav className="section-nav" aria-label="方法说明分区">{[['purpose','为什么测 Harness'],['workflow','怎样测、怎样看分'],['sources','题库与公开来源'],['methods','方法与证据']].map(([id,label])=><button key={id} className={section===id?'active':''} aria-current={section===id?'page':undefined} onClick={()=>setSection(id)}>{label}</button>)}</nav>
     {section==='purpose'&&<div className="guide-content">
-      <section className="guide-intro reading-copy"><h2>告别“调配置玄学”，给每条规则一个留下的理由</h2><p>今天给 AGENTS 加一句“先规划”，明天再装一个审查 Skill。配置越来越丰富，却很难说清：代码真的更好了吗？有没有多出几层不需要的抽象？为了同一个结果，又多花了多少时间和 Token？公开榜单可以帮助选模型，但没有替你测试本机的这套组合。</p><p>Codex Harness Bench 的出发点就在这里：固定模型与执行条件，让当前配置和另一套配置做同一组项目，从同一份源码起步。回收实际产物与运行证据，分别看程序验收、开放质量和资源开销，用真实交付回答这次改动值不值得。</p></section>
+      <section className="guide-intro reading-copy"><h2>为什么它很忙，你却越来越累？</h2><p>你问怎么解决，它解释了半天还没答到点。你纠正了方向，它说“好的”，下一轮又走回原路。一个小功能长出多层架构，一次修复多出几个脚本；你要改善页面，它却把开发要求当成文案摆了上去。</p><p>这些才是我们做这个项目的起因：固定同一个模型，看看个人规则与 Skills 能否减少绕弯、无用工程和重复提醒。模型基础能力在同条件下相对固定，配置有没有帮助，要看改了以后发生什么。即使解决不了，也要指出哪里差、差了几次、额外耗费多少。</p><p>所以评测不能只看代码和截图，还要看你与模型怎样交流。有没有听懂、能否接受纠正、该问时问清、不该打断时推进。产物九十多分，不能替你回答“用起来到底省不省心”。</p></section>
       <div className="harness-layers" aria-label="评测对象三层结构"><section><span>01 · 基础条件</span><h2>Codex 桌面底座</h2><p>桌面提供的执行循环、工具、上下文管理与产品行为。记录版本及宿主条件。</p></section><section><span>02 · 模型条件</span><h2>模型与推理档位</h2><p>比较个人配置时尽量保持相同；换模型时，结果解释为组合差异。</p></section><section className="personal-layer"><span>03 · 主要比较变量</span><h2>你的个人配置</h2><p>AGENTS 规则、Skills、交互约定，以及工作台支持的原生设置和工具开关。</p></section></div>
       <section className="guide-two-column"><div><h2>先问一个具体问题，再开始对照</h2><p>例如：“删去重复的审查规则，能否在不降低交付成功率的前提下减少 Token？”把当前配置作为 A，选择同模型、同档位、同速度的 B，或创建精简副本。冻结题集、预算与重复次数，交错准备 A/B、B/A 工作区。</p></div><div><h2>跑分漂亮，不等于项目好用</h2><p>先看预算内交付成功、失败和未知，再看包括失败尝试的资源开销。源码变多不直接等于过度工程化，AI 高分也不自动等于完整交付成功。合理抽象有没有带来收益，要放在同题对照里判断。</p></div></section>
       <Details title="公开 Benchmark 能不能直接拿来测 Harness？"><p>可以借用题目、固定环境和原题验收器，但要组织成同条件的配对实验。SWE-bench、Terminal-Bench 等 Agent 基准本身也包含 Harness，并不是都在测“裸模型”。本项目关注个人配置的变化，因此要记录全部尝试和预算，不能把本地 AI 分数冒充官方成绩。</p></Details>
+      <Details title="人机沟通具体测什么？"><p>每个明确请求算一次观察机会：首次回应有没有解决核心问题？纠正后是否落实，后来有没有复发？追问是必要澄清，还是重复问已经给过的答案？回答是否让指定读者知道结论和下一步？这些都要引用真实回合，不能从交接文档推断。</p><p>过度工程化则看改动是否服务于目标、有没有把一次修复变成多层补丁、验证是否发现并解决了缺陷。代码多不自动判差，测试多不自动加分。内部要求混入产品文案，需要看实际可见页面。</p><p>这是测量设计，尚未接通自动对话评分。现有“协作与交付”轴混合了旧沟通项、阶段推进和交接，不代表上述人机沟通指标已经测过。详细开源方法见“方法与证据”。</p></Details>
       <Details title="哪些条件会影响比较"><p>模型、推理档位、桌面版本、源码和依赖版本、继承的全局规则与工具、人工介入、裁判及评分标准都会影响结果。独立工作区保存起点和产物，但仍可能继承桌面的全局设置。配置成绩按冻结版本分组；同模型同题、相同评分协议下的差异才更适合解释为个人 Harness 改动。</p></Details>
     </div>}
     {section==='methods'&&<BenchmarkMethods/>}
