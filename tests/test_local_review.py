@@ -71,6 +71,23 @@ class LocalReviewTests(unittest.TestCase):
         self.assertEqual(list(schema['properties']['ratings']['properties']),['intent'])
         self.assertEqual(list(schema['properties']['criteria']['properties']),['required'])
 
+    def test_schema_accepts_new_protocol_instead_of_forcing_legacy_score(self):
+        from chb.arena.judge_protocol import contract, FACETS
+        packet={'task':{'inputPrompt':'Build a calculator. Reject zero division.','hasFrontendUI':False,'criteria':[{'id':'sum'}]},
+                'policy':{'dimensions':{'intent':100}}}
+        packet['scoringContract']=contract(packet)
+        schema=output_schema(packet)
+        rating=schema['properties']['ratings']['properties']['intent']
+        self.assertEqual(rating['required'],['checks'])
+        self.assertEqual(set(rating['properties']['checks']['required']),set(FACETS))
+        item=rating['properties']['checks']['properties']['quality']
+        self.assertEqual(item['properties']['level']['enum'],[0,1,2,3,4,None])
+        self.assertIn('counterEvidence',item['required'])
+        self.assertEqual(set(schema['properties']['requirementChecks']['required']),set(packet['scoringContract']['requirements']))
+        self.assertFalse(rating['additionalProperties'])
+        packet['scoringContract']['version']='unsupported'
+        with self.assertRaises(ValueError):output_schema(packet)
+
     def test_quota_failure_has_actionable_message_without_raw_output(self):
         with tempfile.TemporaryDirectory() as temp:
             log=Path(temp)/'events.jsonl'

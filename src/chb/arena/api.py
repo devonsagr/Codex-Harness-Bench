@@ -82,6 +82,9 @@ def post(app,route,data):
         from .repository_source import import_repository
         return import_repository(app,data)
     with app.lock:
+        if parts==['configs','minimal-copy']:
+            from .experiments import minimal_copy
+            return minimal_copy(app,data)
         if parts==['configs','save']:return app.save_config(data)
         if len(parts)==3 and parts[0]=='configs' and parts[2]=='delete':
             config_id=identifier(parts[1])
@@ -154,6 +157,9 @@ def post(app,route,data):
                     if item['configId']==config['id'] and item['state']=='prepared':
                         item['codexApplicationId']=result['id']
                         item['appliedHostFingerprint']=host
+                        if run.get('experiment'):
+                            from .experiments import comparison_host
+                            item['experimentHostContext']=comparison_host(app,run,item)
                 app.event(run,'本批同配置题目已共用一次 Codex 应用；各题仍在独立工作区执行。',tid)
                 app.db.save('run',run,run['revision'])
                 return result
