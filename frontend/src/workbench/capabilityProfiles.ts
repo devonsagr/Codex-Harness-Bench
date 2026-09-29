@@ -12,7 +12,7 @@ const axes=[
   {id:'engineering',label:'工程实现',keys:['verification','robustness','maintainability']},
   {id:'web',label:'网页体验',keys:['ux','visual','originality','responsive','accessibility']},
   {id:'reasoning',label:'推理决策',keys:['reasoning','requirements','long-context']},
-  {id:'collaboration',label:'协作沟通',keys:['communication','milestones','handoff']},
+  {id:'collaboration',label:'协作与交付',keys:['communication','milestones','handoff']},
   {id:'reliability',label:'稳健交付',keys:['verification','robustness','security','performance','handoff']},
 ] as const;
 const round=(value:number)=>Math.round(value*10)/10;
