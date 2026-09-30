@@ -518,6 +518,8 @@ class Arena:
                          'response':text(data.get('response',''),60000,False),'checks':[],
                          'checksConfigured':len(applicable_checks(task,t['stageIndex'])),
                          'harnessUnchanged':harness_files(manifest)==harness_files(t['baseline']),'hostUnchanged':self.host_condition_unchanged(run,t)}
+                from .interaction import collect
+                capture['interactionEvidence']=collect(codex_home(),workspace,t.get('sessionId'),folder,t.get('traceReceipts',[]))
                 if run.get('experiment'):
                     from .experiments import comparison_host
                     capture['experimentHostContext']=comparison_host(self,run,t)

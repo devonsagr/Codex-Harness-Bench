@@ -1,11 +1,12 @@
 import {useState} from 'react';
 import type {Act,Config,Run,State} from './types';
 import {Details,Field} from './ui';
+import type {DialogueReview} from './InteractionReview';
 
 export type ExperimentSettings={hypothesis:string;repeats:number;activeMinutes:number;maxTokens:number|null};
 export type ExperimentPlan=ExperimentSettings & {version:string;sha256:string;configIds:string[];taskIds:string[];changedFields:string[];plannedTrials:number};
 type Evidence={status:string;reason:string;source:string};
-type Attempt={trialId:string;title:string;repeat:number;state:string;outcome:string;overBudget:boolean;budgetKnown:boolean;delivery:Evidence;conditions:string[];tokens:number|null;activeSeconds:number|null;assessment:{requirements:number;met:number;unknown:number;notMet:number;referenceScore:number|null;calibrated:boolean}};
+type Attempt={trialId:string;title:string;repeat:number;state:string;outcome:string;overBudget:boolean;budgetKnown:boolean;delivery:Evidence;conditions:string[];tokens:number|null;activeSeconds:number|null;assessment:{interaction?:Pick<DialogueReview,'counts'|'totalTurns'|'omittedTurns'|'version'>|null;requirements:number;met:number;unknown:number;notMet:number;referenceScore:number|null;calibrated:boolean}};
 type Pair={pairId:string;taskId:string;repeat:number;a:Attempt;b:Attempt;conditions:string[];matched:boolean;successDelta:number|null;tokenDelta:number|null;secondsDelta:number|null};
 type Resource={total:number|null;observedTotal:number;known:number;planned:number;perSuccess:number|null};
 export type ExperimentReport={version:string;status:string;conclusion:string;limitations:string[];plannedPairs:number;matchedPairs:number;verifiedPairs:number;successDelta:number|null;observedSuccessDelta:number|null;medianTaskDelta:number|null;pairs:Pair[];arms:{arm:string;name:string;planned:number;passed:number;failed:number;unknown:number;interrupted:number;overBudget:number;rate:number|null;bounds:[number,number];metrics:{tokens:Resource;activeSeconds:Resource}}[]};
@@ -35,7 +36,7 @@ export function ExperimentSetup({state,act,config,candidateId,onCandidate,settin
 
 function AttemptResult({attempt,onSelect}:{attempt:Attempt;onSelect?:(id:string)=>void}){
   const label=attempt.outcome==='passed'?'预算内验收通过':attempt.overBudget?'超过预算':attempt.outcome==='failed'?'验收失败':'待确认';
-  return <div className="harness-attempt"><strong className={attempt.outcome==='failed'?'text-red-600':''}>{label}</strong><span>{attempt.delivery.reason}</span><small>{count(attempt.tokens)} Token · {minutes(attempt.activeSeconds)}</small>{attempt.assessment.requirements>0&&<small>AI 条款参考：{attempt.assessment.met}/{attempt.assessment.requirements} 成立，{attempt.assessment.unknown} 未验证</small>}{onSelect&&<button type="button" className="btn-ghost" onClick={()=>onSelect(attempt.trialId)}>查看执行与证据</button>}</div>;
+  return <div className="harness-attempt"><strong className={attempt.outcome==='failed'?'text-red-600':''}>{label}</strong><span>{attempt.delivery.reason}</span><small>{count(attempt.tokens)} Token · {minutes(attempt.activeSeconds)}</small>{attempt.assessment.requirements>0&&<small>AI 条款参考：{attempt.assessment.met}/{attempt.assessment.requirements} 成立，{attempt.assessment.unknown} 未验证</small>}{attempt.assessment.interaction&&<small>对话偏离：切题 {attempt.assessment.interaction.counts.request.missed} 次 / 纠正 {attempt.assessment.interaction.counts.correction.missed} 次 / 打断 {attempt.assessment.interaction.counts.interruption.missed} 次；未知与不适用详见证据。这些次数仅描述本次对话，不直接决定 A/B 胜负。</small>}{onSelect&&<button type="button" className="btn-ghost" onClick={()=>onSelect(attempt.trialId)}>查看执行与证据</button>}</div>;
 }
 
 export function HarnessReport({run,onSelect}:{run:Run;onSelect?:(id:string)=>void}){

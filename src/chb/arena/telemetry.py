@@ -18,9 +18,11 @@ def read_trace(raw, workspace, previous_session=None):
         if line.strip():
             item=json.loads(line)
             if not isinstance(item,dict):raise ValueError('每条日志必须是 JSON 对象。')
+            if item.get('payload') is not None and not isinstance(item['payload'],dict):raise ValueError('日志 payload 必须是 JSON 对象。')
             rows.append(item)
-    metadata=[r.get('payload',{}) for r in rows if r.get('type')=='session_meta']
+    metadata=[r.get('payload') or {} for r in rows if r.get('type')=='session_meta']
     if not metadata: raise ValueError('需要含 session_meta 与 cwd 的 Codex 原生日志，不能把其他任务的用量计入本次。')
+    if any(not isinstance(m.get('id'),str) or not m['id'] or len(m['id'])>200 for m in metadata):raise ValueError('日志会话编号无效。')
     sessions={m.get('id') for m in metadata}
     if len(sessions)!=1 or not next(iter(sessions)):raise ValueError('日志混合了不同会话。')
     session=next(iter(sessions))
@@ -69,7 +71,7 @@ def read_trace(raw, workspace, previous_session=None):
             'note':'读取同一原生会话最终累计值，不累加重复累计事件；缓存包含在输入中。原生声明不等于独立证明规则已完全遵循。'}
 
 
-def discover_trace(home, workspace, previous_session=None):
+def discover_trace(home, workspace, previous_session=None, *, include_raw=False):
     """Query only this workspace's index entries; never walk unrelated rollouts."""
     home=Path(home).resolve()
     indexes=sorted(home.glob('state_*.sqlite'),key=lambda p:p.stat().st_mtime,reverse=True)
@@ -94,6 +96,7 @@ def discover_trace(home, workspace, previous_session=None):
         except ValueError:raw=raw.rpartition('\n')[0]
     usage=read_trace(raw,workspace,previous_session)
     if usage['sessionId']!=session:raise ValueError('会话索引和日志身份不一致。')
+    if include_raw:usage={**usage,'raw':raw}
     return usage,'已自动同步本题会话。'
 
 

@@ -128,6 +128,8 @@ def validate(value, packet, commands):
     rows, warnings = {}, result['validationWarnings']
     def observe(key, dim):
         item = result['ratings'][key]
+        if dim == 'communication' and packet.get('interactionEvidence') and {ref.get('speaker') for ref in item['evidence'] if ref.get('turnId')} != {'user','assistant'}:
+            item = {**item, 'score': None, 'method': 'unverified', 'reason': '缺少本题真实对话引用；交付说明不能替代沟通证据。'}
         if item['score'] is not None and dim in runtime and item['method'] != 'runtime':
             item = {**item, 'score': None, 'method': 'unverified', 'reason': '本项需要真实运行证据；静态阅读不足以判断。'}
         return item
@@ -168,4 +170,7 @@ def validate(value, packet, commands):
         scoringProtocol=VERSION, scoringContractSha256=packet['scoringContract']['sha256'],
         requirementChecks=requirement_checks, calibrated=False,
         note='等级与引用由AI判断，程序按统一规则计算；协议一致不等于已完成人工校准。')
+    if packet.get('interactionEvidence'):
+        from .interaction import validate as validate_interaction
+        result['interaction'] = validate_interaction(value.get('interaction'), packet['interactionEvidence'])
     return result

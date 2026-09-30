@@ -103,7 +103,17 @@ def validate_machine(value, packet, commands):
             if not isinstance(item,dict):raise ValueError('评分引用格式无效。')
             quote=item.get('quote')
             if not isinstance(quote,str) or not quote.strip() or len(quote)>3000:raise ValueError('评分引用缺少原文。')
-            if 'path' in item:
+            if 'turnId' in item:
+                from .interaction import verify
+                dialogue=packet.get('interactionEvidence')
+                if not dialogue:raise EvidenceError('缺少冻结对话，不能验证沟通引用。')
+                verify(dialogue)
+                turn=next((t for t in dialogue['turns'] if t['id']==item['turnId']),None)
+                speaker=item.get('speaker')
+                if not turn or turn['incomplete'] or speaker not in {'user','assistant'} or quote not in turn[speaker]:
+                    raise EvidenceError('对话回合、角色或原文不匹配，或该回合不完整。')
+                return {'turnId':turn['id'],'speaker':speaker,'quote':quote}
+            elif 'path' in item:
                 if not isinstance(item['path'],str):raise ValueError('文件引用路径无效。')
                 lines=packet['files'].get(item['path'],'').splitlines();line=item.get('line')
                 ref={'path':item['path'],'line':line,'quote':quote}

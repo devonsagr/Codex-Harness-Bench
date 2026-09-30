@@ -49,6 +49,8 @@ def output_schema(packet):
     refs={'type':'array','items':{'anyOf':[
         obj({'path':text,'line':{'type':'integer'},'quote':text}),
         obj({'command':text,'quote':text}),obj({'checkId':text,'quote':text})]}}
+    if packet.get('interactionEvidence'):
+        refs['items']['anyOf'].append(obj({'turnId':text,'speaker':{'type':'string','enum':['user','assistant']},'quote':text}))
     result=obj({'summary':text,'findings':{'type':'array','items':obj({'path':text,'line':{'type':'integer'},'quote':text,'comment':text,'severity':text})}})
     if 'policy' in packet:
         from .machine import dimensions
@@ -65,6 +67,10 @@ def output_schema(packet):
             rating=obj({'score':{'type':['number','null']},**observation})
         result['properties']['ratings']=obj({key:rating for key in dimensions(packet['policy'],packet['task'])})
         result['properties']['criteria']=obj({c['id']:criterion for c in packet['task'].get('criteria',[])})
+        if packet.get('interactionEvidence'):
+            from .interaction import schema
+            dialogue_refs={'type':'array','items':obj({'speaker':{'type':'string','enum':['user','assistant']},'quote':text})}
+            result['properties']['interaction']=obj({turn['id']:schema(obj,text,dialogue_refs) for turn in packet['interactionEvidence']['turns']})
         result['required']=list(result['properties'])
     return result
 
