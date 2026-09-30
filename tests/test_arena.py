@@ -29,6 +29,27 @@ class ArenaTests(unittest.TestCase):
         return post(self.app,'/api/arena/runs/prepare',{'deliveryMode':'staged','requestId':'qa-1','configIds':['minimal'],'taskIds':[self.task['id']],**patch})
     def mutate(self,r,action,**data):return self.app.mutate(r['id'],r['trials'][0]['id'],action,data)
 
+    def test_capture_freezes_bound_dialogue_and_review_uses_same_snapshot(self):
+        from chb.arena.jobs import review_packet
+        run=self.prepare();trial=run['trials'][0]
+        def raw(answer):
+            return '\n'.join(json.dumps(row) for row in [
+                {'type':'session_meta','payload':{'id':'fixture-session','cwd':trial['workspacePath']}},
+                {'type':'event_msg','payload':{'type':'user_message','message':'Please answer directly.'}},
+                {'type':'event_msg','payload':{'type':'agent_message','message':answer}}])
+        with patch('chb.arena.telemetry.discover_trace',return_value=(None,'fixture-index-unavailable')):
+            run=self.mutate(run,'trace',raw=raw('First answer.'))
+            run=self.mutate(run,'capture')
+            first=copy.deepcopy(run['trials'][0]['captures'][0])
+            run=self.mutate(run,'trace',raw=raw('Changed answer.'))
+            run=self.mutate(run,'capture')
+        packet=review_packet(self.app,run['id'],trial['id'],first,run['tasks'][0])
+        self.assertEqual(packet['interactionEvidence']['turns'][0]['assistant'],'First answer.')
+        latest=run['trials'][0]['captures'][-1]['interactionEvidence']
+        self.assertEqual(latest['turns'][0]['assistant'],'Changed answer.')
+        self.assertNotEqual(first['interactionEvidence']['sha256'],latest['sha256'])
+        self.assertEqual(run['trials'][0]['reviews'],[])
+
     def test_default_delivery_contains_all_requirements_without_stage_gate(self):
         run=self.app.prepare({'requestId':'default-delivery','configIds':['minimal'],'taskIds':[self.task['id']]})
         task=run['tasks'][0];prompt=run['trials'][0]['currentStage']['executionPrompt']

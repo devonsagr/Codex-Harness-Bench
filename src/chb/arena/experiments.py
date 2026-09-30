@@ -176,12 +176,16 @@ def assessment(trial):
     latest = (trial.get('captures') or [{}])[-1]
     reviews = [r for r in trial.get('reviews', []) if r.get('captureId') == latest.get('id') and r.get('kind') == 'ai']
     review = reviews[-1] if reviews else {}
+    dialogue=latest.get('interactionEvidence') or {}
+    interaction=review.get('interaction') or {}
+    observed=interaction if dialogue.get('sha256') and interaction.get('evidenceSha256')==dialogue['sha256'] else None
     requirements = review.get('requirementChecks') or {}
     rows = list(requirements.values())
     return {'requirements': len(rows), 'met': sum(r.get('status') == 'met' for r in rows),
             'notMet': sum(r.get('status') in {'unmet', 'partial'} for r in rows),
             'unknown': sum(r.get('status') not in {'met', 'unmet', 'partial'} for r in rows),
-            'referenceScore': (trial.get('score') or {}).get('overall'), 'calibrated': False}
+            'referenceScore': (trial.get('score') or {}).get('overall'), 'calibrated': False,
+            'interaction': {key:observed.get(key) for key in ('counts','totalTurns','omittedTurns','version')} if observed else None}
 
 
 def report(run):

@@ -15,7 +15,7 @@ from .review_options import timeout_seconds, ReviewBudgetExceeded
 from .judge_reliability import comparison_key
 
 JUDGE_DEFAULT_REASONING=''
-JUDGE_PROMPT_VERSION='arena-judge-2026-09-28-anchored-v5'
+JUDGE_PROMPT_VERSION='arena-judge-2026-09-30-dialogue-v6'
 REVIEWER_CODEX_VERSION='0.158.0-alpha.2.1'
 JUDGE_REASONING_LEVELS={'none','minimal','low','medium','high','xhigh','max','ultra'}
 
@@ -252,6 +252,9 @@ def revalidate_saved_review(app,rid,tid):
                 raise ValueError('当前报告没有待重新校验的引用。')
         task=next(t for t in run['tasks'] if t['id']==trial['taskId'])
         packet=review_packet(app,rid,tid,capture,task)
+        if protocol.get('judgePromptVersion')=='arena-judge-2026-09-30-dialogue-v6':
+            from .interaction import unavailable
+            packet.setdefault('interactionEvidence',unavailable('此旧快照没有冻结对话，不能补猜沟通结果。'))
         from .machine import evidence_key, validate_machine
         from .machine import policy_for_task
         packet.update(policy=policy_for_task(run['policy'],task),evidenceKey=evidence_key(capture))
@@ -493,7 +496,12 @@ def review_packet(app,rid,tid,capture,task):
     # Finishing early does not mean future step prompts were sent to the agent.
     task={**task,'promptSnapshots':task.get('promptSnapshots',[])[:capture['stageIndex']+1]}
     from .behavior import summarize
+    dialogue=capture.get('interactionEvidence')
+    if dialogue:
+        from .interaction import verify
+        verify(dialogue)
     return {'task':task,'evaluationScope':scope,'stageIndex':capture['stageIndex'],'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
+            **({'interactionEvidence':dialogue} if dialogue else {}),
             'behaviorAcceptance':summarize(task,capture,app.root),
             'files':texts,'omittedFiles':omitted,'checks':capture['checks'],'facts':capture['facts']}
 
@@ -520,6 +528,8 @@ def run_judge(app,rid,tid,capture,task,data,control):
     from harbor.models.job.config import JobConfig
     from chb.cli import pin_image, CODEX_VERSION
     packet=review_packet(app,rid,tid,capture,task)
+    from .interaction import unavailable
+    packet.setdefault('interactionEvidence',unavailable('此旧快照没有冻结对话，不能补猜沟通结果。'))
     run,trial=app.trial(rid,tid)
     machine=run['policy']['version']=='arena-machine-v1'
     if machine:
@@ -598,6 +608,9 @@ def run_judge(app,rid,tid,capture,task,data,control):
             '\n冻结材料及本题实际维度在 /app/judge-packet.json。先读取，再逐项对照；不要凭记忆猜题面。')
         from .judge_protocol import INSTRUCTION
         instruction += '\n统一评分格式：' + INSTRUCTION
+        if packet.get('interactionEvidence'):
+            from .interaction import INSTRUCTION as INTERACTION_INSTRUCTION
+            instruction += '\n对话观察格式：' + INTERACTION_INSTRUCTION
     diagnostics=[]
     if local:
         instruction=instruction.replace('/app/candidate','environment/candidate').replace('/tmp/chb-eval','scratch').replace('/logs/artifacts/','artifacts/')

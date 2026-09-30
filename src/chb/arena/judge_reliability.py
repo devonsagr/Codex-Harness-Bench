@@ -10,6 +10,7 @@ def comparison_key(packet):
     from .files import fingerprint
     return fingerprint({'task':packet['task'], 'policy':packet['policy'],
                         'scoringContract':packet.get('scoringContract'),
+                        **({'interactionEvidenceSha256':packet['interactionEvidence']['sha256']} if packet.get('interactionEvidence') else {}),
                         'manifestHash':packet['manifestHash'], 'evaluationScope':packet['evaluationScope'],
                         'checks':[{k:c.get(k) for k in ('id','imageId','argv')} for c in packet.get('checks',[])],
                         'behaviorProtocol':{k:(packet.get('behaviorAcceptance') or {}).get(k) for k in ('version','imageId')}})
