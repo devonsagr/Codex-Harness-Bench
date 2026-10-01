@@ -436,6 +436,8 @@ def run_checks(app,rid,tid,capture,task,control,*,behavior=False):
                 inspect=shell(['docker','inspect',name,'--format','{{.State.ExitCode}}'])
                 code=int(inspect.stdout.strip()) if inspect.returncode==0 else None
                 status='cancelled' if control['stop'].is_set() else 'passed' if code==0 else 'failed' if code is not None else 'error'
+                if code==2 and task.get('sourceKind') in {'evalplus-local','community-adapted'} and not control['stop'].is_set():
+                    status='error'  # Fixed checker budget/environment failure is not a wrong answer.
             except subprocess.TimeoutExpired:
                 shell(['docker','stop','--time','1',name],timeout=8)
                 process.wait(timeout=10);status='timeout'

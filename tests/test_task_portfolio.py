@@ -33,6 +33,10 @@ class TaskPortfolioTests(unittest.TestCase):
             if task_id.startswith('original-creative-'):
                 self.assertIn(task_id.removeprefix('original-creative-'),creative)
                 kinds['visual']+=1
+            elif task_id.startswith('community-'):
+                from chb.arena.community_tasks import catalog
+                self.assertIn(task_id.removeprefix('community-'),{e['id'] for e in catalog(ROOT)})
+                kinds['community']+=1
             elif task_id.startswith('original-open-'):
                 entry=open_work[task_id.removeprefix('original-open-')]
                 self.assertTrue((ROOT/'tasks/open-work-v1/environment'/entry['id']).is_dir())

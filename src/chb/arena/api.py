@@ -60,6 +60,10 @@ def post(app,route,data):
         from .webgen_source import install
         with app.lock:
             return install(app)
+    if parts==['sources','evalplus']:
+        from .evalplus_source import install
+        with app.lock:
+            return install(app)
     if parts==['sources','prepare']:
         from .public_sources import start
         return start(app,data)

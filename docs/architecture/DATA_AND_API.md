@@ -288,3 +288,7 @@ U54 的新增开放题使用**已有** task、baseline、run、trial、capture�
 - run.experiment保存完整冻结计划；trial增加pairId、repeat、experimentArm。实际全局应用增加experimentHostContext，用哈希记录未列入实验变量的宿主设置；回收时再采集比较，不返回私有正文。
 - present_run只读生成experimentReport，包含arms、pairs、条件、资源、原始差与可比较差。旧run不追加伪计划或改历史分。原生日志usage新增serviceTiers，缺失为空数组。
 - ZIP record.json含计划及报告，仍只由本机用户下载；不得上传私有配置、工作区或轨迹。
+
+## U69：题源与派生程序摘要
+
+POST /api/arena/sources/evalplus以固定远程URL和SHA导入，返回added/total(163)/indexed(164)/excluded/commit/sha256，不接收任意网址或宿主命令。已有/归档题跳过，不覆盖。题目fixedSuite属于冻结数据；present_run派生score.programAcceptance，不修改旧评分。run_checks继续保存当前快照的检查stdout/digest/argv，摘要只接受完整匹配的结构化回执，错误/超时为未知。缓存、参考解、测试包和QA不提交Git。

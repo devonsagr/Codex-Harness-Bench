@@ -1,7 +1,15 @@
 {
-  "version": "2026-09-27-v1",
+  "version": "2026-10-01-v2",
   "purpose": "跨题型低预算选题入口；只控制默认展示，不改变题目、评测或历史分数。",
   "taskIds": [
+    "community-rotating-wall",
+    "community-orbit-viewer",
+    "community-fractal-explorer",
+    "community-sort-studio",
+    "community-pathfinder",
+    "community-block-game",
+    "community-snake-game",
+    "community-life-grid",
     "original-invoice-reconcile-v1",
     "original-creative-mini-exhibit-3d-v1",
     "original-open-event-schema-v1",

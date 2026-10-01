@@ -42,11 +42,15 @@ def creative_verifier_needs_refresh(app,task,image):
 
 def prepare_missing_verifier(app, task, image):
     """Build only a trusted bundled verifier after an explicit check request."""
+    from .evalplus_source import prepare as prepare_evalplus, IMAGE as EVALPLUS_IMAGE
+    evalplus=task.get('sourceKind')=='evalplus-local' and image==EVALPLUS_IMAGE
     name=task.get('id','').removeprefix('original-')
     from .behavior import IMAGE, check_definition
     behavior=image==IMAGE and check_definition(task,app.root) is not None
     creative=image=='chb-verifier:'+CREATIVE_WEB and any(task.get('id')=='original-creative-'+entry['id'] for entry in creative_web_catalog(app.root))
-    if not creative and not behavior and (task.get('id')!='original-'+name or name not in BUNDLED or image!='chb-verifier:'+name):return False
+    from .community_tasks import IMAGE as COMMUNITY_IMAGE, catalog as community_catalog
+    community=image==COMMUNITY_IMAGE and task.get('sourceKind')=='community-adapted' and any(task.get('id')=='community-'+entry['id'] for entry in community_catalog(app.root))
+    if not creative and not behavior and not community and not evalplus and (task.get('id')!='original-'+name or name not in BUNDLED or image!='chb-verifier:'+name):return False
     from .service import shell
     engine=shell(['docker','info','--format','{{.OSType}}'],timeout=15)
     if (engine.returncode or engine.stdout.strip()!='linux') and os.name=='nt' and shutil.which('docker'):
@@ -57,11 +61,12 @@ def prepare_missing_verifier(app, task, image):
             if engine.returncode==0 and engine.stdout.strip()=='linux':break
     if engine.returncode or engine.stdout.strip()!='linux':
         raise ValueError('Docker Linux 引擎不可用；本次验收未开始，也不记零分。')
-    if (creative or behavior or name=='web-metrics-v1') and shell(['docker','image','inspect','chb-reviewer:machine-v1'],timeout=20).returncode:
+    if evalplus:return prepare_evalplus(app,task,image)
+    if (creative or behavior or community or name=='web-metrics-v1') and shell(['docker','image','inspect','chb-reviewer:machine-v1'],timeout=20).returncode:
         reviewer=subprocess.run(['docker','build','-t','chb-reviewer:machine-v1',str(app.root/'reviewer')],
                                 capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=900)
         if reviewer.returncode:raise ValueError('浏览器验收基础镜像自动准备失败；本次未记分。'+reviewer.stderr[-800:])
-    folder=app.root/'tasks'/(CREATIVE_WEB if creative or behavior else name)/'tests'
+    folder=app.root/'tasks'/('community-web-v1' if community else CREATIVE_WEB if creative or behavior else name)/'tests'
     result=subprocess.run(['docker','build','-t',image,*(['-f',str(folder/'Dockerfile.behavior')] if behavior else []),str(folder)],
                           capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=900)
     if result.returncode:raise ValueError('内置题验收镜像自动准备失败；本次未记分。'+result.stderr[-800:])
@@ -100,6 +105,8 @@ def import_originals(app):
           'sourceNote':'项目原创完整题目。仅导入 environment/fixture；参考解和独立验收器不交给桌面。容器路径在题面改写为当前工作目录。桌面真实成绩仍需重新执行。'}))
     saved.extend(import_creative_web(app))
     saved.extend(import_open_work(app))
+    from .community_tasks import install as import_community
+    saved.extend(import_community(app))
     return {'imported':saved}
 
 
