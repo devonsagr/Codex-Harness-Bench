@@ -448,6 +448,8 @@ class Arena:
             task=next(x for x in run['tasks'] if x['id']==t['taskId'])
             from .behavior import summarize
             t['score']['behaviorAcceptance']=summarize(task,t['captures'][-1] if t['captures'] else None,self.root)
+            from .fixed_suites import summary as fixed_summary
+            t['score']['programAcceptance']=fixed_summary(task,t)
             if (t['score']['behaviorAcceptance'] or {}).get('status')=='failed':
                 t['score']['assurance']='task-check-fail'
             prompt=t['executionPrompts'][t['stageIndex']] if t.get('executionPrompts') else stage_prompt(task,t['stageIndex'])

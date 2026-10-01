@@ -118,6 +118,11 @@ def delivery(task, trial):
     if not captures:
         return {'status': 'unknown', 'reason': '尚未回收产物', 'source': 'none'}
     capture = captures[-1]
+    from .fixed_suites import summary as fixed_summary
+    program = fixed_summary(task, trial)
+    if program and program['version']=='evalplus-originfmt-v1':
+        return {'status': program['status'] if program['status'] in {'passed','failed'} else 'unknown',
+                'reason': program['scope'], 'source': 'fixed-suite', 'protocol': program['protocol']}
     if len(task.get('stages', [])) > 1 and trial.get('finalCaptureId') != capture['id']:
         return {'status': 'unknown', 'reason': '尚未完成最终阶段验收', 'source': 'none'}
     native = next((v for v in reversed(capture.get('nativeVerifications', []))

@@ -8,7 +8,7 @@ const creativeProfile=new Map<string,string>(creativeCatalog.map(entry=>['origin
 const coreOrder=new Map<string,number>(coreSet.taskIds.map((id,index)=>[id,index]));
 export const isCoreTask=(task:Task)=>coreOrder.has(task.id);
 export const creativeTaskCategory=(task:Task)=>creativeCategory.get(task.id)||null;
-export const creativeTaskDrawGroup=(task:Task)=>creativeProfile.get(task.id)?.includes('svg')?'svg':creativeTaskCategory(task)||(task.sourceKind==='webgen-bench-local'?task.description||'公开网页':taskFamily(task));
+export const creativeTaskDrawGroup=(task:Task)=>creativeProfile.get(task.id)?.includes('svg')?'svg':creativeTaskCategory(task)||(task.sourceKind==='community-adapted'?task.description||'社区实践':task.sourceKind==='webgen-bench-local'?task.description||'公开网页':taskFamily(task));
 const categoryOrder=['矢量插画与空间构图','地标叙事与交互视觉','矢量系统与设计一致性','交互可视化','三维与空间交互','浏览器工具与生产力','可玩游戏与状态系统'];
 export function taskLibraryOrder(a:Task,b:Task):number{
   const coreLeft=coreOrder.get(a.id),coreRight=coreOrder.get(b.id);

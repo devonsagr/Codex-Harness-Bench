@@ -211,7 +211,7 @@ class ArenaTests(unittest.TestCase):
         result=import_originals(self.app)
         creative_count=len(json.loads((ROOT/'tasks/creative-web-v1/catalog.json').read_text(encoding='utf-8')))
         open_count=len(json.loads((ROOT/'tasks/open-work-v1/catalog.json').read_text(encoding='utf-8')))
-        self.assertEqual(len(result['imported']),5+creative_count+open_count)
+        self.assertEqual(len(result['imported']),5+creative_count+open_count+len(json.loads((ROOT/'tasks/community-web-v1/catalog.json').read_text(encoding='utf-8'))))
         self.assertEqual(len(import_originals(self.app)['imported']),0)
         t=self.app.db.get('task','original-search-notes-v1')
         r=self.prepare(taskIds=[t['id']]);workspace=Path(r['trials'][0]['workspacePath'])
@@ -229,7 +229,7 @@ class ArenaTests(unittest.TestCase):
         again=Arena(self.root)
         saved=again.db.get('task',original['id'])
         self.assertTrue(saved['archived']);self.assertEqual(saved['title'],'User edited title')
-        self.assertEqual(len(again.db.list('baseline')),6+len(json.loads((ROOT/'tasks/open-work-v1/catalog.json').read_text(encoding='utf-8'))))
+        self.assertEqual(len(again.db.list('baseline')),6+len(json.loads((ROOT/'tasks/open-work-v1/catalog.json').read_text(encoding='utf-8')))+len(json.loads((ROOT/'tasks/community-web-v1/catalog.json').read_text(encoding='utf-8'))))
 
     def test_creative_web_catalog_uses_one_answer_free_starter(self):
         from chb.arena.builtin_tasks import creative_web_catalog

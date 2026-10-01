@@ -72,3 +72,5 @@ U46 评分方案已由用户在 U47 确认并进入运行代码。五题本地�
 - [评分合同](architecture/EVALUATION.md)：anchored-observations-v1、逐条需求、证据门槛及旧协议兼容。
 - [题库合同](architecture/TASKS_AND_CONTRACTS.md)：WebGen固定101题与647条件，本地缓存而非数据集再分发。
 - 真实完成/未验证见[当前交接](当前交接.md)；工作包状态仍只在[主架构](PROJECT_SPEC.md)第8节维护。
+
+- [U69：社区题源、扩展测试与固定程序分数](research/community-tasks-and-fixed-scoring-20261001.md)

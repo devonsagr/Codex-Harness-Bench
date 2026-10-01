@@ -1,0 +1,199 @@
+[
+  {
+    "id": "rotating-wall",
+    "title": "旋转围栏：重力与移动墙碰撞",
+    "prompt": "做一个旋转七边形中小球弹跳的 Canvas 演示，重力向下，墙壁旋转时碰撞考虑墙速度。规模限制为3个球，无球间碰撞；可调重力和旋转速度。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\nadvance({x,y,vx,vy},dt,g)：先 vy+=g*dt，再更新x/y，返回同结构。reflect([vx,vy],[nx,ny],[wx,wy],e)：单位法向n，返回 v-(1+e)*dot(v-w,n)*n；仅在相对速度指向墙面（dot<0）时反弹，e在0..1。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/KCORES/kcores-llm-arena/tree/8f09c63e78189858377a760d03f69fb744b19aa2/benchmark-ball-bouncing-inside-spinning-heptagon",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8",
+      "case-9",
+      "case-10"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  },
+  {
+    "id": "orbit-viewer",
+    "title": "三维轨道：倾角与观察方向",
+    "prompt": "做一个可拖动观察视角的迷你三维轨道展台，中心星体和三颗行星，轨道半径不同且有倾角，显示名称；暂停时可继续旋转视角。允许CSS 3D或Canvas投影，不需要完整太阳系或真实天文比例。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\norbit(r,angle,inclination)：角度以弧度计，返回 [r*cos(angle),r*sin(angle)*cos(inclination),r*sin(angle)*sin(inclination)]。yaw([x,y,z],angle)：绕y轴旋转，返回 [x*cos(a)+z*sin(a),y,-x*sin(a)+z*cos(a)]。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/KCORES/kcores-llm-arena/tree/8f09c63e78189858377a760d03f69fb744b19aa2/benchmark-solar-system",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8",
+      "case-9",
+      "case-10"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  },
+  {
+    "id": "fractal-explorer",
+    "title": "分形探索：缩放与逃逸计算",
+    "prompt": "做一个可点击定位、缩放、重置的 Mandelbrot 分形浏览器。显示当前位置与迭代上限，增加上限后重新渲染。无需诗词叠字、服务器或超高清渲染。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\nescape(cx,cy,limit)：z从0开始，每次更新z=z*z+c；模平方>4首次出现时返回已执行次数，否则返回limit。pixel(col,row,width,height,{cx,cy,scale})：scale为水平显示宽度，以像素中心映射到复平面，返回[cx+(col+.5-width/2)*scale/width,cy+(row+.5-height/2)*scale/width]。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/KCORES/kcores-llm-arena/tree/8f09c63e78189858377a760d03f69fb744b19aa2/benchmark-mandelbrot-set-meet-libai",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8",
+      "case-9",
+      "case-10",
+      "case-11",
+      "case-12"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  },
+  {
+    "id": "sort-studio",
+    "title": "排序实验室：逐步操作与重复值",
+    "prompt": "做一个排序动画小工具，能输入数字并逐步查看冒泡排序、自动播放、暂停、重置。高亮每次交换，显示比较次数，不得用静态动画冒充输入数据的计算。规模最多20个数字。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\nbubbleTrace(values)：返回包含初始状态和每次实际交换后状态的二维数组；比较相邻值，大于才交换，每轮从左向右，轮末最大项停止参与。空数组返回[[]]。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/TheAlgorithms/JavaScript",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  },
+  {
+    "id": "pathfinder",
+    "title": "寻路沙盘：障碍与无路状态",
+    "prompt": "做一个可点击设置起点、终点和障碍的网格寻路工具。逐步展示搜索和最后路径；必须明确显示无法到达，重置后可重新编辑。固定10×10网格，不要求地图服务。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\ndistance(grid,[sx,sy],[tx,ty])：grid[y][x]中0可走、1障碍；仅上下左右移动，返回最少步数；越界、起终点为障碍或不可到达返回null。起点等于终点且可走返回0。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/TheAlgorithms/JavaScript",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8",
+      "case-9",
+      "case-10"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  },
+  {
+    "id": "block-game",
+    "title": "方块游戏：碰撞与消行",
+    "prompt": "做一个10列、16行的落块小游戏，至少I/O/T三种形状，支持左右移动、旋转、落下、计分、暂停和重开。不要音效、账号和联机功能。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\ncanPlace(board,piece,x,y)：矩阵0为空1为占用，只检查piece中1；任何占用格越界或与board占用相交返回false，否则true。clearLines(board)：删掉全部满行，从顶部补零行，返回{board:新矩阵,lines:消行数}。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/chvin/react-tetris",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8",
+      "case-9",
+      "case-10",
+      "case-11"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  },
+  {
+    "id": "snake-game",
+    "title": "贪吃蛇：吃食与尾部移动",
+    "prompt": "做一个键盘与触控均可玩的贪吃蛇，16×16网格、单个食物、计分、失败提示、暂停和重开。蛇不能穿墙；不需要排行榜或服务器。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\nmove(body,[dx,dy],food,size)：body为从头到尾的[x,y]数组；移动一格，吃食不去尾，否则去尾，返回{body,ate,dead}。碰撞返回原body、ate:false、dead:true。非吃食可走进本步会移走的尾格。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/jakesgordon/javascript-snakes",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  },
+  {
+    "id": "life-grid",
+    "title": "生命游戏：稳定形态与边界",
+    "prompt": "做一个生命游戏网格，点击编辑细胞，支持单步、运行、暂停、清空和重置，提供稳定方块和振荡器预设。固定20×20网格，边界外视为死细胞，不环绕。\n\n实现一个离线单页 index.html，视觉与布局自行设计。提供开始/暂停/重置及速度或参数控制；键盘操作与手机布局可用。不要把实现约束写成页面文案。\n\n功能核心单独放在 model.js，使用 globalThis.CHBCore 导出以下纯函数，页面必须实际使用这些函数，不使用外部服务、构建工具或物理/游戏引擎。数组输入不得原地修改。数值误差允许 1e-7。这个接口只为了固定功能验收，不规定页面风格。\nnext(grid)：二维0/1矩阵；活细胞邻居数2或3存活，死细胞邻居数3出生，其他死亡；八邻域，边界不环绕。返回新矩阵。\n\n操作状态：开始（也可名为运行/自动播放）、暂停、重置为可访问的按钮。使用一个 role=\"status\" 状态区域依次明确显示“运行中”“已暂停”“待开始”，让使用者知道当前状态。状态切换必须控制真实演示，不得只改标签。",
+    "referenceUrl": "https://github.com/TheAlgorithms/JavaScript",
+    "tags": [
+      "frontend",
+      "browser",
+      "reasoning"
+    ],
+    "difficulty": "Medium",
+    "caseIds": [
+      "case-1",
+      "case-2",
+      "case-3",
+      "case-4",
+      "case-5",
+      "case-6",
+      "case-7",
+      "case-8"
+    ],
+    "testSha256": "b93a78375e6afff25993d2de3cd6d05ec0aa7178f66e71d47259390ed523ffb3"
+  }
+]
