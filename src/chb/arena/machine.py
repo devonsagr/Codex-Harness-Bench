@@ -270,6 +270,8 @@ def calculate_machine(run,trial):
                          provisional=card['overall'] is None or trial['state']!='completed',
                          adjudicatedOverall=card['overall'] if overrides and card['overall'] is not None else None)
         else:score['scoreSource']='project-rubric'
+    from .task_scorecards import score_progress
+    score['scoreProgress']=score_progress(score.get('taskScorecard'))
     from .judge_reliability import summarize
     score['judgeReliability']=summarize(trial,score)
     return score

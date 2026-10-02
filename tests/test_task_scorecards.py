@@ -1,9 +1,68 @@
 import unittest
-from chb.arena.task_scorecards import CARDS, PROJECT_POLICY_VERSION, AUTO_PROJECT_VERSION, score_public, score_project, score_project_policy, score_project_auto
+from chb.arena.task_scorecards import CARDS, PROJECT_POLICY_VERSION, AUTO_PROJECT_VERSION, score_public, score_project, score_project_policy, score_project_auto, score_progress
 from chb.arena.scoring import AUTO_MACHINE_POLICY, AUTO_PROJECT_GROUPS, auto_dimensions, policy
 
 
 class PublicScorecardTests(unittest.TestCase):
+    def test_failed_public_result_has_known_contribution_without_ai_quality(self):
+        task={'publicSource':{'id':'anko-default-function-arguments'}}
+        native={'id':'n','reward':0,'f2p_total':2,'f2p_passed':1,'p2p_total':100,'p2p_passed':100,
+                'f2pCases':[{'name':'[f2p] TestLoadDefaultArguments','status':'passed'},
+                            {'name':'[f2p] TestDefaultArgumentsVisible','status':'failed'}]}
+        card=score_public(task,native,None,None);progress=score_progress(card)
+        self.assertIsNone(card['overall']);self.assertEqual(native['reward'],0)
+        self.assertEqual((progress['knownPoints'],progress['minimum'],progress['maximum'],progress['coverage']),(55,55,65,90))
+        self.assertEqual([row['label'] for row in progress['rows'] if row['points'] is None],['工程可维护性'])
+
+    def test_partial_auto_group_keeps_known_dimensions_and_fixed_denominator(self):
+        task={'taskFamily':'web-interface','hasFrontendUI':True,'checks':[]}
+        trial={'captures':[{'checks':[]}]}
+        scores={key:75 for key in auto_dimensions(task)};scores['robustness']=None
+        card=score_project_auto(task,trial,scores,'review');progress=score_progress(card)
+        self.assertIsNone(card['overall']);self.assertIsNone(card['items'][1]['points'])
+        self.assertEqual((progress['minimum'],progress['maximum'],progress['coverage']),(71.25,76.25,95))
+        self.assertEqual(progress['rows'][0]['points'],33.75)
+        scores['robustness']=75;scores['instruction']=None
+        progress=score_progress(score_project_auto(task,trial,scores,'review'))
+        self.assertEqual((progress['minimum'],progress['maximum'],progress['coverage']),(67.5,77.5,90))
+
+    def test_failed_checks_are_known_zero_but_missing_checks_are_unknown(self):
+        task={'taskFamily':'swe-feature','hasFrontendUI':False,'checks':[{'id':'check'}]}
+        scores={key:100 for key in auto_dimensions(task)}
+        card=score_project_auto(task,{'captures':[{'checks':[]}]},scores,'review')
+        progress=score_progress(card)
+        self.assertEqual((progress['minimum'],progress['maximum'],progress['coverage']),(90,100,90))
+        failed=score_project_auto(task,{'captures':[{'checks':[{'status':'failed'}]}]},scores,'review')
+        self.assertEqual(failed['overall'],90)
+        progress=score_progress(failed)
+        self.assertEqual((progress['minimum'],progress['maximum'],progress['coverage']),(90,90,100))
+
+    def test_all_zero_observations_are_complete_and_no_card_is_unknown(self):
+        task={'taskFamily':'swe-feature','hasFrontendUI':False,'checks':[]}
+        card=score_project_auto(task,{'captures':[{'checks':[]}]},{key:0 for key in auto_dimensions(task)},'review')
+        self.assertEqual(card['overall'],0)
+        progress=score_progress(card)
+        self.assertEqual((progress['minimum'],progress['maximum'],progress['unknownWeight'],progress['coverage']),(0,0,0,100))
+        self.assertIsNone(score_progress(None))
+
+    def test_custom_progress_uses_frozen_normalized_weights_without_filling_gaps(self):
+        task={'hasFrontendUI':False,'checks':[]}
+        policy={'dimensions':{'intent':2,'robustness':1},'rubrics':{'intent':{'label':'目标'},'robustness':{'label':'边界'}}}
+        card=score_project_policy(task,{'captures':[{'checks':[]}]},{'intent':60,'robustness':None},'r',policy)
+        progress=score_progress(card)
+        self.assertIsNone(card['overall'])
+        self.assertEqual(progress['knownPoints'],40)
+        self.assertEqual(progress['unknownWeight'],33.33)
+        self.assertEqual(progress['maximum'],73.33)
+
+    def test_old_card_range_respects_its_group_rounding_and_one_decimal_total(self):
+        scores={'intent':83.33,'instruction':None,'verification':75,'robustness':66.67,
+                'maintainability':91.67,'handoff':58.33}
+        task={'hasFrontendUI':False,'checks':[]};trial={'captures':[{'checks':[]}]}
+        progress=score_progress(score_project(task,trial,scores,'r'))
+        self.assertEqual(progress['minimum'],score_project(task,trial,{**scores,'instruction':0},'r')['overall'])
+        self.assertEqual(progress['maximum'],score_project(task,trial,{**scores,'instruction':100},'r')['overall'])
+
     def test_anko_failure_keeps_core_failure_visible(self):
         task = {'publicSource': {'id': 'anko-default-function-arguments'}}
         native = {'id': 'native-1', 'reward': 0, 'f2p_total': 2, 'f2p_passed': 1, 'p2p_total': 119, 'p2p_passed': 119,

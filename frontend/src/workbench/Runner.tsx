@@ -3,7 +3,7 @@ import {ScoreSummary} from './ScoreSummary';
 import {HarnessReport} from './HarnessExperiment';
 import {NativeVerification} from './NativeVerification';
 import {HumanInspection} from './HumanInspection';
-import {EvaluationTrack} from './EvaluationTrack';
+import {EvaluationTrack,hasProgramVerifier} from './EvaluationTrack';
 import {UsageChart} from './AssessmentCharts';
 import {MachineScore} from './MachineScore';
 import {EvaluationMetrics} from './Scoring';
@@ -41,14 +41,16 @@ export function RunDetail({run,state,act,onBack,onResults,onError,archived}:{run
 }
 function TrialView({run,trial:t,task,config,state,act,onResults,onError,archived}:{run:Run;trial:Trial;task:Task;config:Config;state:State;act:Act;onResults:()=>void;onError:(s:string)=>void;archived:boolean}){
   const [scoreSection,setScoreSection]=useState('overview');
+  const [reviewRequest,setReviewRequest]=useState(0);
   const [confirmed,setConfirmed]=useState(false);const [response,setResponse]=useState('');const [reason,setReason]=useState('');const [model,setModel]=useState(config.baseModel);const [copied,setCopied]=useState('');
   const latest=t.captures[t.captures.length-1];const busy=['checking','judging'].includes(t.state);
+  const checksLabel=hasProgramVerifier(task,t)?'程序验收':'验收方式';
   const staged=task.deliveryMode!=='single-delivery'&&task.stages.length>1;
   const intermediate=staged&&t.stageIndex+1<task.stages.length&&!t.finalCaptureId;
   const [tab,setTab]=useState(intermediate||['prepared','working','waiting_confirmation'].includes(t.state)?'execute':latest?'score':'execute');const [preview,setPreview]=useState<'config'|'task'|null>(null);const tabId=useId();
   const tabs=[['execute','执行'],['score','评分'],['records','产物与记录']];
   const selectTab=(key:string)=>{setTab(key);requestAnimationFrame(()=>document.getElementById(tabId+key+'-panel')?.scrollIntoView({block:'start',behavior:'auto'}));};
-  const selectScoreSection=(section:string)=>{setScoreSection(section);requestAnimationFrame(()=>document.getElementById(tabId+'score-panel')?.scrollIntoView({block:'start',behavior:'auto'}));};
+  const selectScoreSection=(section:string)=>{if(section==='review')setReviewRequest(value=>value+1);setScoreSection(section==='review'?'quality':section);requestAnimationFrame(()=>document.getElementById(tabId+'score-panel')?.scrollIntoView({block:'start',behavior:'auto'}));};
   const action=(name:string,data:unknown={})=>act(`/runs/${run.id}/trials/${t.id}/${name}`,data).catch(()=>{});
   const prompt=t.currentStage.executionPrompt;
   const targetSpeed=config.serviceTier==='fast'?'Fast':config.serviceTier==='standard'?'标准速度':'沿用宿主速度（未固定）';
@@ -77,13 +79,13 @@ function TrialView({run,trial:t,task,config,state,act,onResults,onError,archived
       </Panel>
     </section>
     <section role="tabpanel" id={tabId+'score-panel'} aria-labelledby={tabId+'score'} hidden={tab!=='score'} className="run-tab-panel space-y-5">
-      <nav id={tabId+'score-navigation'} className="assessment-navigation" aria-label="评分内容分区">{[['overview','结果总览'],['checks','程序验收'],['quality','AI 评分'],['dialogue','对话观察'],['human','人工复核']].map(([id,label])=><button type="button" key={id} aria-pressed={scoreSection===id} className={scoreSection===id?'selected':''} onClick={()=>selectScoreSection(id)}>{label}{id==='quality'&&t.state==='judging'&&<span className="badge">进行中</span>}</button>)}</nav>
+      <nav id={tabId+'score-navigation'} className="assessment-navigation" aria-label="评分内容分区">{[['overview','结果总览'],['checks',checksLabel],['quality','AI 评分'],['dialogue','对话观察'],['human','人工复核']].map(([id,label])=><button type="button" key={id} aria-pressed={scoreSection===id} className={scoreSection===id?'selected':''} onClick={()=>selectScoreSection(id)}>{label}{id==='quality'&&t.state==='judging'&&<span className="badge">进行中</span>}</button>)}</nav>
       <div className="assessment-section" hidden={scoreSection!=='overview'}><ScoreSummary run={run} trial={t} task={task} onResults={onResults} onSection={selectScoreSection}/></div>
       <div className="assessment-section space-y-5" hidden={scoreSection!=='checks'}><EvaluationTrack task={task} trial={t} runId={run.id} disabled={archived} action={action}/>{latest&&<NativeVerification task={task} trial={t} route={`/runs/${run.id}/trials/${t.id}`} disabled={archived} action={action}/>}</div>
       <div className="assessment-section" hidden={scoreSection!=='human'}>{latest?<HumanInspection key={t.id+'-'+latest.id} run={run} trial={t} disabled={archived} act={act}/>:<Empty>回收产物后可以人工复核。</Empty>}</div>
       <div className="assessment-section panel p-5" hidden={scoreSection!=='dialogue'}><InteractionReview evidence={latest?.interactionEvidence} report={t.reviews.filter(review=>review.captureId===latest?.id&&review.kind==='ai').slice(-1)[0]?.interaction}/></div>
       <div className="assessment-section" hidden={scoreSection!=='quality'}>
-      {latest?<>{run.policy.version==='arena-machine-v1'?<MachineScore key={latest.id} run={run} trial={t} state={state} act={(name,data)=>act(`/runs/${run.id}/trials/${t.id}/${name}`,data)} disabled={archived}/>:<><Panel title={`验收与评分 · 最近回收为第 ${latest.stageIndex+1} 轮`}><p className="score-notice">此记录保留创建时的旧评分算法。新建评测已默认使用机器评分与人工修正。</p><div className="metric-grid"><Metric label="客观检查" value={num(t.score.objective)}/><Metric label="人工复审" value={num(t.score.human)}/><Metric label="综合分" value={num(t.score.overall)}/></div><p className="muted">评分策略：{run.policy.objectiveWeight===0?'纯人工':run.policy.humanWeight===0?'仅客观检查':'客观检查 + 人工复审'}（客观 {run.policy.objectiveWeight}% / 人工 {run.policy.humanWeight}%）。</p><p className="muted">综合分需完成交付并补齐策略要求的证据。各分项有各自依据，个人约束另列；空值不是零分。</p>
+      {latest?<>{run.policy.version==='arena-machine-v1'?<MachineScore key={latest.id} run={run} trial={t} state={state} reviewRequest={reviewRequest} onChecks={()=>selectScoreSection('checks')} act={(name,data)=>act(`/runs/${run.id}/trials/${t.id}/${name}`,data)} disabled={archived}/>:<><Panel title={`验收与评分 · 最近回收为第 ${latest.stageIndex+1} 轮`}><p className="score-notice">此记录保留创建时的旧评分算法。新建评测已默认使用机器评分与人工修正。</p><div className="metric-grid"><Metric label="客观检查" value={num(t.score.objective)}/><Metric label="人工复审" value={num(t.score.human)}/><Metric label="综合分" value={num(t.score.overall)}/></div><p className="muted">评分策略：{run.policy.objectiveWeight===0?'纯人工':run.policy.humanWeight===0?'仅客观检查':'客观检查 + 人工复审'}（客观 {run.policy.objectiveWeight}% / 人工 {run.policy.humanWeight}%）。</p><p className="muted">综合分需完成交付并补齐策略要求的证据。各分项有各自依据，个人约束另列；空值不是零分。</p>
     {(!latest.harnessUnchanged||!latest.hostUnchanged)&&<p className="alert-error">规则文件或宿主配置指纹发生变化，需核对；本结果不能视作条件保持一致。</p>}
     {t.lastJobError&&t.lastJobError.kind!=='native'&&<p role="alert" className="alert-error">{t.lastJobError.message}</p>}
     <div className="flex gap-3 flex-wrap"><button className="btn-secondary" disabled={archived||busy||!latest.checksConfigured} onClick={()=>void action('check',{captureId:latest.id})}>检查此快照 ({latest.checksConfigured})</button>{busy&&t.nativeExecution?.status!=='running'&&<button className="btn-secondary" disabled={archived} onClick={()=>void action('stop')}>停止后台检查 / 审查</button>}</div>

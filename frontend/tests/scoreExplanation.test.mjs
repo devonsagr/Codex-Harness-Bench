@@ -7,7 +7,7 @@ const transpile=path=>ts.transpileModule(readFileSync(new URL(path,import.meta.u
 const url=source=>'data:text/javascript;base64,'+Buffer.from(source).toString('base64');
 const capability=url(transpile('../src/workbench/capabilityProfiles.ts'));
 const source=transpile('../src/workbench/scoreExplanation.ts').replace("'./capabilityProfiles'",JSON.stringify(capability));
-const {currentNativeResult,currentTrialAxes,batchScoreSummary,totalScoreExplanation,programScoreExplanation}=await import(url(source));
+const {currentNativeResult,currentTrialAxes,batchScoreSummary,totalScoreExplanation,programScoreExplanation,nativeTestProgress,missingScoreEvidence}=await import(url(source));
 
 const task=(extra={})=>({id:'task-a',revision:1,title:'A',stages:[{title:'delivery'}],checks:[],...extra});
 const trial=(extra={})=>({id:'t1',taskId:'task-a',state:'captured',captures:[{id:'c1',manifest:{sha256:'new'},nativeVerifications:[]}],reviews:[],score:{overall:null,machine:null},...extra});
@@ -112,4 +112,46 @@ test('historical public task keeps its script/human formula instead of pretendin
   item.score.overall=null;item.score.human=null;
   assert.deepEqual(totalScoreExplanation(r,item,publicTask).missing,['人工分']);
   assert.match(totalScoreExplanation(r,item,publicTask).status,/历史策略待补证据：人工分/);
+});
+
+test('failed native task exposes progress without an AI score or local card',()=>{
+  const item=trial({score:{overall:null,nativeVerificationId:'n'}});
+  item.captures[0].nativeVerifications=[{id:'n',captureHash:'new',reward:0,f2p_passed:1,f2p_total:4,p2p_passed:99,p2p_total:100}];
+  assert.deepEqual([nativeTestProgress(item).target,nativeTestProgress(item).regression,nativeTestProgress(item).result.reward],[25,99,0]);
+  item.captures[0].nativeVerifications[0].captureHash='old';
+  assert.equal(nativeTestProgress(item),null);
+});
+
+test('native completion never rewards invalid or absent denominators',()=>{
+  const item=trial({score:{nativeVerificationId:'n'}});
+  item.captures[0].nativeVerifications=[{id:'n',captureHash:'new',reward:0,f2p_passed:2,f2p_total:1,p2p_passed:0,p2p_total:0}];
+  assert.equal(nativeTestProgress(item).target,null);
+  assert.equal(nativeTestProgress(item).regression,null);
+});
+
+test('missing observation names the actual counterevidence and its unchanged weight',()=>{
+  const item=trial({score:{machineReviewId:'r',scoreProgress:{rows:[{key:'instruction',label:'规则',weight:10,points:null}]},machineRatings:{instruction:{score:null,checks:{coverage:{score:null,reason:'最高等级缺少有效反例证据'}}}}}});
+  const [missing]=missingScoreEvidence(item,task());
+  assert.equal(missing.section,'quality');assert.equal(missing.weight,10);
+  assert.match(missing.reason,/反例证据/);
+});
+
+test('configured checks route missing verification to program rather than model',()=>{
+  const item=trial({score:{scoreProgress:{rows:[{key:'verification',label:'验证',weight:5,points:null}]}}});
+  Object.assign(item.captures[0],{checksConfigured:2,checks:[]});
+  const [missing]=missingScoreEvidence(item,task({checks:[{id:'one'},{id:'two'}]}));
+  assert.equal(missing.section,'checks');assert.match(missing.reason,/无需调用AI/);
+});
+
+test('old capture report is not advertised as the current project having no work',()=>{
+  const item=trial({reviews:[{id:'old',kind:'ai',captureId:'old'}],score:{scoreProgress:{rows:[{key:'intent',label:'需求',weight:45,points:null}]}}});
+  assert.match(missingScoreEvidence(item,task())[0].reason,/旧评分属于此前产物/);
+  assert.equal(programScoreExplanation(item,task()).value,'未配置');
+});
+
+test('saved report invalidated by updated evidence is distinguished from absent work',()=>{
+  const item=trial({reviews:[{id:'old',kind:'ai',captureId:'c1',scoreSchema:'arena-machine-v1',evidenceKey:'old-checks'}],score:{machineEvidenceKey:'current-checks',scoreProgress:{rows:[{key:'intent',label:'需求',weight:45,points:null}]}}});
+  assert.match(missingScoreEvidence(item,task())[0].reason,/已有报告对应此前验收记录.*证据已变化/);
+  item.reviews[0].scoreSchema=undefined;
+  assert.match(missingScoreEvidence(item,task())[0].reason,/辅助意见/);
 });
