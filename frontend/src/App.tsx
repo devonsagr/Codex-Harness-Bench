@@ -16,6 +16,7 @@ export function App(){
   const [prepareSeed,setPrepareSeed]=useState<Run|null>(null);
   const [selectedTaskId,setSelectedTaskId]=useState<string|null>(null);
   const [selectedConfigId,setSelectedConfigId]=useState<string|null>(null);
+  const [selectedResultKey,setSelectedResultKey]=useState<string|null>(null);
   const [error,setError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState(false);
   const [connectionError,setConnectionError]=useState('');
   const refresh=useCallback(async()=>{try{const s=await request<State>('/state');setState(s);setConnectionError('');}catch(e){setConnectionError((e as Error).message);throw e;}},[]);
@@ -34,7 +35,7 @@ export function App(){
   const act:Act=async<T,>(path:string,data?:unknown,options?:{localError?:boolean;silentSuccess?:boolean})=>{setBusy(true);setError('');setNotice('');try{const {result,refreshed}=await submitAndRefresh<T>(path,data??{},refresh);if(!options?.silentSuccess)setNotice(!refreshed?'操作已成功提交，但记录刷新失败。请恢复连接后刷新记录，无需重复提交。':path.endsWith('/open')?'已请求打开 Codex，请在桌面核对目录与提示词。':'已保存。');return result;}catch(e){try{await refresh();}catch{}if(!options?.localError)setError((e as Error).message);throw e;}finally{setBusy(false);}};
   const go=(id:string)=>{setPrepareSeed(null);setRunId(id);setTab('workbench');};
   const backToPrepare=(source?:Run)=>{setPrepareSeed(source||null);setRunId(null);setTab('workbench');};
-  const navigate=(next:ArenaTab)=>{if(next==='workbench')backToPrepare();setTab(next);if(next==='history'||next==='leaderboard')void refresh().catch(()=>{});};
+  const navigate=(next:ArenaTab,resultKey:string|null=null)=>{if(next==='leaderboard')setSelectedResultKey(resultKey);if(next==='workbench')backToPrepare();setTab(next);if(next==='history'||next==='leaderboard')void refresh().catch(()=>{});};
   const run=state?.runs.find(r=>r.id===runId)||state?.archivedRuns.find(r=>r.id===runId);
   return <div className="app-shell"><a className="skip-link" href="#workspace-content">跳到主要内容</a><ArenaHeader activeTab={tab} onTabChange={navigate}/>
     <main id="workspace-content" className="arena-main" tabIndex={-1}>
@@ -44,11 +45,11 @@ export function App(){
       {error&&<div role="alert" className="alert-error">{error}<button className="ml-4 underline" onClick={()=>setError('')}>关闭</button></div>}
       {notice&&!error&&<p role="status" className="text-xs text-slate-500">{notice}</p>}
       {!state?<div className="panel p-8">{connectionError?'暂时无法连接本地后端，请确认启动命令和端口。':'正在读取本地配置与评测记录…'}</div>:<fieldset disabled={busy} className={"page-content page-"+tab}>
-        {tab==='workbench'&&(run?<RunDetail key={run.id} run={run} state={state} act={act} onBack={()=>backToPrepare(run)} onError={setError} archived={state.archivedRuns.some(r=>r.id===run.id)}/>:<Prepare key={prepareSeed?.id||'new'} state={state} act={act} onCreated={go} onEditConfig={id=>{setSelectedConfigId(id);setTab('configs');}} selectedTaskId={selectedTaskId} selectedConfigId={selectedConfigId} initialRun={prepareSeed}/>)}
+        {tab==='workbench'&&(run?<RunDetail key={run.id} run={run} state={state} act={act} onBack={()=>backToPrepare(run)} onResults={key=>navigate('leaderboard',key)} onError={setError} archived={state.archivedRuns.some(r=>r.id===run.id)}/>:<Prepare key={prepareSeed?.id||'new'} state={state} act={act} onCreated={go} onEditConfig={id=>{setSelectedConfigId(id);setTab('configs');}} selectedTaskId={selectedTaskId} selectedConfigId={selectedConfigId} initialRun={prepareSeed}/>)}
         {tab==='configs'&&<ConfigManager state={state} act={act} initialConfigId={selectedConfigId} onUse={id=>{setSelectedConfigId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='tasks'&&<TaskManager state={state} act={act} onUse={id=>{setSelectedTaskId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='history'&&<History state={state} act={act} onOpen={go} onError={setError}/>}
-        {tab==='leaderboard'&&<Comparison state={state} onOpen={go}/>}
+        {tab==='leaderboard'&&<Comparison key={selectedResultKey||'browse'} state={state} onOpen={go} initialKey={selectedResultKey}/>}
         {tab==='spec'&&<Guide state={state} act={act} onUse={id=>{setSelectedTaskId(id);setRunId(null);setTab('workbench');}}/>}
         {tab==='storage'&&<Storage act={act} onOpen={go}/>}
 

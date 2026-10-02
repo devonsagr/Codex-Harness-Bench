@@ -228,6 +228,38 @@ class MachineScoringTests(unittest.TestCase):
         self.assertEqual(report['reportNormalization'],'single-extra-closing-brace-v1')
         self.assertIsNone(result['trials'][0].get('lastJobError'))
 
+    def test_feedback_revalidation_preserves_prior_evidence_and_combined_usage(self):
+        from chb.arena.jobs import revalidate_saved_review
+        base=self.app.local/'runs'/self.rid/self.tid/'reviews'
+        for name,tokens in [('job-first',10),('job-feedback',7)]:
+            folder=base/name;folder.mkdir(parents=True)
+            (folder/'answer.json').write_text(json.dumps(self.value),encoding='utf-8')
+            events=[{'type':'turn.completed','usage':{'input_tokens':tokens,'output_tokens':1}}]
+            if name=='job-first':events.insert(0,{'type':'item.completed','item':{'id':'cmd1',
+                'type':'command_execution','command':'python3 main.py','aggregated_output':'hello\n','exit_code':0}})
+            (folder/'events.jsonl').write_text('\n'.join(map(json.dumps,events)),encoding='utf-8')
+            (folder/'protocol.json').write_text(json.dumps({'captureId':self.capture['id'],
+                'previousReviewJobId':'job-first' if name=='job-feedback' else None}),encoding='utf-8')
+        (base/'job-feedback/validation-error.json').write_text(json.dumps({'captureId':self.capture['id']}),encoding='utf-8')
+        run=self.app.db.get('run',self.rid);trial=run['trials'][0]
+        trial['judgeExecution']={'status':'failed','environment':'local','jobId':'job-feedback',
+            'captureId':self.capture['id'],'model':'fixture','reasoning':'low',
+            'automaticRepair':{'status':'partial','attempts':[{'jobId':'job-first'},{'jobId':'job-feedback'}]}}
+        trial['lastJobError']={'kind':'judge','message':'评分报告未通过校验：引用无效。'}
+        self.app.db.save('run',run,run['revision'])
+        with patch('chb.arena.local_review.execute_local',side_effect=AssertionError('must not call model')):
+            result=revalidate_saved_review(self.app,self.rid,self.tid)
+        report=result['trials'][0]['reviews'][-1]
+        self.assertEqual(report['ratings']['intent']['score'],80)
+        self.assertEqual(report['ratings']['intent']['evidence'][0]['commandId'],'prior:cmd1')
+        self.assertEqual(report['judgeUsage']['inputTokens'],17)
+        self.assertEqual(result['trials'][0]['judgeExecution']['status'],'partial')
+        (base/'job-first/protocol.json').write_text(json.dumps({'captureId':'another-capture'}),encoding='utf-8')
+        run=self.app.db.get('run',self.rid);run['trials'][0]['judgeExecution']['status']='failed'
+        run['trials'][0]['lastJobError']={'kind':'judge','message':'评分报告未通过校验：引用无效。'}
+        self.app.db.save('run',run,run['revision'])
+        with self.assertRaisesRegex(ValueError,'冻结版本不一致'):revalidate_saved_review(self.app,self.rid,self.tid)
+
     def test_only_owned_raster_review_artifacts_can_be_previewed(self):
         from chb.arena.api import post
         from chb.arena.jobs import require_visual_artifacts
@@ -512,6 +544,57 @@ class MachineScoringTests(unittest.TestCase):
         self.assertEqual(len(report['judgePromptSha256']),64)
         self.assertEqual(len(report['judgePacketSha256']),64)
         self.assertEqual(json.loads((Path(report['jobPath'])/'protocol.json').read_text(encoding='utf-8'))['instructionSha256'],report['judgePromptSha256'])
+
+    def test_feedback_material_and_prior_commands_cross_both_transports(self):
+        from chb.arena.jobs import run_judge
+        for environment in ('local','docker'):
+            with self.subTest(environment=environment):
+                calls=[]
+                def emit(folder,source):
+                    packet=json.loads((source/'environment/judge-packet.json').read_text(encoding='utf-8'))
+                    value=copy.deepcopy(self.value);ref={'command':'python3 main.py','quote':'hello'}
+                    value['ratings']={key:{'checks':{facet:{'level':3,'method':'runtime','reason':'Observed hello.',
+                        'evidence':[ref]} for facet in ('coverage','quality','resilience')}} for key in packet['dimensions']}
+                    value['requirementChecks']={key:copy.deepcopy(value['criteria']['hello']) for key in packet['scoringContract']['requirements']}
+                    if not calls:
+                        value['ratings']['intent']['checks']['coverage']['level']=4
+                        artifacts=folder/'artifacts';artifacts.mkdir()
+                        (artifacts/'fixture.png').write_bytes(b'\x89PNG\r\n\x1a\nfixture')
+                    else:
+                        feedback=json.loads((source/'environment/review-feedback.json').read_text(encoding='utf-8'))
+                        self.assertEqual(feedback['issues'][0]['dimension'],'intent')
+                        self.assertEqual(feedback['issues'][0]['facet'],'coverage')
+                        self.assertTrue((source/'environment/prior-report.json').is_file())
+                        prior=json.loads((source/'environment/prior-commands.json').read_text(encoding='utf-8'))
+                        self.assertEqual(prior[0]['output'],'hello\n')
+                        self.assertEqual(len(feedback['priorImages']),1)
+                        self.assertEqual((folder/'artifacts/prior-01.png').read_bytes(),b'\x89PNG\r\n\x1a\nfixture')
+                    events=[] if calls else [{'type':'item.completed','item':{'id':'cmd1','type':'command_execution',
+                        'command':'python3 main.py','aggregated_output':'hello\n','exit_code':0}}]
+                    events.extend([{'type':'turn.completed','usage':{'input_tokens':7 if calls else 10,'output_tokens':1}},
+                        {'type':'item.completed','item':{'type':'agent_message','text':json.dumps(value)}}])
+                    log=folder/'events.jsonl' if environment=='local' else folder/'harbor/fixture/agent/codex.txt'
+                    log.parent.mkdir(parents=True,exist_ok=True);log.write_text('\n'.join(map(json.dumps,events)),encoding='utf-8')
+                    (folder/'answer.json').write_text(json.dumps(value),encoding='utf-8')
+                    calls.append(folder)
+                    return log,json.dumps(value),'fixture-cli'
+                def local(folder,source,*_,**kwargs):
+                    self.assertIsNotNone(kwargs['absolute_deadline'])
+                    return emit(folder,source)
+                class JobFixture:
+                    async def run(self):pass
+                async def create(cfg):
+                    source=Path(cfg.tasks[0].path);emit(source.parent,source)
+                    return JobFixture()
+                with patch('chb.cli.pin_image',return_value='sha256:fixture'),patch('harbor.job.Job.create',side_effect=create),patch('chb.arena.local_review.execute_local',side_effect=local),patch('chb.arena.judge_repair.connection_fingerprint',return_value='fixture'):
+                    report=run_judge(self.app,self.rid,self.tid,self.capture,self.task,
+                        {'model':'fixture','environment':environment,'timeoutSeconds':600},{'stop':threading.Event()})
+                self.assertEqual(len(calls),2)
+                self.assertEqual(report['ratings']['intent']['score'],75)
+                self.assertEqual(report['commands'][0]['id'],'prior:cmd1')
+                self.assertEqual(report['judgeUsage']['inputTokens'],17)
+                self.assertNotEqual(report['judgePromptSha256'],report['judgeFinalInstructionSha256'])
+                self.assertEqual(json.loads((calls[0]/'answer.json').read_text())['ratings']['intent']['checks']['coverage']['level'],4)
 
     def test_browser_profile_is_not_copied_to_blind_judge(self):
         from chb.arena.jobs import judge_visible_file

@@ -44,6 +44,18 @@ def read_judge_usage(job):
     return latest
 
 
+def read_operation_usage(app,rid,tid,execution,job):
+    """Include previous feedback jobs without double-counting this CLI job."""
+    from .judge_repair import combined_usage
+    from .service import identifier
+    repair=execution.get('automaticRepair') or {}
+    prior=[row.get('jobId') for row in repair.get('attempts',[]) if row.get('jobId')]
+    if repair.get('previousJobId'):prior.append(repair['previousJobId'])
+    ids=list(dict.fromkeys([*prior,job.name]))
+    return combined_usage([{'usage':read_judge_usage(safe_path(app.local,
+        f'runs/{rid}/{tid}/reviews/{identifier(key)}'))} for key in ids])
+
+
 def read_progress(app,rid,tid):
     from .service import identifier
     run=app.db.get('run',identifier(rid))
@@ -109,7 +121,7 @@ def read_progress(app,rid,tid):
     if route.is_file() and route.stat().st_size<10000:execution={**execution,'connection':json.loads(route.read_text(encoding='utf-8'))}
     return {'execution':{**execution,'jobId':job_id,'logDirectory':str(job),'elapsedSeconds':elapsed,
                          'lastActivitySecondsAgo':max(0,int(time.time()-last_activity)) if last_activity else None},
-            'usage':read_judge_usage(job),
+            'usage':read_operation_usage(app,rid,tid,execution,job),
             'instruction':instruction[:200000],'instructionTruncated':len(instruction)>200000,
             'packet':packet_info,'messages':messages[-10:],
             'runtime':runtime_info,
