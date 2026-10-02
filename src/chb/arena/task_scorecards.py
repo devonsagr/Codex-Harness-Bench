@@ -123,7 +123,8 @@ def score_project(task, trial, scores, review_id):
         known = all(type(measured.get(key)) in (int, float) for key, _ in dimensions)
         earned = round(sum(measured[key] * points / 100 for key, points in dimensions), 2) if known else None
         items.append({'label': label, 'weight': weight, 'ratio': earned / weight if earned is not None else None,
-                      'points': earned, 'evidence': '；'.join(f'{key}={measured.get(key) if measured.get(key) is not None else "未验证"}' for key, _ in dimensions)})
+                      'points': earned, 'observations':_observations(dimensions,measured),
+                      'evidence': '；'.join(f'{key}={measured.get(key) if measured.get(key) is not None else "未验证"}' for key, _ in dimensions)})
     total = round(sum(row['points'] for row in items), 1) if review_id and all(row['points'] is not None for row in items) else None
     return {'version': VERSION, 'retrospective': False, 'overall': total, 'items': items,
             'nativeVerificationId': None, 'qualityReviewId': review_id,
@@ -190,9 +191,37 @@ def score_project_auto(task, trial, scores, review_id, scorecard_version=AUTO_PR
         if verification_note and any(key == 'verification' for key, _ in dimensions):
             evidence += '；' + verification_note
         items.append({'label': label, 'weight': weight, 'ratio': earned / weight if earned is not None else None,
-                      'points': earned, 'evidence': evidence})
+                      'points': earned, 'observations':_observations(dimensions,measured), 'evidence': evidence})
     complete = review_id and all(item['points'] is not None for item in items)
     total = round(sum(item['points'] for item in items), 2) if complete else None
     return {'version': scorecard_version, 'retrospective': False, 'overall': total, 'items': items,
             'nativeVerificationId': None, 'qualityReviewId': review_id,
             'note': '按冻结题型自动选三组评分项：目标 60、使用与可靠性 25、交付维护 15；规则约束在目标组计一次。缺证据留空，原题程序验收另列。'}
+
+
+def _observations(dimensions, scores):
+    """Expose known contributions inside an incomplete group, without grading gaps."""
+    from .scoring import RUBRICS
+    return [{'key':key,'label':RUBRICS[key][0],'weight':weight,
+             'points':scores[key]*weight/100 if type(scores.get(key)) in (int,float) else None}
+            for key,weight in dimensions]
+
+
+def score_progress(card):
+    """An arithmetic range for missing observations; never a final/normalized score."""
+    if not card:return None
+    rows=[row for group in card['items'] for row in group.get('observations',[group])]
+    total=sum(row['weight'] for row in rows)
+    if total<=0:return None
+    known=[row for row in rows if row.get('points') is not None]
+    # Keep each card's original group rounding and final precision. Otherwise
+    # an old one-decimal score could fall just below its advertised lower bound.
+    earned=sum(group['points'] if group.get('points') is not None else
+               round(sum(row['points'] for row in group.get('observations',[]) if row.get('points') is not None),2)
+               for group in card['items'])
+    remaining=sum(row['weight'] for row in rows if row.get('points') is None)
+    precision=1 if card['version']==VERSION else 2
+    return {'knownPoints':round(earned,precision),'unknownWeight':round(remaining,2),
+            'minimum':round(earned,precision),'maximum':round(earned+remaining,precision),
+            'coverage':round(sum(row['weight'] for row in known)/total*100,2),
+            'rows':[{key:row[key] for key in ('key','label','weight','points') if key in row} for row in rows]}

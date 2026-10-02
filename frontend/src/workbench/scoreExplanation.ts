@@ -8,6 +8,35 @@ export function currentNativeResult(trial:Trial){
   return latest?.nativeVerifications?.find(row=>row.id===trial.score.nativeVerificationId&&row.captureHash===latest.manifest.sha256);
 }
 
+export function nativeTestProgress(trial:Trial){
+  const result=currentNativeResult(trial);
+  if(!result)return null;
+  const percent=(passed:number,total:number)=>Number.isInteger(total)&&total>0&&Number.isInteger(passed)&&passed>=0&&passed<=total?passed/total*100:null;
+  return {result,target:percent(result.f2p_passed,result.f2p_total),regression:percent(result.p2p_passed,result.p2p_total)};
+}
+
+export function missingScoreEvidence(trial:Trial,task:Task){
+  const capture=trial.captures[trial.captures.length-1];
+  const ratings=trial.score.machineRatings||{};
+  return (trial.score.scoreProgress?.rows||[]).filter(row=>row.points==null).map(row=>{
+    let section='quality',reason='当前快照尚无此项的有效评分证据。';
+    if(task.publicSource&&row.label!=='工程可维护性'){
+      section='checks';reason='缺少当前快照的完整原题测试明细。';
+    }else if(row.key==='verification'&&capture?.checksConfigured&&(!capture.checks.length||capture.checks.some(check=>!['passed','failed'].includes(check.status)))){
+      section='checks';reason='已配置的程序检查尚未完整执行；先运行检查，无需调用AI。';
+    }else if(!trial.score.machineReviewId){
+      const saved=trial.reviews.filter(review=>review.kind==='ai'&&review.captureId===capture?.id).slice(-1)[0];
+      reason=saved?.scoreSchema==='arena-machine-v1'&&saved.evidenceKey&&saved.evidenceKey!==trial.score.machineEvidenceKey?'已有报告对应此前验收记录；当前证据已变化，需要按当前记录重新取证。':saved&&saved.scoreSchema!=='arena-machine-v1'?'已有记录是辅助意见，不是当前机器评分报告。':trial.reviews.some(review=>review.kind==='ai'&&review.captureId!==capture?.id)?'旧评分属于此前产物；当前回收版本还没有有效报告。':'当前快照还没有有效的AI取证报告。';
+      if(trial.lastJobError?.kind==='judge')reason=trial.lastJobError.message;
+    }else{
+      const rating=ratings[row.key||''];
+      const reasons=Object.values(rating?.checks||{}).filter(check=>check.score==null).map(check=>check.constraint||check.reason);
+      reason=[...new Set(reasons)].join('；')||rating?.reason||reason;
+    }
+    return {...row,section,reason};
+  });
+}
+
 export function currentTrialAxes(run:Run,trial:Trial,task:Task):CapabilityAxis[]{
   const entry={run,trial,task,archived:false,eligible:false};
   const rows=task.publicSource&&!currentNativeResult(trial)?[]:[{task,mean:trial.score.overall??0,entries:[entry],protocolKey:'current-trial'}];
@@ -61,5 +90,6 @@ export function programScoreExplanation(trial:Trial,task:Task){
   const native=currentNativeResult(trial),fixed=trial.score.programAcceptance;
   if(task.publicSource)return {label:'原题程序结果',value:native?native.reward===1?'通过':'未通过':'待验证',detail:native?`目标测试 ${native.f2p_passed}/${native.f2p_total}，回归测试 ${native.p2p_passed}/${native.p2p_total}。原题reward为${native.reward}，独立于本地质量分。`:'运行原题验收后，才有通过或未通过；未运行、超时和环境异常不记失败。'};
   if(fixed)return {label:fixed.scope,value:fixed.score==null?'待验证':`${fixed.score}%`,detail:`${fixed.passed}/${fixed.total} 通过，${fixed.failed} 失败，${fixed.unverified} 未验证。`+(fixed.version==='evalplus-originfmt-v1'?'整套扩展输入全部满足才判这题通过；这是程序结果，AI质量分另列。':fixed.version==='community-engine-v1'?'此比例只覆盖功能核心，不代表页面连接、视觉或完整流程。':'此比例只覆盖列出的固定测试。')};
+  if(!task.checks?.length)return {label:'程序验收',value:'未配置',detail:'本题没有独立程序验收器。已有源码不等于已经验证；AI可按需求取证，程序结果仍保持未测。'};
   return {label:'脚本检查分',value:trial.score.objective==null?'待验证':`${trial.score.objective} / 100`,detail:'按配置检查的通过权重计算；只证明已检查的要求，不等同整题需求或视觉全部正确。'};
 }
