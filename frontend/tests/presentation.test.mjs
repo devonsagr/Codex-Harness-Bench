@@ -4,7 +4,21 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 const source=readFileSync(new URL('../src/workbench/presentation.ts',import.meta.url),'utf8');
 const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
-const {taskFacets,runProgress,apiEquivalent}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const {taskFacets,runProgress,apiEquivalent,taskCheckScope,dialogueResult}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+
+test('generic page health does not claim task acceptance; task checks keep their scope',()=>{
+  assert.equal(taskCheckScope({checks:[]}),'none');
+  assert.equal(taskCheckScope({checks:[{image:'chb-verifier:creative-web-v1'}]}),'basic');
+  assert.equal(taskCheckScope({checks:[{image:'chb-verifier:creative-web-v1'},{image:'chb-verifier:community-engine-v1'}]}),'task');
+  assert.equal(taskCheckScope({checks:[{image:'custom-verifier'}]}),'task');
+});
+
+test('communication ratios exclude unknown and inapplicable opportunities, preserve zero',()=>{
+  assert.deepEqual(dialogueResult(),{judged:0,rate:null});
+  assert.deepEqual(dialogueResult({met:0,missed:0,unknown:2,not_applicable:3}),{judged:0,rate:null});
+  assert.deepEqual(dialogueResult({met:0,missed:2,unknown:2,not_applicable:3}),{judged:2,rate:0});
+  assert.deepEqual(dialogueResult({met:2,missed:1,unknown:20,not_applicable:30}),{judged:3,rate:66.7});
+});
 test('facets show only matching real values, including unlabelled difficulty',()=>{
   const tasks=[{channel:'code',difficulty:'Hard'},{channel:'code',difficulty:''},{channel:'ui',difficulty:'Easy'}];
   assert.deepEqual(Object.fromEntries(taskFacets(tasks,'code','').difficulties),{hard:1,'未标注':1});

@@ -200,13 +200,23 @@ def calculate_machine(run,trial):
     captures=trial.get('captures',[]);latest=captures[-1] if captures else None
     task=next(t for t in run['tasks'] if t['id']==trial['taskId']);weights=dimensions(run['policy'],task)
     key=evidence_key(latest) if latest else None
-    reviews=[r for r in trial.get('reviews',[]) if latest and r['captureId']==latest['id'] and r.get('scoreSchema')=='arena-machine-v1' and r.get('evidenceKey')==key]
+    # Rechecking the same frozen files adds observations; it does not erase an
+    # already validated AI opinion. Reconstruct legacy keys from the checks
+    # saved before each rerun, always using this capture's current manifest.
+    # A new capture or changed manifest must still require its own report.
+    observations={key:latest['checks']} if latest else {}
+    for attempt in latest.get('checkAttempts',[]) if latest else []:
+        results=attempt.get('results')
+        if isinstance(results,list):
+            observations[evidence_key({**latest,'checks':results})]=results
+    reviews=[r for r in trial.get('reviews',[]) if latest and r['captureId']==latest['id'] and r.get('scoreSchema')=='arena-machine-v1' and r.get('evidenceKey') in observations]
     if latest and trial.get('finalCaptureId')==latest['id'] and latest['stageIndex']+1<len(task['stages']):
         reviews=[r for r in reviews if r.get('evaluationScope',{}).get('kind')=='final']
     report=reviews[-1] if reviews else None
+    report_key=report['evidenceKey'] if report else key
     rows=(report or {}).get('ratings',{})
     raw={k:rows.get(k,{}).get('score') for k in weights}
-    corrections=[r for r in trial.get('machineCorrections',[]) if report and r['reviewId']==report['id'] and r['evidenceKey']==key]
+    corrections=[r for r in trial.get('machineCorrections',[]) if report and r['reviewId']==report['id'] and r['evidenceKey']==report_key]
     overrides={}
     for correction in corrections:
         for dim,row in correction['changes'].items():
@@ -225,7 +235,9 @@ def calculate_machine(run,trial):
         from .scoring import calculate
         # Keep existing multi-stage deterministic score semantics, without changing the run.
         objective=calculate({**run,'policy':{**run['policy'],'version':'arena-review-v2'}},trial)['objective']
-    score={'machine':original,'machineReviewId':report['id'] if report else None,'machineEvidenceKey':key,
+    score={'machine':original,'machineReviewId':report['id'] if report else None,'machineEvidenceKey':report_key,
+            'machineChecksChanged':bool(report and report_key!=key),
+            'machineCheckEvidence':observations[report_key] if report else [],
             'machineCoverage':coverage,'machineRatings':rows,'machineOverrides':overrides,'effectiveScores':effective,
             'objective':objective,'human':None,'overall':adjusted if complete and trial['state']=='completed' else None,
             'provisional':not complete or trial['state']!='completed','partialScore':adjusted,

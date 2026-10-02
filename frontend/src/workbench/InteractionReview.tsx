@@ -1,4 +1,6 @@
 import {Details} from './ui';
+import {useState} from 'react';
+import {dialogueResult} from './presentation';
 
 type Verdict='met'|'missed'|'unknown'|'not_applicable';
 type Metric='request'|'correction'|'interruption';
@@ -7,49 +9,47 @@ export type DialogueEvidence={version:string;sha256:string;status:string;note:st
 export type DialogueReview={version:string;evidenceSha256:string;status:string;note:string;totalTurns:number;omittedTurns:number;counts:Record<Metric,Record<Verdict,number>>;turns:{id:string;results:Record<Metric,{verdict:Verdict;reason:string;evidence:Ref[]}>}[]};
 const metricKeys:Metric[]=['request','correction','interruption'];
 const metrics:Record<Metric,{label:string;criterion:string;boundary:string}>={
-  request:{label:'回答是否切题',criterion:'直接回应本轮的核心请求，并说清结果。答非所问或只有承诺，记为偏离。',boundary:'需要实际运行才能确认的结果，保留未判定。'},
-  correction:{label:'是否听进纠正',criterion:'用户明确纠正表达或方向后，后续回答按纠正更新；继续重复原偏差，记为偏离。',boundary:'没有纠正时不适用；代码是否改好另看产物验收。'},
-  interruption:{label:'追问是否必要',criterion:'确实缺少信息或授权时追问；重复问已经回答的问题、反复索取已有授权，记为偏离。',boundary:'没有追问或停顿时不适用，不奖励盲目执行。'},
+  request:{label:'切题率',criterion:'直接回应本轮核心请求，并说清结果。答非所问或只有承诺，记为偏离。',boundary:'需要运行产物才能确认时，保留未判定。'},
+  correction:{label:'纠正响应率',criterion:'用户明确纠正方向后，后续回答按纠正更新；重复原偏差，记为偏离。',boundary:'没有纠正时不适用；代码修改效果另看产物。'},
+  interruption:{label:'必要追问率',criterion:'缺少必要信息或授权时追问；重复问已回答的问题、索取已有授权，记为偏离。',boundary:'没有追问或停顿时不适用，不奖励盲目执行。'},
 };
 const verdicts:Record<Verdict,string>={met:'符合',missed:'偏离',unknown:'未判定',not_applicable:'不适用'};
 
-export function InteractionReview({evidence,report}:{evidence?:DialogueEvidence;report?:DialogueReview}){
+export function InteractionReview({evidence,report,onReview}:{evidence?:DialogueEvidence;report?:DialogueReview;onReview?:()=>void}){
   const valid=report&&evidence&&report.evidenceSha256===evidence.sha256?report:undefined;
   const hasReport=!!valid?.turns.length;
-  return <section className="interaction-review dialogue-review" aria-label="对话观察">
-    <header className="dialogue-heading"><h3>对话观察</h3><span className="dialogue-scope">不计入总分</span></header>
-    <p className="dialogue-intro">用本题的真实对话找出偏题、没有听进纠正和不必要追问，帮助你调整提示词与协作方式。代码是否做对，仍由产物验收判断。</p>
-    <Details title="三项观察怎样判断">
-      <div className="dialogue-criteria" role="list">
-        {metricKeys.map(key=><section key={key} role="listitem"><h4>{metrics[key].label}</h4><p>{metrics[key].criterion}</p><p className="dialogue-boundary">{metrics[key].boundary}</p></section>)}
-      </div>
-      <p>逐回合结合此前文本判断，用用户和助手原话支持结论，不用长短、关键词或礼貌代替语义。材料缺失、截断或含未读取的图片时，保留未判定。</p>
-    </Details>
+  const hasJudgments=metricKeys.some(key=>dialogueResult(valid?.counts[key]).judged>0);
+  const hasIssues=!!valid?.turns.some(turn=>metricKeys.some(key=>turn.results[key].verdict==='missed'));
+  const [onlyIssues,setOnlyIssues]=useState(true);
+  const turns=valid?.turns.filter(turn=>!onlyIssues||!hasIssues||metricKeys.some(key=>turn.results[key].verdict==='missed'))||[];
+  return <section className="interaction-review dialogue-review" aria-label="沟通与交互">
+    <header className="dialogue-heading"><h3>沟通与交互</h3><span className="dialogue-scope">真实对话 · AI 判断</span></header>
+    <p className="dialogue-intro">用来检查 Harness 是否减少偏题、重复纠正和无效追问。每项比例 = 符合次数 ÷ 可判定次数；未知和不适用不进分母。对比同模型、同题的记录更有意义；这些对话指标不自动计入单题总分或雷达。</p>
+    <div className="dialogue-metrics" aria-label="沟通指标与评价标准">
+      {metricKeys.map(key=>{const counts=valid?.counts[key],result=dialogueResult(counts);return <section key={key}>
+        <h4>{metrics[key].label}</h4><p className="dialogue-rate">{result.rate==null?'未判定':`${result.rate}%`}</p>
+        <p>{metrics[key].criterion}</p><p className="dialogue-boundary">{metrics[key].boundary}</p>
+        {counts&&<dl><div><dt>符合 / 可判定</dt><dd>{counts.met} / {result.judged}</dd></div><div><dt>偏离</dt><dd>{counts.missed} 次</dd></div><div><dt>未知</dt><dd>{counts.unknown} 次</dd></div><div><dt>不适用</dt><dd>{counts.not_applicable} 次</dd></div></dl>}
+      </section>;})}
+    </div>
     {!evidence?<div className="dialogue-state"><strong>没有封存对话</strong><p>旧快照没有这项材料。再次回收时会读取本题绑定的会话，旧报告保持原样；当前状态不表示沟通失败。</p></div>:<>
       <div className="dialogue-state">
-        <strong>{hasReport?'已生成逐回合观察':evidence.turns.length?'对话已封存，观察尚未完成':'没有可审查的对话'}</strong>
+        <strong>{hasJudgments?'可查看逐回合判定与原话':hasReport?'对话已有报告，但没有可判定的沟通指标':evidence.turns.length?'对话已封存，指标尚未判定':'没有可审查的对话'}</strong>
         <p>已封存 {evidence.turns.length} / {evidence.totalTurns} 个可见文本回合{evidence.omittedTurns>0?`，另有 ${evidence.omittedTurns} 回合未纳入`:''}。</p>
         {evidence.note&&<p>{evidence.note}</p>}
         {!hasReport&&<p>{report&&!valid?'现有报告与这份对话材料不匹配，因此不显示旧判断。':evidence.turns.length?'运行独立 AI 审查时，会一并观察这些回合；原题程序验收不依赖这项意见。':'没有材料可判断，结果保持未知。'} 未判定或报告尚未生成，都不代表失败。</p>}
+        {!hasJudgments&&evidence.turns.length>0&&onReview&&<button type="button" className="btn-secondary" onClick={onReview}>去 AI 评分审查对话</button>}
       </div>
       {hasReport&&valid&&<>
-        <div className="dialogue-metrics" aria-label="三项对话观察汇总">
-          {metricKeys.map(key=>{const counts=valid.counts[key];return <section key={key}>
-            <h4>{metrics[key].label}</h4>
-            <dl><div><dt>符合</dt><dd>{counts.met} 次</dd></div><div><dt>偏离</dt><dd>{counts.missed} 次</dd></div><div><dt>未判定</dt><dd>{counts.unknown} 次</dd></div><div><dt>不适用</dt><dd>{counts.not_applicable} 次</dd></div></dl>
-          </section>;})}
-        </div>
-        <p className="dialogue-limit">这些次数是逐回合的 AI 意见，尚未校准，不能当成沟通能力分。原话引用已经核对，缺项不算通过。</p>
-        <Details title={`逐回合判断与引用 · ${valid.turns.length} 回合`}>
-          <div className="dialogue-turns">{valid.turns.map(turn=><section className="dialogue-turn" key={turn.id}>
-            <h4>回合 {turn.id}</h4>
+        <section className="dialogue-evidence"><header className="dialogue-heading"><h4>逐回合判定与原话 · {turns.length} / {valid.turns.length} 回合</h4><div className="run-actions"><button type="button" className="btn-secondary" disabled={!hasIssues} aria-pressed={onlyIssues&&hasIssues} onClick={()=>setOnlyIssues(true)}>只看偏离</button><button type="button" className="btn-secondary" aria-pressed={!onlyIssues||!hasIssues} onClick={()=>setOnlyIssues(false)}>全部回合</button></div></header>
+          <div className="dialogue-turns">{turns.map(turn=><Details key={turn.id} title={`回合 ${turn.id} · ${metricKeys.filter(key=>turn.results[key].verdict==='missed').length} 项偏离`}>
             {metricKeys.map(key=>{const item=turn.results[key];return <section className="dialogue-judgment" key={key}>
               <header><h5>{metrics[key].label}</h5><span className={`dialogue-verdict dialogue-verdict-${item.verdict}`}>{verdicts[item.verdict]}</span></header>
               <p>{item.reason}</p>
               <div className="dialogue-quotes">{item.evidence.map((ref,i)=><blockquote key={i}><cite>{ref.speaker==='user'?'用户原话':'助手原话'}</cite><p>{ref.quote}</p></blockquote>)}</div>
             </section>;})}
-          </section>)}</div>
-        </Details>
+          </Details>)}</div>
+        </section>
       </>}
       {evidence.turns.length>0&&<Details title={`已封存的原始对话 · ${evidence.turns.length} 回合`}>
         <div className="dialogue-turns">{evidence.turns.map(turn=><section className="dialogue-turn" key={turn.id}>
