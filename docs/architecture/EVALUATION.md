@@ -103,7 +103,7 @@ Docker裁判镜像 `chb-reviewer:machine-v1` 包含 Codex CLI、Node、Python、
 
 `machineCorrections` 是追加记录，绑定capture、reviewId和包含检查结果的evidenceKey。修改单项必须填写理由与复核证据；score=null表示撤回该项修正，恢复机器原分。修正不能改写ratings、criteria或脚本结果。
 
-新回收、新机器报告或本快照检查证据变化后旧修正不再适用；全部历史继续保存。后台检查期间拒绝修正，过期提交拒绝。新方案最终分包含当前有效修正；同条件自动比较暂排除人工改分项，要求完整机器覆盖及相同裁判模型/档位/镜像/CLI版本，避免人工结果混入自动排名。
+新回收或新机器报告后旧修正不再适用；同快照仅复查程序时，按U74保留原报告及对应修正，最新程序事实另列。全部历史继续保存。后台检查期间拒绝修正，过期提交拒绝。新方案最终分包含当前有效修正；同条件自动比较暂排除人工改分项，要求完整机器覆盖及相同裁判模型/档位/镜像/CLI版本，避免人工结果混入自动排名。
 
 必要项结论沿用冻结契约：关联脚本失败或条目partial/unmet→not_met；条目未核实或必要检查缺失→unverified；全部met且相关检查通过、交付完成→met。没有必要条目→not_configured。此结论与数值分数独立。
 
@@ -352,3 +352,11 @@ judgePromptSha256代表基础v7评分流程，judgeFinalInstructionSha256保留�
 task_scorecards增加只读observations，保留三组内每个细项冻结权重与有效贡献。calculate_machine派生scoreProgress，不修改原overall/items.points、量表、报告或历史。knownPoints为已测贡献之和，unknownWeight为未测权重之和，范围按原评分卡的组内舍入/最终精度计算[已确认贡献,已确认贡献+未测权重]；未知不置0、不重新放大分母。自定义卡沿用其已归一冻结权重，合法零分属于已测。自动程序检查失败限制verification=0，未执行/环境问题保持null，均沿用旧公式。
 
 范围是基于现有评分项的算术可能值，不是AI误差、统计置信区间或完整评分。已评分判断本身仍可能有误，引用有效不等于校准。界面解释真实缺项，区分旧快照、同快照验收记录改变后的evidenceKey不匹配、辅助意见与机器报告、程序未执行、反例引用缺失；补查入口不发起模型调用，实际启动仍由用户确认额度。没有程序验收器不等于不能收集AI/人工体验，但不能据此宣告程序通过。
+
+## U74：复查只更新程序事实，保留原AI判断
+
+此前evidence_key同时含capture id、manifest和当前checks，重跑时checks被清空并替换，导致AI报告和修正被误判过期。现使用同capture的checkAttempts.results重建原键，且始终使用当前manifest；匹配后选择最新有效机器报告。无法证明对应历史的键不接受，换capture或manifest也不接受。旧报告无需迁移、覆盖、重新调模型或改量表。
+
+machineEvidenceKey为选中报告原键，人工修正仍绑定该键及reviewId；objectiveEvidenceKey继续对应最新程序检查，旧程序裁定仍失效。machineCheckEvidence为原报告审查时采用的检查，machineChecksChanged表示当前检查键不同。原AI分原样保留，当前检查仍按既有规则限制verification与配置资格，失败不会被AI质量分改成通过。
+
+开放题的通用网页烟检只列基础运行事实，不展示为独立整题程序验收。此项显示调整不移除旧检查，不改变冻结verification权重、原题reward或所有null的含义。沟通比例是逐回合诊断，具体未知分母/查原话规则见前端合同U74。

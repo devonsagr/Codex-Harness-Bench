@@ -6,7 +6,8 @@ import ts from 'typescript';
 const transpile=path=>ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
 const url=source=>'data:text/javascript;base64,'+Buffer.from(source).toString('base64');
 const capability=url(transpile('../src/workbench/capabilityProfiles.ts'));
-const source=transpile('../src/workbench/scoreExplanation.ts').replace("'./capabilityProfiles'",JSON.stringify(capability));
+const presentation=url(transpile('../src/workbench/presentation.ts'));
+const source=transpile('../src/workbench/scoreExplanation.ts').replace("'./capabilityProfiles'",JSON.stringify(capability)).replace("'./presentation'",JSON.stringify(presentation));
 const {currentNativeResult,currentTrialAxes,batchScoreSummary,totalScoreExplanation,programScoreExplanation,nativeTestProgress,missingScoreEvidence}=await import(url(source));
 
 const task=(extra={})=>({id:'task-a',revision:1,title:'A',stages:[{title:'delivery'}],checks:[],...extra});
@@ -90,6 +91,14 @@ test('fixed test percentage is separate from AI grade and preserves failed zero'
   assert.equal(programScoreExplanation(item,task()).value,'待验证');
 });
 
+test('a smoke-check score never becomes an open project acceptance score',()=>{
+  const item=trial({score:{overall:91,machine:91,objective:100}});
+  const explanation=programScoreExplanation(item,task({checks:[{image:'chb-verifier:creative-web-v1'}]}));
+  assert.equal(explanation.value,'无');
+  assert.match(explanation.detail,/只有基础运行检查/);
+  assert.doesNotMatch(explanation.value,/100/);
+});
+
 test('total explanation exposes actual missing groups and respects frozen historical formula',()=>{
   const item=trial({score:{overall:null,taskScorecard:{version:'project-tasktype-v3',items:[{label:'目标与范围',points:60},{label:'交付与维护',points:null}]}}});
   const summary=totalScoreExplanation(run(item),item,task());
@@ -146,7 +155,7 @@ test('configured checks route missing verification to program rather than model'
 test('old capture report is not advertised as the current project having no work',()=>{
   const item=trial({reviews:[{id:'old',kind:'ai',captureId:'old'}],score:{scoreProgress:{rows:[{key:'intent',label:'需求',weight:45,points:null}]}}});
   assert.match(missingScoreEvidence(item,task())[0].reason,/旧评分属于此前产物/);
-  assert.equal(programScoreExplanation(item,task()).value,'未配置');
+  assert.equal(programScoreExplanation(item,task()).value,'无');
 });
 
 test('saved report invalidated by updated evidence is distinguished from absent work',()=>{

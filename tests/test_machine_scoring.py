@@ -356,6 +356,61 @@ class MachineScoringTests(unittest.TestCase):
         self.assertEqual(t['score']['machineCoverage'],100);self.assertEqual(t['score']['acceptance']['status'],'met')
         self.assertEqual(t['score']['assurance'],'ai-reference')
 
+    def test_program_rerun_preserves_ai_report_correction_and_original_check_evidence(self):
+        self.report();self.correct()
+        run=self.app.db.get('run',self.rid)
+        run['tasks'][0]['checks']=[{'id':'smoke','label':'Smoke','image':'fixture','argv':['true'],'weight':1}]
+        self.app.db.save('run',run,run['revision'])
+        started=threading.Event();release=threading.Event()
+        result={'id':'smoke','label':'Smoke','status':'failed','output':'failed fixture','seconds':1,'exitCode':1,'imageId':'fixture'}
+        def check(*args):
+            started.set();release.wait(3);return [result]
+        with patch('chb.arena.jobs.run_checks',side_effect=check),patch('chb.arena.jobs.run_judge') as judge:
+            start_job(self.app,self.rid,self.tid,'check',{'captureId':self.capture['id']})
+            control=self.app.jobs[(self.rid,self.tid)]
+            try:
+                self.assertTrue(started.wait(2))
+                self.assertEqual(self.current()['score']['machineReviewId'],'ai-1')
+                self.assertEqual(self.current()['score']['machineOverrides']['intent']['score'],90)
+            finally:release.set();control['thread'].join(3)
+            judge.assert_not_called()
+        trial=self.current();score=trial['score']
+        self.assertEqual(score['machine'],80)
+        self.assertEqual(score['machineReviewId'],'ai-1')
+        self.assertEqual(score['machineEvidenceKey'],self.packet['evidenceKey'])
+        self.assertNotEqual(score['objectiveEvidenceKey'],score['machineEvidenceKey'])
+        self.assertTrue(score['machineChecksChanged'])
+        self.assertEqual(score['machineCheckEvidence'],[])
+        self.assertEqual(score['objective'],0)
+        self.assertEqual(score['effectiveScores']['intent'],90)
+        self.correct(score=75)
+        self.assertEqual(self.current()['score']['effectiveScores']['intent'],75)
+
+    def test_legacy_check_history_recovers_valid_report_without_rewriting_it(self):
+        self.report()
+        run=self.app.db.get('run',self.rid);capture=run['trials'][0]['captures'][-1]
+        saved=copy.deepcopy(run['trials'][0]['reviews'])
+        capture['checkAttempts']=[{'at':'earlier','results':[]}]
+        capture['checks']=[{'id':'smoke','status':'passed','output':'new observation'}]
+        self.app.db.save('run',run,run['revision'])
+        score=self.current()['score']
+        self.assertEqual(score['machineReviewId'],'ai-1')
+        self.assertTrue(score['machineChecksChanged'])
+        self.assertEqual(self.app.db.get('run',self.rid)['trials'][0]['reviews'],saved)
+        # The history must not make a report valid for modified files.
+        run=self.app.db.get('run',self.rid);capture=run['trials'][0]['captures'][-1]
+        capture['manifest']['sha256']='changed'
+        self.app.db.save('run',run,run['revision'])
+        self.assertIsNone(self.current()['score']['machineReviewId'])
+
+    def test_report_with_unknown_check_history_stays_invalid(self):
+        self.report()
+        run=self.app.db.get('run',self.rid);capture=run['trials'][0]['captures'][-1]
+        capture['checks']=[{'id':'smoke','status':'failed'}]
+        capture['checkAttempts']=[{'at':'fixture','results':[{'id':'unrelated','status':'passed'}]}]
+        self.app.db.save('run',run,run['revision'])
+        self.assertIsNone(self.current()['score']['machineReviewId'])
+
     def test_generic_smoke_cannot_qualify_an_ai_score_for_configuration_comparison(self):
         check={'id':'browser','image':'chb-verifier:creative-web-v1',
                'argv':['node','/tests/verify.cjs','/app','interactive']}

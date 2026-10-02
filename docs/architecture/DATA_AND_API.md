@@ -292,3 +292,7 @@ U54 的新增开放题使用**已有** task、baseline、run、trial、capture�
 ## U69：题源与派生程序摘要
 
 POST /api/arena/sources/evalplus以固定远程URL和SHA导入，返回added/total(163)/indexed(164)/excluded/commit/sha256，不接收任意网址或宿主命令。已有/归档题跳过，不覆盖。题目fixedSuite属于冻结数据；present_run派生score.programAcceptance，不修改旧评分。run_checks继续保存当前快照的检查stdout/digest/argv，摘要只接受完整匹配的结构化回执，错误/超时为未知。缓存、参考解、测试包和QA不提交Git。
+
+## U74：机器报告与程序复查的派生关联
+
+不改变持久化原报告、capture或追加修正格式。score新增machineChecksChanged:boolean及machineCheckEvidence:检查数组；machineEvidenceKey取选中有效报告原键，objectiveEvidenceKey仍取当前检查键。checkAttempts既有历史用于同capture/current manifest的旧键匹配，不单凭captureId接受报告。新检查期间保留原AI意见，修正动作仍拒绝checking/judging；结束后原修正仍有效。无法匹配历史或文件清单变化继续拒绝，不自动迁移评分或调用模型。

@@ -1,5 +1,21 @@
 import {Inbox,ChevronDown} from 'lucide-react';
 import {Children,cloneElement,isValidElement,useId,useEffect,useRef,type ReactNode,type ReactEventHandler} from 'react';
+// Reserve the visible viewport when a shorter pane replaces a long one, so the
+// browser does not move the page to its new bottom.
+export function usePanelPosition(){
+  const ref=useRef<HTMLDivElement>(null);
+  const preserve=(anchor?:HTMLElement|null,below=false)=>{
+    const area=ref.current;if(!area)return;
+    if(anchor){
+      const row=anchor.getBoundingClientRect(),top=below?row.bottom+20:row.top;
+      // At a sticky row, bring the new pane below it without moving the row.
+      // Otherwise a switch from deep in a long result would leave blank space.
+      if(area.getBoundingClientRect().top<top-1)window.scrollBy(0,area.getBoundingClientRect().top-top);
+    }
+    area.style.minHeight=`${Math.max(0,window.innerHeight-area.getBoundingClientRect().top)}px`;
+  };
+  return [ref,preserve] as const;
+}
 export const labels:Record<string,string>={prepared:'待桌面执行',working:'桌面执行中',captured:'已回收',waiting_confirmation:'等待本轮确认',completed:'交付结束',interrupted:'执行中断',checking:'检查运行中',judging:'AI 复审中',passed:'通过',failed:'未通过',timeout:'超时',cancelled:'已停止',error:'环境错误'};
 export const num=(v:number|null|undefined,suffix='')=>v==null?'—':v.toLocaleString()+suffix;
 export const date=(s:string)=>new Date(s).toLocaleString('zh-CN',{hour12:false});

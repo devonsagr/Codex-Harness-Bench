@@ -1,5 +1,16 @@
 import type {Run,Task,Usage} from './types';
 
+/** The shared browser probe only checks page health, not task completion. */
+export function taskCheckScope(task:Task){
+  const checks=task.checks||[];
+  return !checks.length?'none':checks.every(check=>check.image==='chb-verifier:creative-web-v1')?'basic':'task';
+}
+
+export function dialogueResult(counts?:{met:number;missed:number;unknown:number;not_applicable:number}){
+  const judged=counts?(counts.met+counts.missed):0;
+  return {judged,rate:judged?Math.round(counts!.met/judged*1000)/10:null};
+}
+
 export const difficultyKey=(task:Task)=>task.difficulty?.trim().toLowerCase()||'未标注';
 export function taskFacets(tasks:Task[],channel:string,difficulty:string){
   const count=(items:Task[],key:(t:Task)=>string)=>Object.entries(items.reduce<Record<string,number>>((a,t)=>{const k=key(t);a[k]=(a[k]||0)+1;return a;},{})).sort(([a],[b])=>a.localeCompare(b));
