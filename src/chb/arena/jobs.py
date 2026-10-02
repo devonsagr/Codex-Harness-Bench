@@ -15,7 +15,7 @@ from .review_options import timeout_seconds, ReviewBudgetExceeded
 from .judge_reliability import comparison_key
 
 JUDGE_DEFAULT_REASONING=''
-JUDGE_PROMPT_VERSION='arena-judge-2026-09-30-dialogue-v6'
+JUDGE_PROMPT_VERSION='arena-judge-2026-10-02-feedback-v7'
 REVIEWER_CODEX_VERSION='0.158.0-alpha.2.1'
 JUDGE_REASONING_LEVELS={'none','minimal','low','medium','high','xhigh','max','ultra'}
 
@@ -149,7 +149,7 @@ def start_job(app,rid,tid,kind,data):
                     elif kind=='check':current['checks']=checks
                     elif kind=='judge':t['reviews'].append({'id':'ai-'+uuid.uuid4().hex[:12],'kind':'ai','captureId':capture['id'],'at':now(),**report})
                     t['state']=state
-                    if kind=='judge':t['judgeExecution'].update(status='completed',endedAt=now())
+                    if kind=='judge':t['judgeExecution'].update(status='partial' if (report.get('automaticRepair') or {}).get('status')=='partial' else 'completed',endedAt=now())
                     app.event(fresh,'后台操作已结束，证据已保存。' if not stop.is_set() else '已停止后台操作；未执行项不记为失败。',tid)
                     app.db.save('run',fresh,fresh['revision'])
             except Exception as exc:
@@ -188,8 +188,8 @@ def parse_judge_answer(answer):
         return value,'single-extra-closing-brace-v1'
 
 
-def saved_review_answer(folder,environment):
-    """Load the original answer and command transcript; never ask the model again."""
+def saved_review_material(folder,environment):
+    """Load bounded original material without interpreting or editing its grades."""
     answer_file=safe_path(folder,'answer.json')
     if answer_file.is_file() and answer_file.stat().st_size>2_000_000:
         raise ValueError('原始报告超过 2 MB，无法安全重新校验。')
@@ -213,6 +213,12 @@ def saved_review_answer(folder,environment):
     if len(answer.encode('utf-8'))>2_000_000:raise ValueError('原始报告超过 2 MB，无法安全重新校验。')
     answer=answer.strip()
     if answer.startswith('```'):answer='\n'.join(answer.splitlines()[1:-1])
+    return answer,commands
+
+
+def saved_review_answer(folder,environment):
+    """Revalidation stays read-only and never invokes the reviewer."""
+    answer,commands=saved_review_material(folder,environment)
     value,normalization=parse_judge_answer(answer)
     return value,commands,normalization
 
@@ -225,7 +231,7 @@ def revalidate_saved_review(app,rid,tid):
         if run.get('archived') or run.get('deletionPending') or (rid,tid) in app.jobs:
             raise ValueError('评测已归档、正在删除或审查仍在运行，不能重新校验。')
         environment=execution.get('environment')
-        if run['policy']['version']!='arena-machine-v1' or environment not in {'local','docker'} or execution.get('status') not in {'failed','completed'}:
+        if run['policy']['version']!='arena-machine-v1' or environment not in {'local','docker'} or execution.get('status') not in {'failed','completed','partial'}:
             raise ValueError('只有已保存的裁判报告可重新校验。')
         failed=execution['status']=='failed'
         if failed and '评分报告未通过校验' not in (trial.get('lastJobError') or {}).get('message',''):
@@ -269,6 +275,15 @@ def revalidate_saved_review(app,rid,tid):
             try:packet['files'][name]=body.decode('utf-8')
             except UnicodeError:pass
         value,commands,normalization=saved_review_answer(folder,environment)
+        if protocol.get('previousReviewJobId'):
+            prior=safe_path(app.local,f'runs/{rid}/{tid}/reviews/{identifier(protocol["previousReviewJobId"])}')
+            prior_protocol=safe_path(prior,'protocol.json')
+            if not prior_protocol.is_file() or prior_protocol.stat().st_size>2_000_000:
+                raise ValueError('自动补查的原始取证记录不存在，不能重新校验。')
+            if json.loads(prior_protocol.read_text(encoding='utf-8')).get('captureId')!=capture_id:
+                raise ValueError('自动补查的先前取证与冻结版本不一致。')
+            _,prior_commands=saved_review_material(prior,environment)
+            commands=[{**row,'id':'prior:'+str(row.get('id',index))} for index,row in enumerate(prior_commands)]+commands
         result=validate_judge(value,packet)
         result.update(validate_machine(value,packet,commands))
         require_visual_artifacts(result,folder)
@@ -276,7 +291,7 @@ def revalidate_saved_review(app,rid,tid):
         route_file=safe_path(folder,'connection.json')
         if route_file.is_file() and route_file.stat().st_size>2_000_000:raise ValueError('审查连接记录超过 2 MB。')
         connection_info=json.loads(route_file.read_text(encoding='utf-8')) if route_file.is_file() else {}
-        from .judge_progress import read_judge_usage
+        from .judge_progress import read_operation_usage
         image_id='native-sandbox:revalidated'
         codex_version=None
         if environment=='docker':
@@ -296,15 +311,17 @@ def revalidate_saved_review(app,rid,tid):
                 'imageId':(previous.get('imageId') if previous and previous.get('imageId','').startswith(('sha256:','native-sandbox:')) else image_id),
                 'codexVersion':(previous.get('codexVersion') if previous else None) or codex_version or protocol.get('codexVersion'),
                 'judgePromptVersion':(previous.get('judgePromptVersion') if previous else None) or protocol.get('judgePromptVersion'),
-                'judgePromptSha256':(previous.get('judgePromptSha256') if previous else None) or protocol.get('instructionSha256'),
+                'judgePromptSha256':(previous.get('judgePromptSha256') if previous else None) or protocol.get('baseInstructionSha256') or protocol.get('instructionSha256'),
+                'judgeFinalInstructionSha256':protocol.get('instructionSha256'),
+                'automaticRepair':(previous.get('automaticRepair') if previous else None) or execution.get('automaticRepair'),
                 'judgePacketSha256':(previous.get('judgePacketSha256') if previous else None) or protocol.get('packetSha256'),
                 'judgeComparisonKey':(previous.get('judgeComparisonKey') if previous else None) or protocol.get('judgeComparisonKey'),
                 'judgeBlinding':protocol.get('judgeBlinding'),
-                'judgeUsage':(previous.get('judgeUsage') if previous else None) or read_judge_usage(folder),
+                'judgeUsage':(previous.get('judgeUsage') if previous else None) or read_operation_usage(app,rid,tid,execution,folder),
                 'captureHash':capture['manifest']['sha256'],
                 'revalidatedFrom':job_id,'reportNormalization':normalization}
         trial['reviews'].append({'id':'ai-'+uuid.uuid4().hex[:12],'kind':'ai','captureId':capture_id,'at':now(),**report})
-        execution.update(status='completed',revalidatedAt=now())
+        execution.update(status='partial' if (report.get('automaticRepair') or {}).get('status')=='partial' else 'completed',revalidatedAt=now())
         trial.pop('lastJobError',None)
         app.event(run,'已从保存的原始报告重新核对引用，无新模型调用。',tid)
         app.db.save('run',run,run['revision'])
@@ -524,6 +541,84 @@ def validate_judge(value,packet):
 
 
 def run_judge(app,rid,tid,capture,task,data,control):
+    """One authorized review, with one evidence-feedback pass in the same budget."""
+    from .judge_repair import VERSION, MAX_ATTEMPTS, repair_issues, combined_usage, connection_fingerprint
+    from .judge_progress import read_judge_usage
+    run,_=app.trial(rid,tid)
+    if run['policy']['version']!='arena-machine-v1':
+        return _run_judge_once(app,rid,tid,capture,task,data,control)
+    deadline=time.monotonic()+timeout_seconds(data)
+    connection_at_start=connection_fingerprint()
+    attempts=[];feedback=None;accepted=None;failure=None;reason=''
+    for index in range(MAX_ATTEMPTS):
+        if control['stop'].is_set():raise ValueError('已取消机器评分。')
+        remaining=int(deadline-time.monotonic()) if index else timeout_seconds(data)
+        if index and remaining<60:
+            reason='剩余时间不足以启动自动补查；已核实的分项保留，缺项仍未完成。'
+            break
+        settings={**data,'timeoutSeconds':remaining}
+        started=time.monotonic();issues=[]
+        try:
+            result=_run_judge_once(app,rid,tid,capture,task,settings,control,feedback=feedback,deadline=deadline)
+            accepted=result
+            issues=repair_issues(result,{'browserUnavailable':os.name=='nt' and data.get('environment')=='local'})
+            failure=None
+        except ValueError as exc:
+            # Quota, cancellation, sandbox/environment and budget failures do
+            # not trigger another model call; neither does a changed snapshot.
+            if control['stop'].is_set() or '快照' in str(exc):raise
+            if isinstance(exc,ReviewBudgetExceeded) or not str(exc).startswith('评分报告未通过校验'):
+                if accepted is None:raise
+                reason='自动补查未完成；先前已核实的分项已保留，缺项仍未完成。'
+            failure=exc;issues=[{'section':'report','reason':str(exc)[:600]}]
+        _,trial=app.trial(rid,tid)
+        job_id=trial.get('judgeExecution',{}).get('jobId')
+        if any(row['jobId']==job_id for row in attempts):job_id=None
+        folder=safe_path(app.local,f'runs/{rid}/{tid}/reviews/{job_id}') if job_id else None
+        usage=read_judge_usage(folder) if folder and folder.exists() else None
+        attempts.append({'jobId':job_id,'issues':issues,'usage':usage,
+                         'seconds':round(time.monotonic()-started,2)})
+        if not issues:break
+        if index+1==MAX_ATTEMPTS:
+            if not reason:reason='自动补查已结束；仍缺证据的项保持未验证，不由平台补分。'
+            break
+        if connection_fingerprint()!=connection_at_start:
+            reason='账号凭据或模型连接已变化，未启动补查，以免本次审查换号。';break
+        try:answer,commands=saved_review_material(folder,data.get('environment','docker'))
+        except (ValueError,OSError,TypeError):
+            reason='先前取证材料无法完整读取，未启动额外模型调用。';break
+        feedback={'version':VERSION,'previousJobId':job_id,'issues':issues,
+                  'answer':answer,'commands':commands}
+        with app.lock:
+            current,trial=app.trial(rid,tid)
+            trial['judgeExecution']['automaticRepair']={'attempt':2,'maxAttempts':MAX_ATTEMPTS,
+                'previousJobId':job_id,'issueCount':len(issues),'phase':'裁判正在自动补查缺项和引用'}
+            app.event(current,'报告有缺项或引用问题，已反馈给裁判自动补查；沿用本次剩余时间预算。',tid)
+            app.db.save('run',current,current['revision'])
+    if failure and accepted is None:raise failure
+    if accepted is None:raise ValueError('裁判未返回可保存的评分报告。')
+    missing=any(row.get('score') is None for row in accepted.get('ratings',{}).values())
+    if missing and not reason:reason='环境或材料限制仍有未验证项；已完成可用证据的校验，不补猜分数。'
+    accepted['automaticRepair']={'version':VERSION,'attempts':attempts,'maxAttempts':MAX_ATTEMPTS,
+        'status':'partial' if reason or failure else 'completed','note':reason or ('自动补查报告仍未通过校验，保留已核实分项。' if failure else '本次报告已完成校验。')}
+    accepted['judgeUsage']=combined_usage([row for row in attempts if row['jobId']])
+    # Record the complete authorized operation, rather than hiding the first
+    # CLI job when the final report came from the feedback pass.
+    with app.lock:
+        current,trial=app.trial(rid,tid)
+        trial['judgeExecution']['automaticRepair']=accepted['automaticRepair']
+        if accepted.get('jobPath'):
+            final=Path(accepted['jobPath'])
+            if final.parent==app.local/'runs'/rid/tid/'reviews':trial['judgeExecution']['jobId']=final.name
+        app.db.save('run',current,current['revision'])
+    for row in attempts:
+        if row['jobId']:
+            folder=safe_path(app.local,f'runs/{rid}/{tid}/reviews/{row["jobId"]}')
+            if folder.exists():(folder/'automatic-repair.json').write_text(json.dumps(accepted['automaticRepair'],ensure_ascii=False),encoding='utf-8')
+    return accepted
+
+
+def _run_judge_once(app,rid,tid,capture,task,data,control,feedback=None,deadline=None):
     """Review one frozen capture in a fixed native or Harbor environment."""
     import toml
     from harbor.job import Job
@@ -610,6 +705,8 @@ def run_judge(app,rid,tid,capture,task,data,control):
             '\n冻结材料及本题实际维度在 /app/judge-packet.json。先读取，再逐项对照；不要凭记忆猜题面。')
         from .judge_protocol import INSTRUCTION
         instruction += '\n统一评分格式：' + INSTRUCTION
+        from .judge_repair import INSTRUCTION as SELF_CHECK
+        instruction += SELF_CHECK
         if packet.get('interactionEvidence'):
             from .interaction import INSTRUCTION as INTERACTION_INSTRUCTION
             instruction += '\n对话观察格式：' + INTERACTION_INSTRUCTION
@@ -625,21 +722,46 @@ def run_judge(app,rid,tid,capture,task,data,control):
                 '此Windows本机沙箱尚不支持浏览器取证：不得启动Edge、Chrome、Chromium或其他浏览器，也不得通过其他进程或关闭沙箱绕过。不要重试已知会因IPC权限失败的浏览器路径。UX与浏览器性能维度须为null，说明环境未验证；可以继续源码、构建和非浏览器测试。')
         instruction+='\n仅在当前审查目录内取证。不要进入父目录、个人目录或其他任务。原始快照不在可写目录内。'
     material=json.dumps(prompt_packet,ensure_ascii=False)
+    base_instruction_hash=hash_bytes(instruction.encode('utf-8'))
     environment=source/'environment';environment.mkdir(exist_ok=True)
     (environment/'judge-packet.json').write_text(material,encoding='utf-8')
+    if feedback:
+        from .judge_repair import REPAIR_INSTRUCTION, VERSION as FEEDBACK_VERSION
+        prefix='environment/' if local else '/app/'
+        (environment/'prior-report.json').write_text(feedback['answer'],encoding='utf-8')
+        (environment/'prior-commands.json').write_text(json.dumps(feedback['commands'],ensure_ascii=False),encoding='utf-8')
+        previous=safe_path(app.local,f'runs/{rid}/{tid}/reviews/{feedback["previousJobId"]}')
+        images=[]
+        for index,name in enumerate(saved_raster_paths(previous)):
+            body=safe_path(previous,name).read_bytes()
+            target=f'prior-{index+1:02}{Path(name).suffix.lower()}'
+            for directory in (folder/'artifacts',environment/'prior-artifacts'):
+                directory.mkdir(exist_ok=True)
+                (directory/target).write_bytes(body)
+            images.append({'path':prefix+'prior-artifacts/'+target,'sourceJobId':feedback['previousJobId'],
+                           'sourcePath':name,'sha256':hash_bytes(body)})
+        (environment/'review-feedback.json').write_text(json.dumps({
+            'version':FEEDBACK_VERSION,'issues':feedback['issues'],'previousJobId':feedback['previousJobId'],
+            'priorReport':prefix+'prior-report.json','priorCommands':prefix+'prior-commands.json',
+            'priorImages':images},ensure_ascii=False),encoding='utf-8')
+        (folder/'prior-artifacts.json').write_text(json.dumps(images,ensure_ascii=False),encoding='utf-8')
+        instruction+=REPAIR_INSTRUCTION+'\n反馈文件：'+prefix+'review-feedback.json'
     (source/'instruction.md').write_text(instruction,encoding='utf-8')
     (folder/'protocol.json').write_text(json.dumps({'judgePromptVersion':JUDGE_PROMPT_VERSION if machine else 'legacy-review',
         'scoringProtocol':packet.get('scoringContract',{}).get('version'),
         'instructionSha256':hash_bytes(instruction.encode('utf-8')),
+        'baseInstructionSha256':base_instruction_hash,
         'packetSha256':hash_bytes(material.encode('utf-8')),'captureId':capture['id'],
         'judgeComparisonKey':comparison_key(packet) if machine else None,
         'model':model,'reasoningEffort':reasoning,'reviewEnvironment':'local' if local else 'docker',
+        'automaticRepairVersion':'review-feedback-v1' if machine else None,
+        'previousReviewJobId':feedback['previousJobId'] if feedback else None,
         'judgeBlinding':'workspace-instructions-stripped-v1',
         'imageId':image,'codexVersion':REVIEWER_CODEX_VERSION if not local else None},ensure_ascii=False),encoding='utf-8')
     timeout=timeout_seconds(data)
     if local:
         from .local_review import execute_local
-        event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout,reasoning,runtime_root=app.local/'reviewer-runtime',service_tier=data.get('serviceTier','standard'))
+        event_file,local_answer,CODEX_VERSION=execute_local(folder,source,instruction,model,packet,control,timeout,reasoning,runtime_root=app.local/'reviewer-runtime',service_tier=data.get('serviceTier','standard'),absolute_deadline=deadline)
         image='native-sandbox:'+CODEX_VERSION
         logs=[event_file]
     else:
@@ -664,16 +786,17 @@ def run_judge(app,rid,tid,capture,task,data,control):
               'kwargs':{'version':reviewer_version,**({'reasoning_effort':reasoning} if reasoning else {}),'web_search':'disabled'},'env':review_env,'override_timeout_sec':timeout}],
               'tasks':[{'path':str(source)}],'environment':{'type':'docker','delete':True}})
         async def execute():
+            finish_by=deadline if deadline is not None else time.monotonic()+timeout
+            if time.monotonic()>=finish_by:raise ReviewBudgetExceeded('审查时间预算已用完，未启动额外裁判作业。')
             job=await Job.create(cfg)
             future=asyncio.create_task(job.run())
             # Harbor owns cleanup; wait for cancellation to finish rather than
             # leaving a still-running reviewer after the UI reports a timeout.
-            deadline=time.monotonic()+timeout
             exhausted=False
             try:
                 while not future.done():
                     if control['stop'].is_set():future.cancel();break
-                    if time.monotonic()>deadline:exhausted=True;future.cancel();break
+                    if time.monotonic()>finish_by:exhausted=True;future.cancel();break
                     await asyncio.sleep(.25)
                 await future
             except asyncio.CancelledError:
@@ -703,6 +826,8 @@ def run_judge(app,rid,tid,capture,task,data,control):
                 commands.append({'id':str(item.get('id',len(commands))),'command':str(item.get('command',''))[:16000],
                                  'output':str(item.get('aggregated_output',''))[:60000],'exitCode':item.get('exit_code')})
             if event.get('type')=='error' or item.get('type')=='error':diagnostics.append(str(event))
+    if feedback:
+        commands=[{**row,'id':'prior:'+str(row.get('id',index))} for index,row in enumerate(feedback['commands'])]+commands
     if local:outputs=[local_answer]
     if not outputs:
         reason=judge_empty_result_reason(diagnostics)
@@ -726,4 +851,4 @@ def run_judge(app,rid,tid,capture,task,data,control):
     route_file=folder/'connection.json'
     connection_info=json.loads(route_file.read_text(encoding='utf-8')) if route_file.is_file() else {}
     from .judge_progress import read_judge_usage
-    return {**result,**({'judgeComparisonKey':comparison_key(packet)} if machine else {}),'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgePromptVersion':JUDGE_PROMPT_VERSION,'judgePromptSha256':hash_bytes(instruction.encode('utf-8')),'judgePacketSha256':hash_bytes(material.encode('utf-8')),'serviceTier':data.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','judgeBlinding':'workspace-instructions-stripped-v1','judgeUsage':read_judge_usage(folder),'executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION if local else reviewer_version,'captureHash':capture['manifest']['sha256'],'reportNormalization':normalization}
+    return {**result,**({'judgeComparisonKey':comparison_key(packet)} if machine else {}),'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgePromptVersion':JUDGE_PROMPT_VERSION,'judgePromptSha256':base_instruction_hash,'judgeFinalInstructionSha256':hash_bytes(instruction.encode('utf-8')),'judgePacketSha256':hash_bytes(material.encode('utf-8')),'serviceTier':data.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','judgeBlinding':'workspace-instructions-stripped-v1','judgeUsage':read_judge_usage(folder),'executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION if local else reviewer_version,'captureHash':capture['manifest']['sha256'],'reportNormalization':normalization}

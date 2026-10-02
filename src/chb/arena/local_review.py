@@ -118,7 +118,7 @@ class ProcessTree:
         self.process.wait(timeout=10)
 
 
-def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='',runtime_root=None,service_tier='standard'):
+def execute_local(folder,source,instruction,model,packet,control,timeout,reasoning='',runtime_root=None,service_tier='standard',absolute_deadline=None):
     from .review_connection import connection
     route=connection()
     executable=codex_executable()
@@ -161,12 +161,14 @@ def execute_local(folder,source,instruction,model,packet,control,timeout,reasoni
             table=tomlkit.inline_table();table.update(route['options'])
             args[2:2]=['-c','model_provider='+json.dumps(route['providerId']),'-c','model_providers.'+route['providerId']+'='+table.as_string()]
         (folder/'connection.json').write_text(json.dumps(route['public'],ensure_ascii=False),encoding='utf-8')
+        if absolute_deadline is not None and time.monotonic()>=absolute_deadline:
+            raise ReviewBudgetExceeded('审查时间预算已用完，未启动额外裁判进程。')
         with (source/'instruction.md').open('rb') as stdin,log.open('wb') as stdout,(folder/'stderr.log').open('wb') as stderr:
             process=subprocess.Popen(args,stdin=stdin,stdout=stdout,stderr=stderr,env=env,cwd=source,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0),start_new_session=os.name!='nt')
             tree=ProcessTree(process)
             try:
-                deadline=time.monotonic()+timeout
+                deadline=absolute_deadline if absolute_deadline is not None else time.monotonic()+timeout
                 while process.poll() is None:
                     if control['stop'].wait(.2):raise ValueError('已取消本机机器评分。')
                     if time.monotonic()>deadline:raise ReviewBudgetExceeded(f'审查时间预算已用完（{timeout//60} 分钟）；本次检查未完成，不能据此判断产物失败。日志已保留，可增加预算重新审查。')
