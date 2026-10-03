@@ -64,9 +64,9 @@ class JudgeRepairTests(unittest.TestCase):
         result=self.execute(lambda *_,feedback=None,deadline=None:self.attempt(zero))
         self.assertEqual(result['ratings']['intent']['score'],0);self.assertEqual(len(self.calls),1)
 
-    def test_second_incomplete_report_stays_unknown_without_third_call(self):
+    def test_bounded_feedback_keeps_unknown_if_reviewer_never_supplies_evidence(self):
         result=self.execute(lambda *_,feedback=None,deadline=None:self.attempt(self.bad,feedback=feedback))
-        self.assertEqual(len(self.calls),2);self.assertIsNone(result['ratings']['intent']['score'])
+        self.assertEqual(len(self.calls),3);self.assertIsNone(result['ratings']['intent']['score'])
         self.assertEqual(result['automaticRepair']['status'],'partial')
 
     def test_budget_is_shared_and_does_not_restart_for_feedback(self):
@@ -117,6 +117,14 @@ class JudgeRepairTests(unittest.TestCase):
         self.assertEqual(result['automaticRepair']['status'],'partial')
         self.assertEqual(result['judgeUsage']['inputTokens'],10)
         self.assertIsNone(result['automaticRepair']['attempts'][1]['jobId'])
+
+    def test_recovery_can_reduce_remaining_calls_but_not_increase_the_fixed_limit(self):
+        from chb.arena.judge_repair import attempt_limit
+        result=self.execute(lambda *_,feedback=None,deadline=None:self.attempt(self.bad,feedback=feedback),maxReviewAttempts=2)
+        self.assertEqual(len(self.calls),2)
+        self.assertEqual(result['automaticRepair']['maxAttempts'],2)
+        for invalid in (0,4,True,'2',None):
+            with self.subTest(value=invalid),self.assertRaises(ValueError):attempt_limit({'maxReviewAttempts':invalid})
 
 
 if __name__=='__main__':unittest.main()

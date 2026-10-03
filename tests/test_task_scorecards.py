@@ -138,6 +138,17 @@ class PublicScorecardTests(unittest.TestCase):
         trial['captures'][0]['checks'] = []
         self.assertIsNone(score_project_policy(task, trial, scores, 'review-1', policy)['overall'])
 
+    def test_agent_verification_fallback_needs_real_scores_and_keeps_failed_check_constraint(self):
+        task={'checks':[{'id':'fixed'}]}
+        trial={'captures':[{'checks':[]}]}
+        policy={'dimensions':{'intent':80,'verification':20},'rubrics':{'intent':{'label':'目标'},'verification':{'label':'验证'}}}
+        scores={'intent':75,'verification':50}
+        self.assertIsNone(score_project_policy(task,trial,scores,'review',policy)['overall'])
+        self.assertEqual(score_project_policy(task,trial,scores,'review',policy,agent_fallback=True)['overall'],70)
+        self.assertIsNone(score_project_policy(task,trial,{**scores,'verification':None},'review',policy,agent_fallback=True)['overall'])
+        trial['captures'][0]['checks']=[{'status':'failed'},{'status':'error'}]
+        self.assertEqual(score_project_policy(task,trial,scores,'review',policy,agent_fallback=True)['overall'],60)
+
     def test_new_non_web_card_excludes_visual_weights(self):
         task = {'hasFrontendUI': False, 'checks': []}
         trial = {'state': 'completed', 'captures': [{'checks': []}]}

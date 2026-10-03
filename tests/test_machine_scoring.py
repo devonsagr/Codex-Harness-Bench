@@ -331,11 +331,13 @@ class MachineScoringTests(unittest.TestCase):
 
     def test_interrupted_judge_never_remains_running_after_restart(self):
         run=self.app.db.get('run',self.rid)
-        run['trials'][0].update(state='judging',judgeExecution={'status':'running','jobId':'job-fixture'})
+        run['trials'][0].update(state='judging',judgeExecution={'status':'running','jobId':'job-fixture'},
+            assessmentExecution={'status':'running','phase':'AI取证','captureId':self.capture['id']})
         self.app.db.save('run',run,run['revision'])
         restarted=Arena(self.root)
         trial=restarted.db.get('run',self.rid)['trials'][0]
         self.assertEqual(trial['judgeExecution']['status'],'interrupted')
+        self.assertEqual(trial['assessmentExecution']['status'],'interrupted')
         self.assertEqual(trial['state'],'captured')
     def current(self):return self.app.present_run(self.app.db.get('run',self.rid))['trials'][0]
     def report(self,identifier='ai-1',value=None):
@@ -546,6 +548,90 @@ class MachineScoringTests(unittest.TestCase):
         t=self.current();self.assertIsNone(t['score']['overall']);self.assertEqual(t['state'],'completed')
         self.assertIn('未就绪',t['lastJobError']['message'])
 
+    def test_one_assessment_runs_native_before_ai_and_keeps_separate_evidence(self):
+        native={'id':'native-fixture','reward':0,'captureHash':self.capture['manifest']['sha256']}
+        report=validate_machine(self.value,self.packet,self.commands)
+        def judge(app,rid,tid,capture,task,data,control,*,deadline):
+            self.assertEqual(self.current()['captures'][-1]['nativeVerifications'],[native])
+            self.assertEqual(capture['nativeVerifications'],[native])
+            self.assertGreater(deadline,time.monotonic())
+            self.assertLessEqual(data['timeoutSeconds'],300)
+            return report
+        with patch('chb.arena.native_verifier.supported',return_value=True),patch('chb.arena.native_verifier.run',return_value=native) as check,patch('chb.arena.jobs.run_judge',side_effect=judge) as review:
+            start_job(self.app,self.rid,self.tid,'assess',{'captureId':self.capture['id'],'model':'fixture','environment':'local','timeoutSeconds':300,'usageAcknowledged':True})
+            deadline=time.monotonic()+5
+            while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
+        check.assert_called_once();review.assert_called_once()
+        t=self.current();self.assertEqual(t['score']['overall'],80)
+        self.assertEqual(t['assessmentExecution']['status'],'completed')
+        self.assertEqual(t['reviews'][-1]['assessmentVersion'],'delivery-assessment-v1')
+
+    def test_assessment_reuses_valid_failed_native_result_but_not_another_snapshot(self):
+        native={'id':'native-prior','reward':0,'captureHash':self.capture['manifest']['sha256']}
+        for stale in (False,True):
+            with self.subTest(stale=stale):
+                r=self.app.db.get('run',self.rid)
+                r['trials'][0]['captures'][-1]['nativeVerifications']=[{**native,'captureHash':'stale' if stale else native['captureHash']}]
+                self.app.db.save('run',r,r['revision'])
+                with patch('chb.arena.native_verifier.supported',return_value=True),patch('chb.arena.native_verifier.run',return_value=native) as check,patch('chb.arena.jobs.run_judge',return_value=validate_machine(self.value,self.packet,self.commands)):
+                    start_job(self.app,self.rid,self.tid,'assess',{'captureId':self.capture['id'],'model':'fixture','environment':'local','usageAcknowledged':True})
+                    deadline=time.monotonic()+5
+                    while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
+                self.assertEqual(check.call_count,int(stale))
+                self.assertEqual(len(self.current()['captures'][-1]['nativeVerifications']),2 if stale else 1)
+
+    def test_native_environment_failure_does_not_abort_ai_assessment(self):
+        with patch('chb.arena.native_verifier.supported',return_value=True),patch('chb.arena.native_verifier.run',side_effect=ValueError('原题环境未就绪')),patch('chb.arena.jobs.run_judge',return_value=validate_machine(self.value,self.packet,self.commands)) as review:
+            start_job(self.app,self.rid,self.tid,'assess',{'captureId':self.capture['id'],'model':'fixture','environment':'local','usageAcknowledged':True})
+            deadline=time.monotonic()+5
+            while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
+        review.assert_called_once();t=self.current()
+        self.assertEqual(t['score']['overall'],80);self.assertEqual(t['assessmentExecution']['status'],'completed')
+        self.assertEqual(t['nativeExecution']['status'],'failed')
+        self.assertFalse(t['captures'][-1].get('nativeVerifications'))
+
+    def test_ai_failure_after_native_preserves_the_program_result(self):
+        native={'id':'native-fixture','reward':1,'captureHash':self.capture['manifest']['sha256']}
+        with patch('chb.arena.native_verifier.supported',return_value=True),patch('chb.arena.native_verifier.run',return_value=native),patch('chb.arena.jobs.run_judge',side_effect=ValueError('模型额度不足')):
+            start_job(self.app,self.rid,self.tid,'assess',{'captureId':self.capture['id'],'model':'fixture','environment':'local','usageAcknowledged':True})
+            deadline=time.monotonic()+5
+            while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
+        t=self.current();self.assertIsNone(t['score']['overall'])
+        self.assertEqual(t['captures'][-1]['nativeVerifications'],[native])
+        self.assertEqual(t['nativeExecution']['status'],'completed')
+        self.assertEqual(t['assessmentExecution']['status'],'failed')
+        self.assertEqual(t['lastJobError']['kind'],'assess')
+
+    def test_assessment_requires_one_usage_acknowledgement_before_any_job(self):
+        with patch('chb.arena.native_verifier.run') as native,patch('chb.arena.jobs.run_judge') as review:
+            with self.assertRaisesRegex(ValueError,'额度'):
+                start_job(self.app,self.rid,self.tid,'assess',{'captureId':self.capture['id'],'model':'fixture'})
+        native.assert_not_called();review.assert_not_called();self.assertFalse(self.app.jobs)
+        self.assertNotIn('assessmentExecution',self.current())
+
+    def test_assessment_budget_stops_program_stage_without_calling_model(self):
+        def wait_for_stop(*args):
+            control=args[5]
+            self.assertTrue(control['stop'].wait(3))
+            raise ValueError('已取消本机测试验收。')
+        with patch('chb.arena.assessment.timeout_seconds',return_value=1),patch('chb.arena.native_verifier.supported',return_value=True),patch('chb.arena.native_verifier.run',side_effect=wait_for_stop),patch('chb.arena.jobs.run_judge') as review:
+            start_job(self.app,self.rid,self.tid,'assess',{'captureId':self.capture['id'],'model':'fixture','environment':'local','usageAcknowledged':True})
+            deadline=time.monotonic()+5
+            while self.app.jobs and time.monotonic()<deadline:time.sleep(.01)
+        review.assert_not_called();t=self.current()
+        self.assertEqual(t['assessmentExecution']['status'],'budget_exhausted')
+        self.assertIsNone(t['score']['overall']);self.assertEqual(t['state'],'completed')
+        self.assertIn('预算',t['lastJobError']['message'])
+
+    def test_feedback_does_not_misclassify_a_missing_counter_as_an_unavailable_environment(self):
+        from chb.arena.judge_repair import repair_issues
+        result={'ratings':{'robustness':{'score':None,'checks':{
+            'coverage':{'score':None,'reason':'此环境的正例已运行，未提供反例引用。'},
+            'quality':{'score':None,'reason':'浏览器环境不支持此操作。'},
+        }}}}
+        issues=repair_issues(result)
+        self.assertEqual(len(issues),1);self.assertEqual(issues[0]['facet'],'coverage')
+
     def test_harbor_packet_and_real_event_parser_without_model_call(self):
         from chb.arena.jobs import run_judge, review_packet
         test=self
@@ -602,8 +688,8 @@ class MachineScoringTests(unittest.TestCase):
 
     def test_feedback_material_and_prior_commands_cross_both_transports(self):
         from chb.arena.jobs import run_judge
-        for environment in ('local','docker'):
-            with self.subTest(environment=environment):
+        for environment,target_attempts in [('local',2),('docker',2),('local',3),('docker',3)]:
+            with self.subTest(environment=environment,attempts=target_attempts):
                 calls=[]
                 def emit(folder,source):
                     packet=json.loads((source/'environment/judge-packet.json').read_text(encoding='utf-8'))
@@ -611,6 +697,8 @@ class MachineScoringTests(unittest.TestCase):
                     value['ratings']={key:{'checks':{facet:{'level':3,'method':'runtime','reason':'Observed hello.',
                         'evidence':[ref]} for facet in ('coverage','quality','resilience')}} for key in packet['dimensions']}
                     value['requirementChecks']={key:copy.deepcopy(value['criteria']['hello']) for key in packet['scoringContract']['requirements']}
+                    if len(calls)==1 and target_attempts==3:
+                        value['ratings']['intent']['checks']['coverage']['level']=4
                     if not calls:
                         value['ratings']['intent']['checks']['coverage']['level']=4
                         artifacts=folder/'artifacts';artifacts.mkdir()
@@ -644,10 +732,10 @@ class MachineScoringTests(unittest.TestCase):
                 with patch('chb.cli.pin_image',return_value='sha256:fixture'),patch('harbor.job.Job.create',side_effect=create),patch('chb.arena.local_review.execute_local',side_effect=local),patch('chb.arena.judge_repair.connection_fingerprint',return_value='fixture'):
                     report=run_judge(self.app,self.rid,self.tid,self.capture,self.task,
                         {'model':'fixture','environment':environment,'timeoutSeconds':600},{'stop':threading.Event()})
-                self.assertEqual(len(calls),2)
+                self.assertEqual(len(calls),target_attempts)
                 self.assertEqual(report['ratings']['intent']['score'],75)
-                self.assertEqual(report['commands'][0]['id'],'prior:cmd1')
-                self.assertEqual(report['judgeUsage']['inputTokens'],17)
+                self.assertEqual(report['commands'][0]['id'],'prior:'*(target_attempts-1)+'cmd1')
+                self.assertEqual(report['judgeUsage']['inputTokens'],10+7*(target_attempts-1))
                 self.assertNotEqual(report['judgePromptSha256'],report['judgeFinalInstructionSha256'])
                 self.assertEqual(json.loads((calls[0]/'answer.json').read_text())['ratings']['intent']['checks']['coverage']['level'],4)
 

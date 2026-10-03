@@ -180,7 +180,7 @@ def post(app,route,data):
                     length=log.stat().st_size;stream.seek(max(0,length-20000));body=stream.read(20000)
                 return {'output':body.decode('utf-8',errors='replace'),'truncated':length>20000}
             if action=='native-check':return start_job(app,rid,tid,'native',data)
-            if action in {'check','judge','behavior'}:return start_job(app,rid,tid,action,data)
+            if action in {'check','judge','behavior','assess'}:return start_job(app,rid,tid,action,data)
             if action=='stop':return stop_job(app,rid,tid)
             return app.mutate(rid,tid,action,data)
     raise ValueError('没有这个操作。')

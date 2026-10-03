@@ -22,7 +22,8 @@ export function scoreComposition(run:Run,trial:Trial,task:Task){
     if((quality&&score.machineOverrides?.maintainability)||(key&&score.machineOverrides?.[key]))source='人工修正';
     if(key==='verification'&&task.checks?.length){
       const checks=latest?.checks||[];
-      source=checks.some(check=>check.status==='failed')?'程序失败，限制为 0':!checks.length||checks.some(check=>!['passed','failed'].includes(check.status))?'待程序检查':source+' · 已有程序检查';
+      const review=trial.reviews?.find(row=>row.id===score.machineReviewId);
+      source=checks.some(check=>check.status==='failed')?'程序失败，限制为 0':!checks.length||checks.some(check=>!['passed','failed'].includes(check.status))?(review?.programChecksFallback?'AI 独立运行取证':'待程序检查'):source+' · 已有程序检查';
     }
     return {key,label:row.label,weight:row.weight,points:row.points,value:row.points==null||!row.weight?null:row.points/row.weight*100,source};
   });
@@ -37,6 +38,19 @@ export function scoreComposition(run:Run,trial:Trial,task:Task){
 export function currentNativeResult(trial:Trial){
   const latest=trial.captures[trial.captures.length-1];
   return latest?.nativeVerifications?.find(row=>row.id===trial.score.nativeVerificationId&&row.captureHash===latest.manifest.sha256);
+}
+
+export function trialResultLabel(trial:Trial,task:Task){
+  const latest=trial.captures[trial.captures.length-1];
+  const assessment=trial.assessmentExecution?.captureId===latest?.id?trial.assessmentExecution:null;
+  if(['checking','judging'].includes(trial.state))return assessment?.phase||'评测进行中';
+  if(trial.score.overall!=null)return `${Number(trial.score.overall.toFixed(2))} 分`;
+  const native=currentNativeResult(trial);
+  if(task.publicSource&&native)return native.reward===1?'原题通过':'原题未通过';
+  if(assessment)return assessment.status==='completed'?'评测完成':assessment.status==='cancelled'?'评测已取消':assessment.status==='partial'?'评测结束 · 证据受限':'评测未完成';
+  if(latest&&trial.lastJobError)return '评测未完成';
+  if(latest&&trial.score.machineReviewId)return '已有旧报告 · 分项未齐';
+  return latest?'已回收 · 尚未评测':trial.state==='active'?'执行中':'待执行';
 }
 
 export function nativeTestProgress(trial:Trial){

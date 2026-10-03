@@ -1,6 +1,7 @@
 """Owned background checks: pinned containers, immutable inputs, explicit cancellation."""
 import asyncio
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -15,7 +16,7 @@ from .review_options import timeout_seconds, ReviewBudgetExceeded
 from .judge_reliability import comparison_key
 
 JUDGE_DEFAULT_REASONING=''
-JUDGE_PROMPT_VERSION='arena-judge-2026-10-02-feedback-v7'
+JUDGE_PROMPT_VERSION='arena-judge-2026-10-03-assessment-v8'
 REVIEWER_CODEX_VERSION='0.158.0-alpha.2.1'
 JUDGE_REASONING_LEVELS={'none','minimal','low','medium','high','xhigh','max','ultra'}
 
@@ -56,6 +57,7 @@ def judge_empty_result_reason(diagnostics):
 
 
 def start_job(app,rid,tid,kind,data):
+    reviewing=kind in {'judge','assess'}
     with app.lock:
         run,trial=app.trial(rid,tid)
         if run.get('archived'):raise ValueError('请先恢复已归档评测。')
@@ -66,21 +68,26 @@ def start_job(app,rid,tid,kind,data):
         capture=next((c for c in trial['captures'] if c['id']==data.get('captureId')),None)
         if capture is None:raise ValueError('产物版本不存在，请刷新。')
         task=next(t for t in run['tasks'] if t['id']==trial['taskId'])
+        if kind=='assess' and run['policy']['version']!='arena-machine-v1':raise ValueError('旧评分记录请使用其原复审流程。')
         if kind=='native':
             from .native_verifier import supported
             from .upstream_verifier import supported as upstream_supported
             if not supported(task) and not upstream_supported(task):raise ValueError('此题尚未接入原题程序验收。')
-        if kind=='judge' and (not isinstance(data.get('model'),str) or not data['model'].strip() or len(data['model'])>100):
+        if reviewing and (not isinstance(data.get('model'),str) or not data['model'].strip() or len(data['model'])>100):
             raise ValueError('请选择裁判模型。')
-        if kind=='judge' and data.get('usageAcknowledged') is not True:
+        if reviewing and data.get('usageAcknowledged') is not True:
             raise ValueError('AI 裁判会使用当前登录账号额度；时间预算不是 Token 上限。请确认本次独立模型调用。')
         if kind=='behavior':
             from .behavior import check_definition
             if not check_definition(task,app.root):raise ValueError('此题版本尚无匹配的专项验收协议。')
         if kind=='check' and not applicable_checks(task,capture['stageIndex']):raise ValueError('当前阶段没有可执行检查；可人工复审或在题目新版本声明检查。')
-        if kind=='judge' and data.get('environment','docker') not in {'local','docker'}:raise ValueError('未知裁判环境。')
-        if kind=='judge' and data.get('reasoningEffort',JUDGE_DEFAULT_REASONING) not in JUDGE_REASONING_LEVELS|{''}:raise ValueError('裁判推理档位无效。')
-        if kind=='judge':
+        if reviewing and data.get('environment','docker') not in {'local','docker'}:raise ValueError('未知裁判环境。')
+        if reviewing and data.get('reasoningEffort',JUDGE_DEFAULT_REASONING) not in JUDGE_REASONING_LEVELS|{''}:raise ValueError('裁判推理档位无效。')
+        if kind=='assess' and task.get('hasFrontendUI') and os.name=='nt' and data.get('environment')=='local':
+            raise ValueError('本题含界面评分，Windows 本机环境无法浏览器取证；请使用 Docker 裁判完成整次评测。')
+        if reviewing:
+            from .judge_repair import attempt_limit
+            attempt_limit(data)
             timeout_seconds(data)
             tier=validate_service_tier(data['model'],data.get('serviceTier','standard'))
             if tier=='fast' and data.get('environment','docker')!='local':
@@ -93,13 +100,20 @@ def start_job(app,rid,tid,kind,data):
         state=trial['state'];trial['state']='checking' if kind in {'check','native','behavior'} else 'judging'
         if kind=='native':trial['nativeExecution']={'status':'running','phase':'准备本机测试验收','startedAt':now(),'captureId':capture['id'],'jobId':uuid.uuid4().hex[:12]}
         trial.pop('lastJobError',None)
-        if kind=='judge':trial['judgeExecution']={'status':'preparing','startedAt':now(),'captureId':capture['id'],
+        if reviewing and trial.get('judgeExecution'):
+            trial.setdefault('judgeAttempts',[]).append(trial['judgeExecution'])
+        if reviewing:trial['judgeExecution']={'status':'preparing','startedAt':now(),'captureId':capture['id'],
             'model':data['model'],'reasoning':data.get('reasoningEffort',JUDGE_DEFAULT_REASONING),'serviceTier':tier,'environment':data.get('environment','docker'),
             'timeoutSeconds':timeout_seconds(data),'connection':route['public']}
+        if kind=='assess':
+            from .assessment import VERSION
+            if trial.get('assessmentExecution'):trial.setdefault('assessmentAttempts',[]).append(trial['assessmentExecution'])
+            trial['assessmentExecution']={'version':VERSION,'status':'running','phase':'准备本次评测',
+                'captureId':capture['id'],'startedAt':now(),'steps':[],'timeoutSeconds':timeout_seconds(data)}
         if kind=='check' or (kind=='judge' and data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex'])):
             capture.setdefault('checkAttempts',[]).append({'at':now(),'results':capture['checks']})
             capture['checks']=[]
-        app.event(run,'开始执行隔离检查（不调用模型）。' if kind in {'check','behavior'} else '开始本机测试验收（不调用模型）。' if kind=='native' else '开始独立 AI 审查（会使用模型额度）。',tid)
+        app.event(run,'开始执行隔离检查（不调用模型）。' if kind in {'check','behavior'} else '开始本机测试验收（不调用模型）。' if kind=='native' else '开始整次评测：程序验收、AI 取证与自动补查共用本次预算。' if kind=='assess' else '开始独立 AI 审查（会使用模型额度）。',tid)
         app.db.save('run',run,run['revision'])
         stop=threading.Event()
         control={'stop':stop,'containers':set(),'kind':kind}
@@ -122,6 +136,10 @@ def start_job(app,rid,tid,kind,data):
                     if stop.is_set():raise ValueError('已取消本机测试验收。')
                 elif kind=='check':checks=run_checks(app,rid,tid,capture,task,control)
                 elif kind=='behavior':run_checks(app,rid,tid,capture,task,control,behavior=True)
+                elif kind=='assess':
+                    from .assessment import run_assessment
+                    report=run_assessment(app,rid,tid,capture,task,data,control)
+                    if stop.is_set():raise ValueError('已取消本次评测。')
                 else:
                     if data.get('environment','docker')=='docker' and run['policy']['version']=='arena-machine-v1' and applicable_checks(task,capture['stageIndex']):
                         try:capture['checks']=run_checks(app,rid,tid,capture,task,control)
@@ -147,9 +165,15 @@ def start_job(app,rid,tid,kind,data):
                         current.setdefault('nativeVerifications',[]).append(report)
                         t['nativeExecution'].update(status='completed',phase='测试验收完成',endedAt=now())
                     elif kind=='check':current['checks']=checks
-                    elif kind=='judge':t['reviews'].append({'id':'ai-'+uuid.uuid4().hex[:12],'kind':'ai','captureId':capture['id'],'at':now(),**report})
+                    elif reviewing:t['reviews'].append({'id':'ai-'+uuid.uuid4().hex[:12],'kind':'ai','captureId':capture['id'],'at':now(),**report})
                     t['state']=state
-                    if kind=='judge':t['judgeExecution'].update(status='partial' if (report.get('automaticRepair') or {}).get('status')=='partial' else 'completed',endedAt=now())
+                    if reviewing:t['judgeExecution'].update(status='partial' if (report.get('automaticRepair') or {}).get('status')=='partial' else 'completed',endedAt=now())
+                    if kind=='assess':
+                        from .machine import calculate_machine
+                        score=calculate_machine(fresh,t)
+                        result_ready=score['overall'] is not None or (score.get('scoreSource')=='native-verifier' and score.get('nativeReward') is not None)
+                        t['assessmentExecution'].update(status='completed' if result_ready else 'partial',
+                            phase='本次评测完成' if result_ready else '本次评测结束，部分证据受限',endedAt=now())
                     app.event(fresh,'后台操作已结束，证据已保存。' if not stop.is_set() else '已停止后台操作；未执行项不记为失败。',tid)
                     app.db.save('run',fresh,fresh['revision'])
             except Exception as exc:
@@ -157,10 +181,13 @@ def start_job(app,rid,tid,kind,data):
                     fresh,t=app.trial(rid,tid);t['state']=state
                     # Do not send exception strings containing commands/auth to the browser.
                     message=str(exc)
-                    cause='已取消' if stop.is_set() else message if isinstance(exc,ValueError) and len(message)<250 and any('\u4e00'<=c<='\u9fff' for c in message) else '本机测试环境异常；请查看测试输出并重新准备环境。' if kind=='native' else '执行环境异常；请核对 Docker、镜像和本机日志。'
+                    cause=message if isinstance(exc,ReviewBudgetExceeded) else '已取消' if stop.is_set() else message if isinstance(exc,ValueError) and len(message)<250 and any('\u4e00'<=c<='\u9fff' for c in message) else '本机测试环境异常；请查看测试输出并重新准备环境。' if kind=='native' else '执行环境异常；请核对 Docker、镜像和本机日志。'
                     app.event(fresh,cause,tid)
                     t['lastJobError']={'kind':kind,'message':cause,'at':now()}
-                    if kind=='judge':t['judgeExecution'].update(status='cancelled' if stop.is_set() else 'budget_exhausted' if isinstance(exc,ReviewBudgetExceeded) else 'failed',endedAt=now())
+                    if reviewing:t['judgeExecution'].update(status='budget_exhausted' if isinstance(exc,ReviewBudgetExceeded) else 'cancelled' if stop.is_set() else 'failed',endedAt=now())
+                    if kind=='assess':
+                        t['assessmentExecution'].update(status=t['judgeExecution']['status'],phase=cause,endedAt=now())
+                        if t.get('nativeExecution',{}).get('status')=='running':t['nativeExecution'].update(status=t['judgeExecution']['status'],phase=cause,endedAt=now())
                     if kind=='native':t['nativeExecution'].update(status='cancelled' if stop.is_set() else 'failed',phase=cause,endedAt=now())
                     app.db.save('run',fresh,fresh['revision'])
             finally:
@@ -223,6 +250,24 @@ def saved_review_answer(folder,environment):
     return value,commands,normalization
 
 
+def saved_review_commands_chain(folder,environment,capture_id,depth=0):
+    """Recover evidence from every bounded feedback pass for read-only validation."""
+    from .service import identifier
+    from .judge_repair import MAX_ATTEMPTS
+    if depth>=MAX_ATTEMPTS:raise ValueError('自动补查记录超出本次协议上限。')
+    protocol_file=safe_path(folder,'protocol.json')
+    if not protocol_file.is_file() or protocol_file.stat().st_size>2_000_000:
+        raise ValueError('自动补查的先前取证记录不存在。')
+    protocol=json.loads(protocol_file.read_text(encoding='utf-8'))
+    if protocol.get('captureId')!=capture_id:raise ValueError('自动补查的先前取证与冻结版本不一致。')
+    _,commands=saved_review_material(folder,environment)
+    if protocol.get('previousReviewJobId'):
+        previous=safe_path(folder.parent,identifier(protocol['previousReviewJobId']))
+        prior=saved_review_commands_chain(previous,environment,capture_id,depth+1)
+        commands=[{**row,'id':'prior:'+str(row.get('id',i))} for i,row in enumerate(prior)]+commands
+    return commands
+
+
 def revalidate_saved_review(app,rid,tid):
     """Recheck a saved local or Docker judge answer without a model call."""
     with app.lock:
@@ -282,7 +327,7 @@ def revalidate_saved_review(app,rid,tid):
                 raise ValueError('自动补查的原始取证记录不存在，不能重新校验。')
             if json.loads(prior_protocol.read_text(encoding='utf-8')).get('captureId')!=capture_id:
                 raise ValueError('自动补查的先前取证与冻结版本不一致。')
-            _,prior_commands=saved_review_material(prior,environment)
+            prior_commands=saved_review_commands_chain(prior,environment,capture_id)
             commands=[{**row,'id':'prior:'+str(row.get('id',index))} for index,row in enumerate(prior_commands)]+commands
         result=validate_judge(value,packet)
         result.update(validate_machine(value,packet,commands))
@@ -305,6 +350,8 @@ def revalidate_saved_review(app,rid,tid):
                 except ValueError:continue
                 codex_version=((entry.get('config') or {}).get('agent') or {}).get('kwargs',{}).get('version') or codex_version
         report={**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],
+                'assessmentVersion':previous.get('assessmentVersion') if previous else protocol.get('assessmentVersion'),
+                'programChecksFallback':previous.get('programChecksFallback',False) if previous else protocol.get('programChecksFallback',False),
                 'model':execution.get('model'),'reasoningEffort':execution.get('reasoning'),
                 'serviceTier':execution.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME',
                 'executionMode':'cli-review-only','reviewEnvironment':environment,'jobPath':str(folder),
@@ -519,7 +566,11 @@ def review_packet(app,rid,tid,capture,task):
     if dialogue:
         from .interaction import verify
         verify(dialogue)
+    native=next((row for row in reversed(capture.get('nativeVerifications',[]))
+                 if row.get('captureHash')==capture['manifest']['sha256']
+                 and type(row.get('reward')) is int and row['reward'] in (0,1)),None)
     return {'task':task,'evaluationScope':scope,'stageIndex':capture['stageIndex'],'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
+            'nativeAcceptance':{key:native[key] for key in ('id','reward','f2p_passed','f2p_total','p2p_passed','p2p_total') if key in native} if native else None,
             **({'interactionEvidence':dialogue} if dialogue else {}),
             'behaviorAcceptance':summarize(task,capture,app.root),
             'files':texts,'omittedFiles':omitted,'checks':capture['checks'],'facts':capture['facts']}
@@ -540,24 +591,26 @@ def validate_judge(value,packet):
             'scoresAreAdvisory':True,'note':'仅核对引用是否存在，不代表意见一定正确；不自动写入人工分或客观测试结果。'}
 
 
-def run_judge(app,rid,tid,capture,task,data,control):
-    """One authorized review, with one evidence-feedback pass in the same budget."""
-    from .judge_repair import VERSION, MAX_ATTEMPTS, repair_issues, combined_usage, connection_fingerprint
+def run_judge(app,rid,tid,capture,task,data,control,*,deadline=None):
+    """One authorized review, with bounded evidence feedback in the same budget."""
+    from .judge_repair import VERSION, attempt_limit, repair_issues, combined_usage, connection_fingerprint
     from .judge_progress import read_judge_usage
     run,_=app.trial(rid,tid)
     if run['policy']['version']!='arena-machine-v1':
         return _run_judge_once(app,rid,tid,capture,task,data,control)
-    deadline=time.monotonic()+timeout_seconds(data)
+    deadline=deadline if deadline is not None else time.monotonic()+timeout_seconds(data)
     connection_at_start=connection_fingerprint()
+    max_attempts=attempt_limit(data)
     attempts=[];feedback=None;accepted=None;failure=None;reason=''
-    for index in range(MAX_ATTEMPTS):
+    for index in range(max_attempts):
         if control['stop'].is_set():raise ValueError('已取消机器评分。')
-        remaining=int(deadline-time.monotonic()) if index else timeout_seconds(data)
-        if index and remaining<60:
+        remaining=min(timeout_seconds(data),math.ceil(deadline-time.monotonic()))
+        if remaining<60:
+            if accepted is None:raise ReviewBudgetExceeded('本次评测剩余时间不足以启动裁判；已有程序结果保留。')
             reason='剩余时间不足以启动自动补查；已核实的分项保留，缺项仍未完成。'
             break
         settings={**data,'timeoutSeconds':remaining}
-        started=time.monotonic();issues=[]
+        started=time.monotonic();issues=[];terminal=False
         try:
             result=_run_judge_once(app,rid,tid,capture,task,settings,control,feedback=feedback,deadline=deadline)
             accepted=result
@@ -570,6 +623,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
             if isinstance(exc,ReviewBudgetExceeded) or not str(exc).startswith('评分报告未通过校验'):
                 if accepted is None:raise
                 reason='自动补查未完成；先前已核实的分项已保留，缺项仍未完成。'
+                terminal=True
             failure=exc;issues=[{'section':'report','reason':str(exc)[:600]}]
         _,trial=app.trial(rid,tid)
         job_id=trial.get('judgeExecution',{}).get('jobId')
@@ -578,20 +632,23 @@ def run_judge(app,rid,tid,capture,task,data,control):
         usage=read_judge_usage(folder) if folder and folder.exists() else None
         attempts.append({'jobId':job_id,'issues':issues,'usage':usage,
                          'seconds':round(time.monotonic()-started,2)})
+        if terminal:break
         if not issues:break
-        if index+1==MAX_ATTEMPTS:
+        if index+1==max_attempts:
             if not reason:reason='自动补查已结束；仍缺证据的项保持未验证，不由平台补分。'
             break
         if connection_fingerprint()!=connection_at_start:
             reason='账号凭据或模型连接已变化，未启动补查，以免本次审查换号。';break
-        try:answer,commands=saved_review_material(folder,data.get('environment','docker'))
+        try:
+            answer,commands=saved_review_material(folder,data.get('environment','docker'))
+            if feedback:commands=[{**row,'id':'prior:'+str(row.get('id',i))} for i,row in enumerate(feedback['commands'])]+commands
         except (ValueError,OSError,TypeError):
             reason='先前取证材料无法完整读取，未启动额外模型调用。';break
         feedback={'version':VERSION,'previousJobId':job_id,'issues':issues,
                   'answer':answer,'commands':commands}
         with app.lock:
             current,trial=app.trial(rid,tid)
-            trial['judgeExecution']['automaticRepair']={'attempt':2,'maxAttempts':MAX_ATTEMPTS,
+            trial['judgeExecution']['automaticRepair']={'attempt':index+2,'maxAttempts':max_attempts,
                 'previousJobId':job_id,'issueCount':len(issues),'phase':'裁判正在自动补查缺项和引用'}
             app.event(current,'报告有缺项或引用问题，已反馈给裁判自动补查；沿用本次剩余时间预算。',tid)
             app.db.save('run',current,current['revision'])
@@ -599,7 +656,7 @@ def run_judge(app,rid,tid,capture,task,data,control):
     if accepted is None:raise ValueError('裁判未返回可保存的评分报告。')
     missing=any(row.get('score') is None for row in accepted.get('ratings',{}).values())
     if missing and not reason:reason='环境或材料限制仍有未验证项；已完成可用证据的校验，不补猜分数。'
-    accepted['automaticRepair']={'version':VERSION,'attempts':attempts,'maxAttempts':MAX_ATTEMPTS,
+    accepted['automaticRepair']={'version':VERSION,'attempts':attempts,'maxAttempts':max_attempts,
         'status':'partial' if reason or failure else 'completed','note':reason or ('自动补查报告仍未通过校验，保留已核实分项。' if failure else '本次报告已完成校验。')}
     accepted['judgeUsage']=combined_usage([row for row in attempts if row['jobId']])
     # Record the complete authorized operation, rather than hiding the first
@@ -690,7 +747,7 @@ def _run_judge_once(app,rid,tid,capture,task,data,control,feedback=None,deadline
             '可用 Node require("playwright") 的 Chromium（launch 时 args:["--no-sandbox"]），Python3、npm、pnpm。'
             '用浏览器的 DOM、交互前后状态、控制台和实测记录作为证据；需要视觉判断时查看截图，不凭代码猜视觉分。'
             '截图等材料保存到 /logs/artifacts/。检查项目需要的外部服务不可用、无法安装依赖或无法实际验证时，明确标未验证。'
-            '没有任务专用脚本也要按需求主动检查。需求完成度优先；构建成功不代表业务成功。'
+            '没有任务专用脚本也要按需求主动检查。专用脚本缺失或无法执行时，自己在取证副本中编写并运行只用于验收的测试；不能修改待评实现或已有测试，不能只因没有现成测试就留空。需求完成度优先；构建成功不代表业务成功。'
             '若材料含behaviorAcceptance，先查看逐项程序结论和未覆盖范围；失败不能用其他高分抵消，待验证不等于失败，通过也只证明列出的操作。若实测与该结论冲突，保留冲突并引用复现过程，不擅自宣布已解决。'
             '首先对照完整 inputPrompt 和截至当前轮已发送的 promptSnapshots。criteria 和 projectSpec 只能辅助解释，不能添加开发者未见过的强制要求；没有公开依据的条目标 unverified 并说明原因，不据此扣分。'
             'evaluationScope.kind=stage表示可选的阶段检查：总体需求只作目标背景，按当前及此前阶段的交付范围判断，后续阶段功能缺失不得扣分；尚不适用的整题条目标unverified。kind=final才按完整原始需求检查最终产物。'
@@ -705,7 +762,7 @@ def _run_judge_once(app,rid,tid,capture,task,data,control,feedback=None,deadline
             '\n冻结材料及本题实际维度在 /app/judge-packet.json。先读取，再逐项对照；不要凭记忆猜题面。')
         from .judge_protocol import INSTRUCTION
         instruction += '\n统一评分格式：' + INSTRUCTION
-        from .judge_repair import INSTRUCTION as SELF_CHECK
+        from .judge_repair import INSTRUCTION as SELF_CHECK, VERSION as REPAIR_VERSION
         instruction += SELF_CHECK
         if packet.get('interactionEvidence'):
             from .interaction import INSTRUCTION as INTERACTION_INSTRUCTION
@@ -748,13 +805,15 @@ def _run_judge_once(app,rid,tid,capture,task,data,control,feedback=None,deadline
         instruction+=REPAIR_INSTRUCTION+'\n反馈文件：'+prefix+'review-feedback.json'
     (source/'instruction.md').write_text(instruction,encoding='utf-8')
     (folder/'protocol.json').write_text(json.dumps({'judgePromptVersion':JUDGE_PROMPT_VERSION if machine else 'legacy-review',
+        'assessmentVersion':'delivery-assessment-v1' if control.get('kind')=='assess' else None,
+        'programChecksFallback':control.get('kind')=='assess' and data.get('programChecksFallback') is True,
         'scoringProtocol':packet.get('scoringContract',{}).get('version'),
         'instructionSha256':hash_bytes(instruction.encode('utf-8')),
         'baseInstructionSha256':base_instruction_hash,
         'packetSha256':hash_bytes(material.encode('utf-8')),'captureId':capture['id'],
         'judgeComparisonKey':comparison_key(packet) if machine else None,
         'model':model,'reasoningEffort':reasoning,'reviewEnvironment':'local' if local else 'docker',
-        'automaticRepairVersion':'review-feedback-v1' if machine else None,
+        'automaticRepairVersion':REPAIR_VERSION if machine else None,
         'previousReviewJobId':feedback['previousJobId'] if feedback else None,
         'judgeBlinding':'workspace-instructions-stripped-v1',
         'imageId':image,'codexVersion':REVIEWER_CODEX_VERSION if not local else None},ensure_ascii=False),encoding='utf-8')

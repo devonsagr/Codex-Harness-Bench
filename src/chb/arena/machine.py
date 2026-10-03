@@ -265,12 +265,13 @@ def calculate_machine(run,trial):
         from .task_scorecards import PROJECT_POLICY_VERSION, AUTO_PROJECT_VERSION, score_project, score_project_policy, score_project_auto
         required={'intent','instruction','verification','robustness','maintainability','handoff'}|({'ux'} if task.get('hasFrontendUI') else set())
         task_policy=policy_for_task(run['policy'],task)
+        agent_fallback=bool(report and report.get('assessmentVersion')=='delivery-assessment-v1' and report.get('programChecksFallback'))
         if run.get('projectScorecardVersion') in {'project-tasktype-v2',AUTO_PROJECT_VERSION} and task_policy.get('taskTypeAuto'):
-            card=score_project_auto(task,trial,effective,report['id'] if report else None,run['projectScorecardVersion'])
+            card=score_project_auto(task,trial,effective,report['id'] if report else None,run['projectScorecardVersion'],agent_fallback=agent_fallback)
         elif run.get('projectScorecardVersion') in {PROJECT_POLICY_VERSION,'project-tasktype-v2',AUTO_PROJECT_VERSION} and not task_policy.get('taskTypeAuto'):
-            card=score_project_policy(task,trial,effective,report['id'] if report else None,task_policy)
+            card=score_project_policy(task,trial,effective,report['id'] if report else None,task_policy,agent_fallback=agent_fallback)
         elif run.get('localScorecardVersion') and required<=set(weights):
-            card=score_project(task,trial,effective,report['id'] if report else None)
+            card=score_project(task,trial,effective,report['id'] if report else None,agent_fallback=agent_fallback)
         else:
             card=None
         if card:
