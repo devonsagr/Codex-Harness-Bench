@@ -8,7 +8,45 @@ const url=source=>'data:text/javascript;base64,'+Buffer.from(source).toString('b
 const capability=url(transpile('../src/workbench/capabilityProfiles.ts'));
 const presentation=url(transpile('../src/workbench/presentation.ts'));
 const source=transpile('../src/workbench/scoreExplanation.ts').replace("'./capabilityProfiles'",JSON.stringify(capability)).replace("'./presentation'",JSON.stringify(presentation));
-const {currentNativeResult,currentTrialAxes,batchScoreSummary,totalScoreExplanation,programScoreExplanation,nativeTestProgress,missingScoreEvidence}=await import(url(source));
+const {currentNativeResult,currentTrialAxes,batchScoreSummary,totalScoreExplanation,programScoreExplanation,nativeTestProgress,missingScoreEvidence,scoreComposition}=await import(url(source));
+
+test('SWE composition reads program contributions plus quality contribution, not test-count or AI means',()=>{
+  const publicTask={publicSource:{id:'abs-stepped-slices'}};
+  const item={score:{machine:50,overall:85,taskScorecard:{items:[
+    {label:'功能A',weight:60,points:60},{label:'失败功能组',weight:10,points:0},
+    {label:'旧功能与边界回归',weight:20,points:20},{label:'工程可维护性',weight:10,points:5},
+  ]}},captures:[]};
+  const result=scoreComposition({policy:{version:'arena-machine-v1'}},item,publicTask);
+  assert.equal(result.programPoints,80);assert.equal(result.qualityPoints,5);
+  assert.equal(result.rows.at(-1).value,50);assert.equal(item.score.overall,85);
+  assert.equal(result.rows[1].points,0);
+});
+
+test('an open project program failure restricts its AI verification contribution without adding a smoke score',()=>{
+  const item={score:{overall:72,objective:100,machine:95,scoreProgress:{rows:[
+    {key:'intent',label:'目标',weight:80,points:72},{key:'verification',label:'验证',weight:20,points:0},
+  ]}},captures:[{checks:[{status:'failed'}]}]};
+  const result=scoreComposition({policy:{version:'arena-machine-v1'}},item,{checks:[{image:'fixture'}]});
+  assert.equal(result.kind,'project');assert.equal(result.rows[1].value,0);
+  assert.match(result.rows[1].source,/程序失败/);
+  assert.equal(result.programPoints,null);assert.equal(result.rows.reduce((s,r)=>s+r.points,0),72);
+  item.score.machineOverrides={verification:{score:100,reason:'manual fixture'}};
+  assert.match(scoreComposition({policy:{version:'arena-machine-v1'}},item,{checks:[{image:'fixture'}]}).rows[1].source,/程序失败/);
+});
+
+test('missing local quality stays missing; legacy program/human mixing preserves its frozen rule',()=>{
+  const publicResult=scoreComposition({policy:{version:'arena-machine-v1'}},{score:{overall:null,taskScorecard:{items:[
+    {label:'目标功能',weight:70,points:70},{label:'回归',weight:20,points:20},{label:'工程可维护性',weight:10,points:null},
+  ]}},captures:[]},{publicSource:{id:'fixture'}});
+  assert.equal(publicResult.programPoints,90);assert.equal(publicResult.qualityPoints,null);
+  const legacy=scoreComposition({policy:{version:'arena-review-v2',objectiveWeight:40,humanWeight:60}},
+    {score:{objective:0,adjudicatedObjective:null,human:80},captures:[]},{});
+  assert.deepEqual(legacy.rows.map(r=>r.points),[0,48]);assert.match(legacy.formula,/40%.*60%/);
+  const adjudicated=scoreComposition({policy:{version:'arena-review-v2',objectiveWeight:40,humanWeight:60}},
+    {score:{objective:80,adjudicatedObjective:0,human:80,overall:80,adjudicatedOverall:48},captures:[]},{});
+  assert.deepEqual(adjudicated.rows.map(r=>r.points),[32,48]);
+  assert.equal(adjudicated.rows[0].source,'程序检查');
+});
 
 const task=(extra={})=>({id:'task-a',revision:1,title:'A',stages:[{title:'delivery'}],checks:[],...extra});
 const trial=(extra={})=>({id:'t1',taskId:'task-a',state:'captured',captures:[{id:'c1',manifest:{sha256:'new'},nativeVerifications:[]}],reviews:[],score:{overall:null,machine:null},...extra});

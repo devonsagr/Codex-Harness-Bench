@@ -646,6 +646,16 @@ button,input,select,textarea,summary{font-family:var(--ui-font)}
 .score-summary-contributions th,.score-summary-contributions td{text-align:left;padding:12px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .score-summary-contributions th{font-weight:600}
 .score-summary-contributions thead{background:var(--surface-soft)}
+.score-calculation,.score-config-link,.configuration-calculation{display:grid;gap:14px;padding:20px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.score-calculation h3,.score-config-link h3,.configuration-calculation h3{font-size:18px;font-weight:650}
+.score-calculation-formula{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.run-detail .score-calculation-formula{font-size:20px}
+.score-table-scroll{max-width:100%;overflow-x:auto}
+.score-table-scroll table{min-width:620px}
+.configuration-calculation>header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.configuration-calculation>header>span{font-size:14px;color:var(--muted)}
+.score-config-link>button,.configuration-calculation>button{justify-self:start}
+@media(max-width:760px){.score-calculation,.score-config-link,.configuration-calculation{padding:16px}.score-calculation-formula,.run-detail .score-calculation-formula{font-size:18px}}
 .review-navigation{display:flex;gap:6px;flex-wrap:wrap;padding:5px;background:var(--surface-soft);border:1px solid var(--line);border-radius:6px}
 .review-navigation button{padding:9px 18px;font-size:14px;border-radius:4px;color:var(--muted)}
 .review-navigation button.selected{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 4px #00000012}

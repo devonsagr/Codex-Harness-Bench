@@ -19,6 +19,34 @@ export function entryScore(entry:ConfigResultEntry):number|null{
   const card=score.taskScorecard;
   return score.scoreSource==='task-scorecard'&&report&&card?.nativeVerificationId===report.id&&card.overall===score.overall?card.overall:null;
 }
+
+/** A visible sample mean, kept separate from the completed/comparable grade. */
+export function configurationScorePreview(group:ConfigResult){
+  const batches=group.entries.filter(entry=>entry.run.trials.length>1).sort((a,b)=>b.run.createdAt.localeCompare(a.run.createdAt));
+  const sourceRunId=group.suiteRunId||batches[0]?.run.id;
+  const entries=sourceRunId?group.entries.filter(entry=>entry.run.id===sourceRunId):group.entries;
+  const buckets=new Map<string,{task:Task;entries:ConfigResultEntry[]}>();
+  for(const entry of entries){
+    const key=`${entry.task.id}:${entry.task.revision}`,bucket=buckets.get(key)||{task:entry.task,entries:[]};
+    bucket.entries.push(entry);buckets.set(key,bucket);
+  }
+  const rows=[...buckets].map(([key,bucket])=>{
+    const known=bucket.entries.filter(entry=>entryScore(entry)!=null);
+    const protocols=new Set(known.map(entry=>`${policyKey(entry)}:${judgeKey(entry)}`));
+    return {...bucket,key,scored:known.length,protocolConflict:protocols.size>1,
+      mean:known.length&&protocols.size===1?average(known.map(entry=>entryScore(entry)!)):null,
+      protocolKey:protocols.size===1?[...protocols][0]:key};
+  });
+  const scored=rows.filter((row):row is typeof row & {mean:number}=>row.mean!=null);
+  const complete=rows.length>0&&rows.every(row=>row.mean!=null&&row.scored===row.entries.length);
+  const provisional=entries.some(entry=>!entry.task.publicSource&&entry.trial.state!=='completed');
+  const native=entries.filter(entry=>entry.task.publicSource&&[0,1].includes(nativeReport(entry)?.reward??-1));
+  return {sourceRunId,entries,rows,scoredTasks:scored.length,totalTasks:rows.length,
+    scoredTrials:rows.reduce((n,row)=>n+row.scored,0),totalTrials:entries.length,complete,provisional,
+    mean:scored.length?Math.round(average(scored.map(row=>row.mean))*10)/10:null,
+    tasks:scored.map(row=>({task:row.task,entries:row.entries,protocolKey:row.protocolKey,mean:row.mean})),
+    nativeVerified:native.length,nativePassed:native.filter(entry=>nativeReport(entry)?.reward===1).length};
+}
 const policyKey=(entry:ConfigResultEntry)=>{
   if(entry.task.publicSource)return `local:${entry.trial.score.taskScorecard?.version||'unknown'} / native:${nativeReport(entry)?.adapter||'unknown'}`;
   const policy=entry.run.policy;
@@ -111,7 +139,7 @@ export function configResults(state:Pick<State,'runs'|'archivedRuns'|'configs'|'
     group.score=(batches.length?false:group.pending>0)||conflict||group.referenceOnly?null:group.referenceScore;
     if(conflict)group.reason='同题混有不同版本或评分协议；保留逐题分，配置综合分待对齐';
     else if(!batches.length&&group.pending)group.reason=pendingReason;
-    else if(group.referenceOnly)group.reason='题集中含通用烟检、未覆盖最新快照的任务验收、检查失败或旧版未标明证据级别的题；保留 AI 参考均值，不发布可用于配置对比的综合分';
+    else if(group.referenceOnly)group.reason='题集中含通用烟检、未覆盖最新快照的任务验收、检查失败或旧版未标明证据级别的题；保留本地参考分，跨配置对比条件尚未满足';
     else if(batches.length&&completeBatch&&batches[0].id!==completeBatch.id)group.reason='最新批次尚未完整验收；显示上一次完整批次的题集分';
   }
   return [...groups.values()].sort((a,b)=>Number(b.current)-Number(a.current)||Number(a.archivedConfig)-Number(b.archivedConfig)||(b.entries[0]?.run.createdAt||'').localeCompare(a.entries[0]?.run.createdAt||''));

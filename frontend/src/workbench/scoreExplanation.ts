@@ -3,6 +3,36 @@ import type {CapabilityAxis} from './capabilityProfiles';
 import type {Run,Task,Trial} from './types';
 import {taskCheckScope} from './presentation';
 
+/** Show the server's existing contributions; never grade or fill a missing item. */
+export function scoreComposition(run:Run,trial:Trial,task:Task){
+  const score=trial.score,card=score.taskScorecard;
+  if(run.policy.version!=='arena-machine-v1'){
+    const rows=[
+      {key:'objective',label:'程序检查',weight:run.policy.objectiveWeight,value:score.objective,source:'程序检查'},
+      {key:'human',label:'人工评分',weight:run.policy.humanWeight,value:score.human,source:'人工评分'},
+    ].filter(row=>row.weight>0).map(row=>({...row,points:row.value==null?null:row.value*row.weight/100}));
+    return {kind:'legacy' as const,rows,formula:`程序检查分 × ${run.policy.objectiveWeight}% + 人工分 × ${run.policy.humanWeight}%`,programPoints:null,qualityPoints:null};
+  }
+  const supplied=score.scoreProgress?.rows||card?.items||[];
+  const latest=trial.captures[trial.captures.length-1];
+  const rows=supplied.map(row=>{
+    const key='key' in row?row.key:undefined;
+    const quality=task.publicSource&&row.label==='工程可维护性';
+    let source=task.publicSource?(quality?'AI 可维护性':'原题程序验收'):'AI 评分';
+    if((quality&&score.machineOverrides?.maintainability)||(key&&score.machineOverrides?.[key]))source='人工修正';
+    if(key==='verification'&&task.checks?.length){
+      const checks=latest?.checks||[];
+      source=checks.some(check=>check.status==='failed')?'程序失败，限制为 0':!checks.length||checks.some(check=>!['passed','failed'].includes(check.status))?'待程序检查':source+' · 已有程序检查';
+    }
+    return {key,label:row.label,weight:row.weight,points:row.points,value:row.points==null||!row.weight?null:row.points/row.weight*100,source};
+  });
+  const program=task.publicSource?rows.filter(row=>row.label!=='工程可维护性'):[];
+  const quality=task.publicSource?rows.filter(row=>row.label==='工程可维护性'):[];
+  const sum=(items:typeof rows)=>items.length&&items.every(row=>row.points!=null)?items.reduce((n,row)=>n+row.points!,0):null;
+  return {kind:task.publicSource?'public' as const:'project' as const,rows,programPoints:sum(program),qualityPoints:sum(quality),
+    formula:task.publicSource?(card?'原题程序贡献（最多 90） + 可维护性贡献（最多 10）':'本题没有本地 100 分评分卡，保留原题通过结果'):'总分 = 各适用分项的分数 × 冻结权重，再相加'};
+}
+
 /** Presentation only: all grades and radar facets come from saved scores/helpers. */
 export function currentNativeResult(trial:Trial){
   const latest=trial.captures[trial.captures.length-1];

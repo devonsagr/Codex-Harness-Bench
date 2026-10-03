@@ -5,7 +5,8 @@ import ts from 'typescript';
 
 const source=readFileSync(new URL('../src/workbench/configResults.ts',import.meta.url),'utf8');
 const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const {configResults,entryScore,matchedComparison}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const {configResults,entryScore,matchedComparison,configurationScorePreview}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+
 const cfg=(revision=1,extra={})=>({id:'config-a',revision,name:'Focused',baseModel:'model-a',reasoning:'low',skills:[],...extra});
 const task=(id,sourceKind)=>({id,revision:1,title:id,sourceKind});
 const policy=(version='machine')=>({version,objectiveWeight:0,humanWeight:100,dimensions:{quality:100}});
@@ -204,4 +205,57 @@ test('matched comparison uses only shared task versions, cancelling coverage dif
   assert.equal(result.baselineScore,30);
   assert.equal(result.candidateScore,50);
   assert.equal(result.delta,20);
+});
+
+test('configuration preview averages same-task repeats first, even before comparable-grade eligibility',()=>{
+  const state={configs:[cfg()],archivedConfigs:[],runs:[run('01','task-a',20,{state:'captured'}),run('02','task-a',40,{state:'captured'}),run('03','task-b',90,{state:'captured'})],archivedRuns:[]};
+  const [group]=configResults(state),preview=configurationScorePreview(group);
+  assert.equal(group.score,null);assert.equal(preview.mean,60);
+  assert.equal(preview.scoredTasks,2);assert.equal(preview.totalTasks,2);assert.equal(preview.provisional,true);
+  assert.deepEqual(preview.rows.map(r=>r.mean),[30,90]);
+});
+
+test('a partly scored batch exposes a labelled sample mean instead of blank or zero-filled full score',()=>{
+  const batch=run('04','task-a',60,{state:'captured'});
+  const second=run('04','task-b',90,{state:'captured'}),pending=run('04','task-c',null,{state:'captured'});
+  batch.tasks.push(...second.tasks,...pending.tasks);batch.trials.push(...second.trials,...pending.trials);
+  const [group]=configResults({configs:[cfg()],archivedConfigs:[],runs:[batch],archivedRuns:[]});
+  const preview=configurationScorePreview(group);
+  assert.equal(group.score,null);assert.equal(group.referenceScore,null);
+  assert.equal(preview.mean,75);assert.equal(preview.scoredTasks,2);assert.equal(preview.totalTasks,3);
+  assert.equal(preview.complete,false);assert.equal(preview.sourceRunId,batch.id);
+  assert.equal(preview.rows.at(-1).mean,null);
+  assert.equal(preview.scoredTrials,2);assert.equal(preview.totalTrials,3);
+});
+
+test('a missing repeat remains visible even when every task has an available mean',()=>{
+  const batch=run('01','task-a',70),pending=run('01','task-a',null,{state:'captured'});
+  batch.trials.push({...pending.trials[0],id:'pending-repeat'});
+  const [group]=configResults({configs:[cfg()],archivedConfigs:[],runs:[batch],archivedRuns:[]});
+  const preview=configurationScorePreview(group);
+  assert.equal(preview.mean,70);assert.equal(preview.complete,false);
+  assert.equal(preview.scoredTasks,1);assert.equal(preview.totalTasks,1);
+  assert.equal(preview.scoredTrials,1);assert.equal(preview.totalTrials,2);
+});
+
+test('preview does not merge protocols or replace failed zero scores with missing values',()=>{
+  const a=run('01','same',0),b=run('02','same',100,{mode:'other-protocol'}),c=run('03','other',0);
+  const [group]=configResults({configs:[cfg()],archivedConfigs:[],runs:[a,b,c],archivedRuns:[]});
+  const preview=configurationScorePreview(group);
+  assert.equal(preview.rows[0].protocolConflict,true);assert.equal(preview.rows[0].mean,null);
+  assert.equal(preview.rows[1].mean,0);assert.equal(preview.mean,0);assert.equal(preview.complete,false);
+});
+
+test('native-only configuration keeps its measured pass rate without fabricating local 100-point scores',()=>{
+  const runs=[0,1].map((reward,index)=>{
+    const item=run(index?'02':'01','public-'+index,null,{sourceKind:'deepswe'});
+    item.tasks[0].publicSource={id:'public-'+index};
+    item.trials[0].score={overall:null,scoreSource:'native-verifier',nativeVerificationId:'native-'+index};
+    item.trials[0].captures[0]={manifest:{sha256:'capture-'+index},nativeVerifications:[{id:'native-'+index,captureHash:'capture-'+index,reward}]};
+    return item;
+  });
+  const [group]=configResults({configs:[cfg()],archivedConfigs:[],runs,archivedRuns:[]});
+  const preview=configurationScorePreview(group);
+  assert.equal(preview.mean,null);assert.equal(preview.nativeVerified,2);assert.equal(preview.nativePassed,1);
+  assert.equal(preview.scoredTasks,0);assert.equal(preview.totalTasks,2);
 });
