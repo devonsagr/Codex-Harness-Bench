@@ -360,3 +360,11 @@ task_scorecards增加只读observations，保留三组内每个细项冻结权�
 machineEvidenceKey为选中报告原键，人工修正仍绑定该键及reviewId；objectiveEvidenceKey继续对应最新程序检查，旧程序裁定仍失效。machineCheckEvidence为原报告审查时采用的检查，machineChecksChanged表示当前检查键不同。原AI分原样保留，当前检查仍按既有规则限制verification与配置资格，失败不会被AI质量分改成通过。
 
 开放题的通用网页烟检只列基础运行事实，不展示为独立整题程序验收。此项显示调整不移除旧检查，不改变冻结verification权重、原题reward或所有null的含义。沟通比例是逐回合诊断，具体未知分母/查原话规则见前端合同U74。
+
+## U75：保存来源与合成总分是不同职责
+
+程序回执、AI原报告、人工修正继续分存。总分由既有计算器按冻结卡合成，不额外调用AI“再判一次总分”：有卡SWE的F2P功能组贡献70、P2P回归贡献20、AI可维护性×10%；每个程序组完整通过才得该组分，不用整题reward直接乘90。原题通过率按reward独立统计。
+
+开放项目按冻结适用AI维度加权，已有check列表失败会把verification限制0、未完整执行会留空；程序通过不让该维度自动变满分。新增前端表直接读取实际贡献，不更改backend卡、需求约束、质量原分/有效修正或原题reward。旧objective/human混合的表取原objective/human以对应原overall，adjudicatedOverall独立标注。
+
+对话判定仍由现有AI审查生成，程序只核验角色/引文/回合及计数。三项逐回合结论是证据附件，不另设通用沟通总分；communication只有被该题冻结方案选中时才按原量表和权重参与，未选中不追加。

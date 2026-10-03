@@ -5,14 +5,14 @@ import {apiEquivalent,runProgress} from './presentation';
 import type {State,Act} from './types';
 import {Details,Empty,num,date} from './ui';
 import {downloadRun} from './api';
-import {configResults,entryScore} from './configResults';
+import {configResults,entryScore,configurationScorePreview} from './configResults';
 import {nativeTestProgress} from './scoreExplanation';
 import type {ConfigResult,ConfigResultEntry,TaskResult} from './configResults';
 import {DeleteEvaluation} from './DeleteEvaluation';
 import {CapabilityRadar} from './CapabilityRadar';
 const suiteUsage=(group:ReturnType<typeof configResults>[number])=>{
-  const entries=group.tasks.flatMap(task=>task.entries),usages=entries.map(entry=>entry.trial.usage);
-  if(!entries.length)return '本题集用量：尚无完整分';
+  const entries=configurationScorePreview(group).entries,usages=entries.map(entry=>entry.trial.usage);
+  if(!entries.length)return '尚无执行记录';
   const tokens=usages.map(usage=>usage?.totalTokens).filter((value):value is number=>typeof value==='number');
   const seconds=usages.map(usage=>usage?.activeSeconds).filter((value):value is number=>typeof value==='number');
   const costs=usages.map(usage=>usage?apiEquivalent(usage):null);
@@ -20,21 +20,15 @@ const suiteUsage=(group:ReturnType<typeof configResults>[number])=>{
     ` · API 等值约 $${costs.reduce((sum,value)=>sum+(value?.low||0),0).toFixed(2)}–$${costs.reduce((sum,value)=>sum+(value?.high||0),0).toFixed(2)}`:' · API 等值暂不可估';
   return `本题集用量：${tokens.length===entries.length?tokens.reduce((a,b)=>a+b,0).toLocaleString('zh-CN')+' Token':`${tokens.length}/${entries.length} 题有 Token`} · ${seconds.length===entries.length?Math.round(seconds.reduce((a,b)=>a+b,0)/60)+' 分钟活动':`${seconds.length}/${entries.length} 题有时长`}${cost}`;
 };
-const suiteEvidence=(group:ReturnType<typeof configResults>[number])=>{
-  const selected=group.tasks.flatMap(task=>task.entries);
-  if(!selected.length)return `${group.recorded} 次已有质量分${group.nativeScored?`；原题已验收 ${group.nativeScored} 次：${group.nativePassed} 通过、${group.nativeScored-group.nativePassed} 失败`:'；原题尚未取得结果'}，尚无完整题集质量分`;
-  const publicTrials=selected.filter(entry=>entry.task.publicSource);
-  const passed=publicTrials.filter(entry=>entry.trial.score.nativeReward===1).length;
-  const history=Math.max(0,group.recorded-selected.length);
-  return `${publicTrials.length?`当前题集原题通过 ${passed}/${publicTrials.length}`:'当前题集无公开原题'}${history?` · 历史另有 ${history} 次逐题分`:''}`;
-};
+
 type ResultItem={key:string;kind:'current'|'history'|'pending';title:string;revision:number;score:number|null;count:number;note:string;entries:ConfigResultEntry[]};
 function ConfigResultTasks({group,onOpen}:{group:ConfigResult;onOpen:(id:string)=>void}){
-  const [filter,setFilter]=useState<'current'|'history'|'pending'|'all'>(group.tasks.length?'current':'pending');
+  const preview=configurationScorePreview(group);
+  const [filter,setFilter]=useState<'current'|'history'|'pending'|'all'>(preview.tasks.length?'current':'pending');
   const [page,setPage]=useState(1);
-  const current:ResultItem[]=group.tasks.map((task:TaskResult)=>({key:'current:'+task.protocolKey,kind:'current',title:task.task.title,revision:task.task.revision,score:task.mean,count:task.entries.length,note:group.collections.find(source=>source.tasks.includes(task))?.label||'当前题集',entries:task.entries}));
-  const history:ResultItem[]=group.suiteRunId?group.entries.filter(entry=>entry.eligible&&entry.run.id!==group.suiteRunId).map(entry=>({key:'history:'+entry.trial.id,kind:'history',title:entry.task.title,revision:entry.task.revision,score:entryScore(entry),count:1,note:'历史题集，不纳入当前成绩',entries:[entry]})):[];
-  const pending:ResultItem[]=group.entries.filter(entry=>!entry.eligible).map(entry=>({key:'pending:'+entry.trial.id,kind:'pending',title:entry.task.title,revision:entry.task.revision,score:entryScore(entry),count:1,note:entry.exclusion||'尚未纳入配置成绩',entries:[entry]}));
+  const current:ResultItem[]=preview.tasks.map((task:TaskResult)=>({key:'current:'+task.protocolKey,kind:'current',title:task.task.title,revision:task.task.revision,score:task.mean,count:task.entries.length,note:`${task.entries.filter(entry=>entryScore(entry)!=null).length}/${task.entries.length} 次已评分；均值按已有本地单题分计算`,entries:task.entries}));
+  const history:ResultItem[]=group.entries.filter(entry=>!preview.entries.includes(entry)).map(entry=>({key:'history:'+entry.trial.id,kind:'history',title:entry.task.title,revision:entry.task.revision,score:entryScore(entry),count:1,note:'其他批次记录',entries:[entry]}));
+  const pending:ResultItem[]=preview.rows.filter(row=>row.mean==null).flatMap(row=>row.entries).map(entry=>({key:'pending:'+entry.trial.id,kind:'pending',title:entry.task.title,revision:entry.task.revision,score:entryScore(entry),count:1,note:preview.rows.find(row=>row.entries.includes(entry))?.protocolConflict?'同题评分协议不同，未合并':entry.exclusion||'尚无完整本地单题分',entries:[entry]}));
   const items=[...current,...history,...pending].filter(item=>filter==='all'||item.kind===filter);
   const pageSize=8,pages=Math.max(1,Math.ceil(items.length/pageSize)),visible=items.slice((Math.min(page,pages)-1)*pageSize,Math.min(page,pages)*pageSize);
   const changeFilter=(next:typeof filter)=>{setFilter(next);setPage(1);};
@@ -52,6 +46,22 @@ export function History({state,act,onOpen,onError}:{state:State;act:Act;onOpen:(
     <Details title={`CLI 实验档案 · ${state.legacyExperiments} 次`}><p className="muted">CLI 实验单独保存在 runs/，使用 chb report 或 chb analyze 查看，不混入桌面评测。</p></Details></>;
 
 }
+function ConfigurationScoreCalculation({group,onOpen}:{group:ConfigResult;onOpen:(id:string)=>void}){
+  const preview=configurationScorePreview(group);
+  const fmt=(value:number|null)=>value==null?'待形成':value.toFixed(2).replace(/\.?0+$/,'');
+  const terms=preview.rows.filter(row=>row.mean!=null).map(row=>fmt(row.mean));
+  return <section className="configuration-calculation" aria-label="配置分计算">
+    <header><h3>配置分计算</h3><span>{preview.scoredTasks}/{preview.totalTasks} 道题已有本地单题分</span></header>
+    <p>每道题的程序与 AI 按该题评分卡先合成单题分。同题重复先平均，再对不同题的均分等权平均。</p>
+    <p className="score-calculation-formula">{terms.length?`${terms.length>1?'('+terms.join(' + ')+')':terms[0]} ÷ ${terms.length} = ${preview.mean!.toFixed(1)} / 100`:'目前没有可汇总的本地单题分'}</p>
+    {!preview.complete&&<p>{preview.scoredTasks<preview.totalTasks?`这里只汇总 ${preview.scoredTasks} 道已有同口径分数的题；另有 ${preview.totalTasks-preview.scoredTasks} 道待评分或未合并。`:`各题已有分数，仍有 ${preview.totalTrials-preview.scoredTrials} 次重复试测未评分。`} 当前显示的是已评分题均分。</p>}
+    {preview.provisional&&<p>本批有尚未结束交付的项目，现有分数仍可随回收或修正更新。</p>}
+    <div className="score-table-scroll"><table className="score-summary-contributions"><thead><tr><th scope="col">题目</th><th scope="col">已评分 / 重复次数</th><th scope="col">单题均分</th><th scope="col">计入情况</th></tr></thead><tbody>{preview.rows.map(row=><tr key={row.key}><th scope="row">{row.task.title} v{row.task.revision}</th><td>{row.scored}/{row.entries.length}</td><td>{fmt(row.mean)}</td><td>{row.mean!=null?'进入本次参考均分':row.protocolConflict?'评分协议不同，未合并':row.entries[row.entries.length-1]?.exclusion||'待形成单题分'}</td></tr>)}</tbody></table></div>
+    {preview.nativeVerified>0&&<p>本批原题通过 {preview.nativePassed}/{preview.nativeVerified} 次（{(preview.nativePassed/preview.nativeVerified*100).toFixed(1)}%）。这是原题通过率，单独统计。</p>}
+    {preview.sourceRunId&&<button type="button" className="btn-secondary" onClick={()=>onOpen(preview.sourceRunId!)}>查看这批单题分的计算与证据</button>}
+  </section>;
+}
+
 export function Comparison({state,onOpen,initialKey=null}:{state:State;onOpen:(id:string)=>void;initialKey?:string|null}){
   const [opened,setOpened]=useState<string|null>(initialKey);
   const [model,setModel]=useState('');
@@ -64,11 +74,11 @@ export function Comparison({state,onOpen,initialKey=null}:{state:State;onOpen:(i
   const models=[...new Set(all.map(g=>g.config.baseModel))].sort();
   const counts={current:all.filter(g=>g.current).length,history:all.filter(g=>!g.current&&!g.archivedConfig).length,archived:all.filter(g=>g.archivedConfig).length};
   const groups=all.filter(g=>(!model||g.config.baseModel===model)&&(scope==='all'||(scope==='current'&&g.current)||(scope==='history'&&!g.current&&!g.archivedConfig)||(scope==='archived'&&g.archivedConfig)));
-  return <><header className="page-heading"><div><span className="eyebrow">配置成绩</span><h1 className="page-title">这套 Harness，是否值得用。</h1><p>固定模型，对比同题交付、失败与资源消耗；单题质量参考分保留在下方档案。</p></div><div className="history-count"><strong>{all.length}</strong><span>个配置版本</span></div></header>
-    {experimentRun?<><label className="harness-experiment-select">查看对照实验<select value={experimentRun.id} onChange={e=>setExperimentId(e.target.value)}>{experiments.map(r=><option key={r.id} value={r.id}>{r.configs.map(c=>c.name).join(" / ")} · {date(r.createdAt)}</option>)}</select></label><HarnessReport key={experimentRun.id} run={experimentRun}/><button className="btn-secondary" onClick={()=>onOpen(experimentRun.id)}>继续执行与验收</button></>:<div className="score-notice">在评测工作台选题后，进入配置步骤，启用“比较两套 Harness 的交付与效率”。支持从现有配置创建精简对照；固定题目与模型，交错执行独立重复。</div>}
-    <div className="config-results-intro"><p>同题重复先求均值，不同题再等权汇总。原题验收或已核对的任务专属程序验收是配置对照的最低证据门槛；综合分中的 AI 质量项仍需校准，不能仅凭分差宣布胜负。通用网页烟检和单次 AI 审查只显示参考均值；验收失败也不能冒充已通过。分数不是官方模型榜单。</p><div className="config-results-controls"><label>配置状态<select aria-label="配置状态" value={scope} onChange={e=>setScope(e.target.value as typeof scope)}><option value="all">全部版本 · {all.length}</option><option value="current">当前版本 · {counts.current}</option><option value="history">历史版本 · {counts.history}</option><option value="archived">已归档配置 · {counts.archived}</option></select></label><label>模型<select aria-label="按模型查看" value={model} onChange={e=>setModel(e.target.value)}><option value="">全部模型</option>{models.map(id=><option key={id} value={id}>{id}</option>)}</select></label></div></div>
-    {groups.length?<div className="config-results-grid">{groups.map(group=><article id={'config-result-'+group.key} key={group.key} className={'config-result-card '+(opened===group.key?'is-open':'')}><button className="config-result-summary" type="button" aria-expanded={opened===group.key} onClick={()=>setOpened(opened===group.key?null:group.key)}><span className="config-result-identity"><small>{group.current?'当前版本':group.archivedConfig?'已归档配置':'历史版本'} · v{group.config.revision}</small><strong>{group.config.name}</strong><em>{group.config.baseModel} · {group.config.reasoning||'默认思考'} · {group.config.serviceTier==='fast'?'Fast':group.config.serviceTier==='standard'?'标准速度':'沿用速度'} · {group.config.skills.length} 个 Skills</em></span><span className="config-result-metric"><strong>{group.score!=null?group.score.toFixed(1):group.nativeScored?`${group.nativePassed} / ${group.nativeScored}`:'—'}</strong><small>{group.referenceOnly&&group.referenceScore!=null?`AI 参考均值 ${group.referenceScore.toFixed(1)} · 不用于配置对比`:group.score==null?(group.nativeScored?'原题已验收试测的通过数 · 不是质量总分':group.recorded?`${group.recorded} 次已有逐题分，题集未完整`:'尚无最终分'):`${group.suiteRunId?"最近完整批次":"当前记录题集"}综合分 · ${group.tasks.length} 道 / 100`}</small></span><span className="config-result-count">{suiteEvidence(group)}<br/>{group.reason||`${group.tasks.length} 道题参与当前分${group.tasks.some(task=>task.entries.some(entry=>entry.trial.captures.some(c=>!c.harnessUnchanged||!c.hostUnchanged)))?" · 运行条件有变动，跨配置比较受限":""}`}{group.archivedRuns>0?` · ${group.archivedRuns} 次归档`:''}<br/>{suiteUsage(group)}</span><span aria-hidden="true" className="config-result-arrow">{opened===group.key?'−':'＋'}</span></button>
-      {opened===group.key&&<div className="config-result-detail"><p className="muted">{group.reason||'同题重复先取均值，不同题等权；逐题原始证据可查。'} 比较两套配置需对齐同题同版本、模型和验收协议。</p><CapabilityRadar group={group} all={all} onOpen={onOpen}/><ConfigResultTasks group={group} onOpen={onOpen}/></div>}</article>)}</div>:<Empty>{scope==='archived'?'没有符合条件的已归档配置。归档后的配置会留在这里。':'没有符合筛选条件的配置版本。'}</Empty>}
+  return <><header className="page-heading"><div><span className="eyebrow">配置成绩</span><h1 className="page-title">配置成绩</h1><p>按本地单题分汇总，显示已评分题的参考均分、题数覆盖和原始计算依据。</p></div><div className="history-count"><strong>{all.length}</strong><span>个配置版本</span></div></header>
+    {experimentRun&&<><label className="harness-experiment-select">查看对照实验<select value={experimentRun.id} onChange={e=>setExperimentId(e.target.value)}>{experiments.map(r=><option key={r.id} value={r.id}>{r.configs.map(c=>c.name).join(" / ")} · {date(r.createdAt)}</option>)}</select></label><HarnessReport key={experimentRun.id} run={experimentRun}/><button className="btn-secondary" onClick={()=>onOpen(experimentRun.id)}>继续执行与验收</button></>}
+    <div className="config-results-intro"><p>同题重复先求均值，再对不同题等权平均。题集未完整时标明已评分题数；原题通过率单列，不与质量均分再做一次平均。</p><div className="config-results-controls"><label>配置状态<select aria-label="配置状态" value={scope} onChange={e=>setScope(e.target.value as typeof scope)}><option value="all">全部版本 · {all.length}</option><option value="current">当前版本 · {counts.current}</option><option value="history">历史版本 · {counts.history}</option><option value="archived">已归档配置 · {counts.archived}</option></select></label><label>模型<select aria-label="按模型查看" value={model} onChange={e=>setModel(e.target.value)}><option value="">全部模型</option>{models.map(id=><option key={id} value={id}>{id}</option>)}</select></label></div></div>
+    {groups.length?<div className="config-results-grid">{groups.map(group=>{const preview=configurationScorePreview(group);return <article id={'config-result-'+group.key} key={group.key} className={'config-result-card '+(opened===group.key?'is-open':'')}><button className="config-result-summary" type="button" aria-expanded={opened===group.key} onClick={()=>setOpened(opened===group.key?null:group.key)}><span className="config-result-identity"><small>{group.current?'当前版本':group.archivedConfig?'已归档配置':'历史版本'} · v{group.config.revision}</small><strong>{group.config.name}</strong><em>{group.config.baseModel} · {group.config.reasoning||'默认思考'} · {group.config.serviceTier==='fast'?'Fast':group.config.serviceTier==='standard'?'标准速度':'沿用速度'} · {group.config.skills.length} 个 Skills</em></span><span className="config-result-metric"><strong>{preview.mean!=null?preview.mean.toFixed(1):preview.nativeVerified?`${(preview.nativePassed/preview.nativeVerified*100).toFixed(1)}%`:'—'}</strong><small>{preview.mean==null?(preview.nativeVerified?`原题通过率 · ${preview.nativePassed}/${preview.nativeVerified} 次`:'尚无可汇总的本地单题分'):`${preview.complete?'题集参考分':'已评分题均分'} · ${preview.scoredTasks}/${preview.totalTasks} 题${preview.provisional?' · 含暂定分':''}`}</small></span><span className="config-result-count">{preview.nativeVerified?`本批原题 ${preview.nativePassed}/${preview.nativeVerified} 通过`:preview.entries.some(entry=>entry.task.publicSource)?'本批原题待验收':'本地项目质量评分'} · {preview.totalTasks-preview.scoredTasks} 题待形成本地分{group.archivedRuns>0?` · ${group.archivedRuns} 次归档`:''}<br/>{suiteUsage(group)}</span><span aria-hidden="true" className="config-result-arrow">{opened===group.key?'−':'＋'}</span></button>
+      {opened===group.key&&<div className="config-result-detail"><ConfigurationScoreCalculation group={group} onOpen={onOpen}/><Details title="完整题集分与跨配置对比条件"><p>{group.score==null?(group.reason||'参考分尚不满足完整配置对比条件。'):`已形成可对比的配置分 ${group.score.toFixed(1)} / 100。`}</p><p>查看参考均分与进行条件对齐的配置比较是两种用途。跨配置比较仍需同题、同版本、同模型和验收协议。</p></Details><CapabilityRadar group={{...group,tasks:preview.tasks}} all={all} onOpen={onOpen}/><ConfigResultTasks group={group} onOpen={onOpen}/></div>}</article>;})}</div>:<Empty>{scope==='archived'?'没有符合条件的已归档配置。归档后的配置会留在这里。':'没有符合筛选条件的配置版本。'}</Empty>}
     <Details title="怎样比较两套 Harness"><p>先对齐题目、模型、思考档位、速度、源码、评分方案和桌面环境。只比较规则或 Skills 时，尽量固定其余条件。换模型后的成绩属于另一套组合，不能只归因于 Harness。同题重复测试仍有随机波动，不自动宣布胜者。</p></Details></>;
 }
 export {Guide} from './Guide';

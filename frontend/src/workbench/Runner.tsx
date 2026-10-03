@@ -1,4 +1,3 @@
-import {InteractionReview} from './InteractionReview';
 import {ScoreSummary} from './ScoreSummary';
 import {HarnessReport} from './HarnessExperiment';
 import {NativeVerification} from './NativeVerification';
@@ -45,7 +44,7 @@ function TrialView({run,trial:t,task,config,state,act,onResults,onError,archived
   const [confirmed,setConfirmed]=useState(false);const [response,setResponse]=useState('');const [reason,setReason]=useState('');const [model,setModel]=useState(config.baseModel);const [copied,setCopied]=useState('');
   const latest=t.captures[t.captures.length-1];const busy=['checking','judging'].includes(t.state);
   const programAvailable=hasProgramVerifier(task,t),checksLabel=programAvailable?'程序验收':'程序验收：无';
-  const scoreSections=[['overview','结果总览'],...(programAvailable?[['checks',checksLabel],['quality','AI 评分']]:[['quality','AI 评分'],['checks',checksLabel]]),['dialogue','沟通与交互'],['human','人工复核']];
+  const scoreSections=[['overview','结果总览'],...(programAvailable?[['checks',checksLabel],['quality','AI 评分']]:[['quality','AI 评分'],['checks',checksLabel]]),['human','人工复核']];
   const [panelRef,preservePosition]=usePanelPosition();
   const staged=task.deliveryMode!=='single-delivery'&&task.stages.length>1;
   const intermediate=staged&&t.stageIndex+1<task.stages.length&&!t.finalCaptureId;
@@ -85,7 +84,6 @@ function TrialView({run,trial:t,task,config,state,act,onResults,onError,archived
       <div className="assessment-section" hidden={scoreSection!=='overview'}><ScoreSummary run={run} trial={t} task={task} onResults={onResults} onSection={selectScoreSection}/></div>
       <div className="assessment-section space-y-5" hidden={scoreSection!=='checks'}><EvaluationTrack task={task} trial={t} runId={run.id} disabled={archived} action={action} onReview={()=>selectScoreSection('review')}/>{latest&&<NativeVerification task={task} trial={t} route={`/runs/${run.id}/trials/${t.id}`} disabled={archived} action={action}/>}</div>
       <div className="assessment-section" hidden={scoreSection!=='human'}>{latest?<HumanInspection key={t.id+'-'+latest.id} run={run} trial={t} disabled={archived} act={act}/>:<Empty>回收产物后可以人工复核。</Empty>}</div>
-      <div className="assessment-section panel p-5" hidden={scoreSection!=='dialogue'}><InteractionReview onReview={()=>selectScoreSection('review')} evidence={latest?.interactionEvidence} report={t.reviews.filter(review=>review.captureId===latest?.id&&review.kind==='ai').slice(-1)[0]?.interaction}/></div>
       <div className="assessment-section" hidden={scoreSection!=='quality'}>
       {latest?<>{run.policy.version==='arena-machine-v1'?<MachineScore key={latest.id} run={run} trial={t} state={state} reviewRequest={reviewRequest} onChecks={()=>selectScoreSection('checks')} act={(name,data)=>act(`/runs/${run.id}/trials/${t.id}/${name}`,data)} disabled={archived}/>:<><Panel title={`验收与评分 · 最近回收为第 ${latest.stageIndex+1} 轮`}><p className="score-notice">此记录保留创建时的旧评分算法。新建评测已默认使用机器评分与人工修正。</p><div className="metric-grid"><Metric label="客观检查" value={num(t.score.objective)}/><Metric label="人工复审" value={num(t.score.human)}/><Metric label="综合分" value={num(t.score.overall)}/></div><p className="muted">评分策略：{run.policy.objectiveWeight===0?'纯人工':run.policy.humanWeight===0?'仅客观检查':'客观检查 + 人工复审'}（客观 {run.policy.objectiveWeight}% / 人工 {run.policy.humanWeight}%）。</p><p className="muted">综合分需完成交付并补齐策略要求的证据。各分项有各自依据，个人约束另列；空值不是零分。</p>
     {(!latest.harnessUnchanged||!latest.hostUnchanged)&&<p className="alert-error">规则文件或宿主配置指纹发生变化，需核对；本结果不能视作条件保持一致。</p>}
