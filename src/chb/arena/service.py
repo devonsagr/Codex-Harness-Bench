@@ -86,6 +86,8 @@ class Arena:
                             trial['judgeExecution'].update(status='interrupted',endedAt=now())
                         if trial.get('nativeExecution',{}).get('status')=='running':
                             trial['nativeExecution'].update(status='interrupted',phase='服务中断，可重新验收',endedAt=now())
+                        if trial.get('assessmentExecution',{}).get('status')=='running':
+                            trial['assessmentExecution'].update(status='interrupted',phase='服务中断；已完成结果保留',endedAt=now())
                         self.event(run,'后台服务中断；已保留快照和检查记录，可重新验收。',trial['id'])
                         if trial.get('ownedContainers'):trial['observations'].append('服务重启后仍有本工具检查容器未确认清理，需先恢复 Docker 后处理。')
                 self.db.save('run',run,run['revision'])

@@ -13,12 +13,21 @@ def connection_fingerprint():
         'auth':hash_bytes(auth.read_bytes()) if auth.is_file() else None,
         'env':os.environ.get(route['envKey']) if route['envKey'] else None})
 
-VERSION = 'review-feedback-v1'
-MAX_ATTEMPTS = 2
+VERSION = 'review-feedback-v2'
+MAX_ATTEMPTS = 3
+
+def attempt_limit(data):
+    value=data.get('maxReviewAttempts',MAX_ATTEMPTS)
+    if type(value) is not int or not 1<=value<=MAX_ATTEMPTS:
+        raise ValueError('本次裁判取证次数须为 1 至 3；不能扩大自动调用上限。')
+    return value
+
 INSTRUCTION = (
     '\n提交前自行核对每个细项的等级和引用：等级4需要实际反例检查，counterEvidence不能仅重复正例引用。'
     '若没有足够证据支持最高等级，先补查，再由你选择证据实际支持的等级并说明局限；不要把可检查的遗漏直接留空。'
-    '本平台会将格式、引用或缺项问题自动反馈一次；你须自行检查和重新提交完整报告。'
+    '目标是在本次评测内给出全部适用维度的第一份完整结果。不要将漏写counterEvidence、漏做可运行检查或引用格式错误当成无法评分。'
+    '若等级4不能成立，由你重新选择证据支持的较低等级；平台不会替你降级或填分。'
+    '本平台会在同一时间预算内自动反馈格式、引用或缺项问题，最多补查两次；你须自行检查和重新提交完整报告。'
     '环境或材料确实不支持的项仍为null，并明确原因；不得修复待评作品、伪造检查或为了凑总分填数。'
 )
 REPAIR_INSTRUCTION = (
@@ -34,19 +43,19 @@ REPAIR_INSTRUCTION = (
 def repair_issues(result, packet=None):
     """Only incomplete observations are candidates; valid low grades stay intact."""
     issues=[]
-    unavailable=re.compile(r'环境|沙箱|权限|额度|不可用|无法启动|未提供|缺少冻结.{0,12}(图片|会话|日志)|unavailable|not supported',re.I)
+    unavailable=re.compile(r'环境.{0,10}(不可用|不支持|未就绪)|沙箱.{0,10}(拒绝|不支持|限制)|权限.{0,8}(拒绝|不足)|额度不足|无法启动|缺少冻结.{0,12}(图片|会话|日志)|unavailable|not supported',re.I)
     for key, rating in result.get('ratings',{}).items():
         if rating.get('score') is not None:continue
         checks=rating.get('checks') or {'observation':rating}
         for facet, row in checks.items():
             if row.get('score') is not None:continue
-            reason=str(row.get('reason') or row.get('constraint') or '缺少可核对的观察。')
+            reason=str(row.get('constraint') or row.get('reason') or '缺少可核对的观察。')
             if unavailable.search(reason):continue
             # Native Windows currently cannot gather browser evidence. Retrying
             # the same unsupported operation cannot make that fact disappear.
             if (packet or {}).get('browserUnavailable') and key in {'ux','visual','responsive','accessibility','performance'}:continue
             issues.append({'dimension':key,'facet':facet,'reason':reason[:600]})
-    if any(row['dimension']=='intent' for row in issues):
+    if any(row.get('dimension')=='intent' for row in issues):
         for key, row in (result.get('requirementChecks') or {}).items():
             if row.get('status')=='unverified' and not unavailable.search(str(row.get('notes',''))):
                 issues.append({'requirement':key,'reason':str(row.get('notes') or '原题条款尚未核实。')[:600]})

@@ -103,13 +103,15 @@ def score_public(task, native, quality, review_id, retrospective=True):
             'note': '本地追溯评分，不是 DeepSWE 官方 reward；语义组全通过才记该组分，旧功能回归单列。'}
 
 
-def score_project(task, trial, scores, review_id):
+def score_project(task, trial, scores, review_id, *, agent_fallback=False):
     """Apply the approved 60/25/15 local card to a completed open project."""
     latest = trial.get('captures', [])[-1] if trial.get('captures') else None
     measured = dict(scores)
     if task.get('checks') and latest:
         checks = latest.get('checks', [])
-        if not checks or any(row.get('status') not in {'passed', 'failed'} for row in checks):
+        if agent_fallback and any(row.get('status') == 'failed' for row in checks):
+            measured['verification'] = 0
+        elif (not checks or any(row.get('status') not in {'passed', 'failed'} for row in checks)) and not agent_fallback:
             measured['verification'] = None
         elif any(row['status'] == 'failed' for row in checks):
             measured['verification'] = 0
@@ -131,7 +133,7 @@ def score_project(task, trial, scores, review_id):
             'note': '本地开放项目评分：目标 60、使用与可靠性 25、交付维护 15；有配置的程序检查失败会限制验证项。'}
 
 
-def score_project_policy(task, trial, scores, review_id, policy):
+def score_project_policy(task, trial, scores, review_id, policy, *, agent_fallback=False):
     """Score a new open-project run using its frozen, selected rubric weights."""
     from .scoring import UI_RUBRIC_KEYS
     weights = {key:weight for key,weight in policy['dimensions'].items()
@@ -142,7 +144,10 @@ def score_project_policy(task, trial, scores, review_id, policy):
     verification_note = None
     if 'verification' in weights and task.get('checks') and latest:
         checks = latest.get('checks', [])
-        if not checks or any(row.get('status') not in {'passed', 'failed'} for row in checks):
+        if agent_fallback and any(row.get('status') == 'failed' for row in checks):
+            measured['verification'] = 0
+            verification_note = '已有程序检查失败，验证项限制为 0 分'
+        elif (not checks or any(row.get('status') not in {'passed', 'failed'} for row in checks)) and not agent_fallback:
             measured['verification'] = None
             verification_note = '已配置的程序检查尚无完整结果，验证项未计分'
         elif any(row['status'] == 'failed' for row in checks):
@@ -165,7 +170,7 @@ def score_project_policy(task, trial, scores, review_id, policy):
             'note': '本地开放项目分按创建评测时冻结的适用评分项与权重计算；未测项不当作零分。有配置的程序检查失败会限制验证项。'}
 
 
-def score_project_auto(task, trial, scores, review_id, scorecard_version=AUTO_PROJECT_VERSION):
+def score_project_auto(task, trial, scores, review_id, scorecard_version=AUTO_PROJECT_VERSION, *, agent_fallback=False):
     """A frozen task-type card: one result, with three disjoint 60/25/15 groups."""
     from .scoring import AUTO_PROJECT_GROUPS, AUTO_PROJECT_GROUPS_V2, auto_profile, RUBRICS
     profile = auto_profile(task)
@@ -175,7 +180,10 @@ def score_project_auto(task, trial, scores, review_id, scorecard_version=AUTO_PR
     verification_note = None
     if 'verification' in measured and task.get('checks') and latest:
         checks = latest.get('checks', [])
-        if not checks or any(row.get('status') not in {'passed', 'failed'} for row in checks):
+        if agent_fallback and any(row.get('status') == 'failed' for row in checks):
+            measured['verification'] = 0
+            verification_note = '已有程序检查失败，验证项限制为 0 分'
+        elif (not checks or any(row.get('status') not in {'passed', 'failed'} for row in checks)) and not agent_fallback:
             measured['verification'] = None
             verification_note = '已配置的程序检查尚无完整结果，验证项未计分'
         elif any(row['status'] == 'failed' for row in checks):

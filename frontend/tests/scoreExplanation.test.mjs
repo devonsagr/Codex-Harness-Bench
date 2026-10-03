@@ -8,7 +8,23 @@ const url=source=>'data:text/javascript;base64,'+Buffer.from(source).toString('b
 const capability=url(transpile('../src/workbench/capabilityProfiles.ts'));
 const presentation=url(transpile('../src/workbench/presentation.ts'));
 const source=transpile('../src/workbench/scoreExplanation.ts').replace("'./capabilityProfiles'",JSON.stringify(capability)).replace("'./presentation'",JSON.stringify(presentation));
-const {currentNativeResult,currentTrialAxes,batchScoreSummary,totalScoreExplanation,programScoreExplanation,nativeTestProgress,missingScoreEvidence,scoreComposition}=await import(url(source));
+const {currentNativeResult,currentTrialAxes,batchScoreSummary,totalScoreExplanation,programScoreExplanation,nativeTestProgress,missingScoreEvidence,scoreComposition,trialResultLabel}=await import(url(source));
+
+test('queue reports native pass and failure as results even without a continuous card',()=>{
+  const task={publicSource:{id:'tengo'}};
+  const trial={state:'captured',score:{overall:null,nativeVerificationId:'native'},captures:[{id:'capture',manifest:{sha256:'hash'},nativeVerifications:[{id:'native',captureHash:'hash',reward:1}]}]};
+  assert.equal(trialResultLabel(trial,task),'原题通过');
+  trial.captures[0].nativeVerifications[0].reward=0;
+  assert.equal(trialResultLabel(trial,task),'原题未通过');
+  trial.captures[0].manifest.sha256='changed';
+  assert.equal(trialResultLabel(trial,task),'已回收 · 尚未评测');
+  trial.assessmentExecution={captureId:'capture',status:'running',phase:'自动补查'};trial.state='judging';
+  assert.equal(trialResultLabel(trial,task),'自动补查');
+  trial.state='captured';trial.assessmentExecution.status='budget_exhausted';
+  assert.equal(trialResultLabel(trial,task),'评测未完成');
+  trial.score.overall=0;
+  assert.equal(trialResultLabel(trial,task),'0 分');
+});
 
 test('SWE composition reads program contributions plus quality contribution, not test-count or AI means',()=>{
   const publicTask={publicSource:{id:'abs-stepped-slices'}};
