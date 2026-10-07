@@ -16,7 +16,7 @@ from .review_options import timeout_seconds, ReviewBudgetExceeded
 from .judge_reliability import comparison_key
 
 JUDGE_DEFAULT_REASONING=''
-JUDGE_PROMPT_VERSION='arena-judge-2026-10-03-assessment-v8'
+JUDGE_PROMPT_VERSION='arena-judge-2026-10-07-frontend-focus-v9'
 REVIEWER_CODEX_VERSION='0.158.0-alpha.2.1'
 JUDGE_REASONING_LEVELS={'none','minimal','low','medium','high','xhigh','max','ultra'}
 
@@ -350,6 +350,7 @@ def revalidate_saved_review(app,rid,tid):
                 except ValueError:continue
                 codex_version=((entry.get('config') or {}).get('agent') or {}).get('kwargs',{}).get('version') or codex_version
         report={**result,'connection':connection_info,'evaluationScope':packet['evaluationScope'],
+                'frontendReadability':previous.get('frontendReadability') if previous else None,
                 'assessmentVersion':previous.get('assessmentVersion') if previous else protocol.get('assessmentVersion'),
                 'programChecksFallback':previous.get('programChecksFallback',False) if previous else protocol.get('programChecksFallback',False),
                 'model':execution.get('model'),'reasoningEffort':execution.get('reasoning'),
@@ -430,22 +431,25 @@ def review_screenshots(app,rid,tid,data):
     return {'path':requested,'image':'data:'+mime+';base64,'+base64.b64encode(raw).decode()}
 
 
-def run_checks(app,rid,tid,capture,task,control,*,behavior=False):
+def run_checks(app,rid,tid,capture,task,control,*,behavior=False,readability=False):
     source=app.local/'runs'/rid/tid/'captures'/capture['id']/'files'
     verify_snapshot(source,capture['manifest'])
     from .behavior import check_definition
     from .files import fingerprint
     supplemental=check_definition(task,app.root)
-    image_field='behaviorImages' if behavior else 'checkImages'
-    result_field='behaviorChecks' if behavior else 'checks'
-    checks=([supplemental] if supplemental else []) if behavior else applicable_checks(task,capture['stageIndex'])
-    if behavior:
+    if readability:
+        from .frontend_readability import check_definition as readability_check
+        supplemental=readability_check(task,capture)
+    image_field='readabilityImages' if readability else 'behaviorImages' if behavior else 'checkImages'
+    result_field='readabilityChecks' if readability else 'behaviorChecks' if behavior else 'checks'
+    checks=([supplemental] if supplemental else []) if behavior or readability else applicable_checks(task,capture['stageIndex'])
+    if behavior or readability:
         with app.lock:
             run,trial=app.trial(rid,tid)
             current=next(c for c in trial['captures'] if c['id']==capture['id'])
-            current.setdefault('behaviorAttempts',[]).extend(current.get('behaviorChecks',[]))
-            current['behaviorChecks']=[]
-            capture['behaviorChecks']=[]
+            current.setdefault('readabilityAttempts' if readability else 'behaviorAttempts',[]).extend(current.get(result_field,[]))
+            current[result_field]=[]
+            capture[result_field]=[]
             app.db.save('run',run,run['revision'])
     reports=[]
     for check in checks:
@@ -457,14 +461,14 @@ def run_checks(app,rid,tid,capture,task,control,*,behavior=False):
                 frozen=next((c.get(image_field,{}).get(check['id']) for c in prior_trial['captures'] if c.get(image_field,{}).get(check['id'])),None)
         if not frozen:
             from .builtin_tasks import creative_verifier_needs_refresh, prepare_missing_verifier
-            if creative_verifier_needs_refresh(app,task,check['image']):
-                prepare_missing_verifier(app,task,check['image'])
+            if creative_verifier_needs_refresh(app,task,check['image'],readability=readability):
+                prepare_missing_verifier(app,task,check['image'],readability=readability)
         from chb.cli import pin_image
         try:image=pin_image(frozen or check['image'])
         except (ValueError,OSError,subprocess.SubprocessError) as exc:
             from .builtin_tasks import prepare_missing_verifier
             try:
-                if frozen or not prepare_missing_verifier(app,task,check['image']):
+                if frozen or not prepare_missing_verifier(app,task,check['image'],readability=readability):
                     raise ValueError('无法读取检查镜像；仅项目自带题允许自动准备，陌生镜像不会自动下载。') from exc
                 image=pin_image(check['image'])
             except (OSError,subprocess.SubprocessError) as prepare_exc:
@@ -500,7 +504,7 @@ def run_checks(app,rid,tid,capture,task,control,*,behavior=False):
                 inspect=shell(['docker','inspect',name,'--format','{{.State.ExitCode}}'])
                 code=int(inspect.stdout.strip()) if inspect.returncode==0 else None
                 status='cancelled' if control['stop'].is_set() else 'passed' if code==0 else 'failed' if code is not None else 'error'
-                if code==2 and task.get('sourceKind') in {'evalplus-local','community-adapted'} and not control['stop'].is_set():
+                if code==2 and (readability or task.get('sourceKind') in {'evalplus-local','community-adapted'}) and not control['stop'].is_set():
                     status='error'  # Fixed checker budget/environment failure is not a wrong answer.
             except subprocess.TimeoutExpired:
                 shell(['docker','stop','--time','1',name],timeout=8)
@@ -531,13 +535,13 @@ def run_checks(app,rid,tid,capture,task,control,*,behavior=False):
         with app.lock:
             run,trial=app.trial(rid,tid)
             current=next(c for c in trial['captures'] if c['id']==capture['id'])
-            if behavior:
+            if behavior or readability:
                 report.update(captureHash=capture['manifest']['sha256'],taskHash=fingerprint(task),attemptId=attempt_id,images=images)
             current[result_field]=reports.copy()
-            if behavior:capture[result_field]=reports.copy()
+            if behavior or readability:capture[result_field]=reports.copy()
             app.event(run,check['label']+'：'+status,tid);app.db.save('run',run,run['revision'])
     verify_snapshot(source,capture['manifest'])
-    if not behavior and supplemental and not control['stop'].is_set():
+    if not behavior and not readability and supplemental and not control['stop'].is_set():
         run_checks(app,rid,tid,capture,task,control,behavior=True)
     return reports
 
@@ -545,6 +549,9 @@ def run_checks(app,rid,tid,capture,task,control,*,behavior=False):
 def review_packet(app,rid,tid,capture,task):
     source=app.local/'runs'/rid/tid/'captures'/capture['id']/'files'
     verify_snapshot(source,capture['manifest'])
+    from .frontend_readability import FOCUS, extract, diagnostic_checks
+    readability=extract(task,capture['checks'],capture) if task.get('hasFrontendUI') else None
+    measurements=diagnostic_checks(task,capture) if task.get('hasFrontendUI') else []
     files={name:body for name,body in inventory(source)[0].items() if judge_visible_file(name)};texts={};total=0;omitted=[]
     for name,body in sorted(files.items()):
         try:value=body.decode('utf-8')
@@ -570,10 +577,11 @@ def review_packet(app,rid,tid,capture,task):
                  if row.get('captureHash')==capture['manifest']['sha256']
                  and type(row.get('reward')) is int and row['reward'] in (0,1)),None)
     return {'task':task,'evaluationScope':scope,'stageIndex':capture['stageIndex'],'captureId':capture['id'],'manifestHash':capture['manifest']['sha256'],
+            **({'frontendReviewFocus':FOCUS,'browserReadability':readability} if task.get('hasFrontendUI') else {}),
             'nativeAcceptance':{key:native[key] for key in ('id','reward','f2p_passed','f2p_total','p2p_passed','p2p_total') if key in native} if native else None,
             **({'interactionEvidence':dialogue} if dialogue else {}),
             'behaviorAcceptance':summarize(task,capture,app.root),
-            'files':texts,'omittedFiles':omitted,'checks':capture['checks'],'facts':capture['facts']}
+            'files':texts,'omittedFiles':omitted,'checks':[*capture['checks'],*measurements],'facts':capture['facts']}
 
 
 def validate_judge(value,packet):
@@ -764,6 +772,9 @@ def _run_judge_once(app,rid,tid,capture,task,data,control,feedback=None,deadline
         instruction += '\n统一评分格式：' + INSTRUCTION
         from .judge_repair import INSTRUCTION as SELF_CHECK, VERSION as REPAIR_VERSION
         instruction += SELF_CHECK
+        if task.get('hasFrontendUI'):
+            from .frontend_readability import INSTRUCTION as FRONTEND_INSTRUCTION
+            instruction+=FRONTEND_INSTRUCTION
         if packet.get('interactionEvidence'):
             from .interaction import INSTRUCTION as INTERACTION_INSTRUCTION
             instruction += '\n对话观察格式：' + INTERACTION_INSTRUCTION
@@ -910,4 +921,4 @@ def _run_judge_once(app,rid,tid,capture,task,data,control,feedback=None,deadline
     route_file=folder/'connection.json'
     connection_info=json.loads(route_file.read_text(encoding='utf-8')) if route_file.is_file() else {}
     from .judge_progress import read_judge_usage
-    return {**result,**({'judgeComparisonKey':comparison_key(packet)} if machine else {}),'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgePromptVersion':JUDGE_PROMPT_VERSION,'judgePromptSha256':base_instruction_hash,'judgeFinalInstructionSha256':hash_bytes(instruction.encode('utf-8')),'judgePacketSha256':hash_bytes(material.encode('utf-8')),'serviceTier':data.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','judgeBlinding':'workspace-instructions-stripped-v1','judgeUsage':read_judge_usage(folder),'executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION if local else reviewer_version,'captureHash':capture['manifest']['sha256'],'reportNormalization':normalization}
+    return {**result,**({'judgeComparisonKey':comparison_key(packet)} if machine else {}),'frontendReadability':packet.get('browserReadability'),'connection':connection_info,'evaluationScope':packet['evaluationScope'],'model':model,'reasoningEffort':reasoning,'judgePromptVersion':JUDGE_PROMPT_VERSION,'judgePromptSha256':base_instruction_hash,'judgeFinalInstructionSha256':hash_bytes(instruction.encode('utf-8')),'judgePacketSha256':hash_bytes(material.encode('utf-8')),'serviceTier':data.get('serviceTier','standard'),'judgeIsolation':'fresh-cli-process+ephemeral-CODEX_HOME','judgeBlinding':'workspace-instructions-stripped-v1','judgeUsage':read_judge_usage(folder),'executionMode':'cli-review-only','reviewEnvironment':'local' if local else 'docker','jobPath':str(folder),'imageId':image,'codexVersion':CODEX_VERSION if local else reviewer_version,'captureHash':capture['manifest']['sha256'],'reportNormalization':normalization}

@@ -135,6 +135,17 @@ def run_assessment(app, rid, tid, capture, task, data, control):
                 update('功能补充检查完成', {'kind': 'behavior', 'status': 'completed'})
             except ValueError as exc:
                 recover(exc, '功能补充检查受限，继续 AI 取证')
+        from .frontend_readability import check_definition as readability_check, extract
+        if readability_check(task,capture) and data.get('environment','docker')=='docker' and not extract(task,capture['checks'],capture):
+            update('检查页面文字与操作区域')
+            try:
+                run_checks(app,rid,tid,capture,task,control,readability=True)
+                ensure_running()
+                measured=extract(task,capture['checks'],capture)
+                update('浏览器实测已记录' if measured else '浏览器实测受限，继续 AI 取证',
+                       {'kind':'readability','status':'completed' if measured else 'unavailable'})
+            except ValueError as exc:
+                recover(exc,'浏览器实测受限，继续 AI 取证')
         ensure_running()
         timer.cancel()  # Reviewer execution observes the same absolute deadline.
         update('AI 正在逐项取证与评分')

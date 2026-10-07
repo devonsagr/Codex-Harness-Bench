@@ -192,7 +192,7 @@ def validate_machine(value, packet, commands):
         verified[key]={'status':row['status'],'notes':notes,'evidence':refs}
     return {'ratings':ratings,'criteria':verified,'scores':{k:r['score'] for k,r in ratings.items() if r['score'] is not None},
             'scoreSchema':'arena-machine-v1','evidenceKey':packet['evidenceKey'],
-            'commands':commands,'scoresAreAdvisory':False,'validationWarnings':warnings,
+            'commands':commands,'scoresAreAdvisory':True,'validationWarnings':warnings,
             'note':'AI 判断计入机器分；引用校验只证明材料存在，不保证结论正确。运行证据与静态判断分别标注。'}
 
 

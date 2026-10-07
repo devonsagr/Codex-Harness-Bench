@@ -59,6 +59,25 @@ def repair_issues(result, packet=None):
         for key, row in (result.get('requirementChecks') or {}).items():
             if row.get('status')=='unverified' and not unavailable.search(str(row.get('notes',''))):
                 issues.append({'requirement':key,'reason':str(row.get('notes') or '原题条款尚未核实。')[:600]})
+    # A high frontend opinion must address the measured examples, not merely
+    # cite a foundational PASS. The reviewer still decides whether a risk is
+    # appropriate in context; code never lowers the grade on a font threshold.
+    measured=(result.get('frontendReadability') or {}).get('views',[])
+    samples={}
+    for view in measured:
+        for concern in view.get('concerns',[]):
+            samples.setdefault(concern['kind'],
+                {**concern,'checkId':view['checkId'],'width':view['viewport']['width']})
+    for dimension in ('ux','visual'):
+        rating=result.get('ratings',{}).get(dimension,{})
+        if rating.get('score') is None or rating['score']<75:continue
+        refs=rating.get('evidence',[])
+        for sample in list(samples.values())[:4]:
+            if any(ref.get('checkId')==sample['checkId'] and sample['kind'] in ref.get('quote','')
+                   and sample['text'] in ref.get('quote','') for ref in refs):continue
+            issues.append({'dimension':dimension,'facet':'quality','reason':
+                f"高分尚未回应浏览器风险样本：{sample['kind']}，{sample['width']}px，{sample['text'][:120]}。"
+                '请实际核对并引用对应检查；有合理用途则解释，不成立则由你选择有依据的等级。'})
     return issues[:64]
 
 

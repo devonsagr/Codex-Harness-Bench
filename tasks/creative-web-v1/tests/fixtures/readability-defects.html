@@ -1,0 +1,3 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>可读性反例夹具</title>
+<style>body{margin:0;font:16px/1.5 sans-serif;color:#202020;background:white}main{max-width:640px;padding:24px}h1{font-size:30px}.tiny{font-size:8px}.clipped{height:10px;width:160px;line-height:24px;overflow:hidden}.stage{position:relative;height:50px}.stage span{position:absolute;left:0;top:0}button{width:12px;height:12px;padding:0;border:0;font-size:8px}</style>
+<main><h1>预约时间</h1><p class="tiny">这是一段必须阅读的说明，但正文只有八像素，不能因页面可打开就认为清楚易用。</p><p class="clipped">这段说明被容器裁切，用户无法读到后面的预约结果与操作方式。</p><div class="stage"><span>重叠文字甲</span><span>重叠文字乙</span></div><button aria-label="确认预约" onclick="document.querySelector('#status').textContent='预约已确认'">×</button><p id="status">尚未提交。</p></main></html>
