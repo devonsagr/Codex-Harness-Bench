@@ -643,7 +643,7 @@ button,input,select,textarea,summary{font-family:var(--ui-font)}
 .score-summary-axes li>p{margin-top:6px;color:var(--muted)}
 .score-summary-axes>p{margin-top:14px;color:var(--muted)}
 .score-summary-contributions{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
-.score-summary-contributions th,.score-summary-contributions td{text-align:left;padding:12px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.score-summary-contributions th,.score-summary-contributions td{text-align:left;padding:12px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;font-size:inherit;line-height:1.65}
 .score-summary-contributions th{font-weight:600}
 .score-summary-contributions thead{background:var(--surface-soft)}
 .score-calculation,.score-config-link,.configuration-calculation{display:grid;gap:14px;padding:20px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {chromium} = require('playwright');
+const {collectReadability} = require('./readability.cjs');
 
 const root = process.argv[2] || '/app';
 const profile = process.argv[3] || 'page';
@@ -102,6 +103,8 @@ async function verify() {
     for (const width of [320,390,768,1280]) {
       await page.setViewportSize({width,height:800});
       await page.waitForTimeout(100);
+      const facts=await page.evaluate(collectReadability);
+      console.log('BROWSER_READABILITY '+JSON.stringify(facts));
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
         `Horizontal overflow at ${width}px`);
       const heading=await page.locator('h1').first().boundingBox();

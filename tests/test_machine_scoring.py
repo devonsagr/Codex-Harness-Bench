@@ -358,6 +358,19 @@ class MachineScoringTests(unittest.TestCase):
         self.assertEqual(t['score']['machineCoverage'],100);self.assertEqual(t['score']['acceptance']['status'],'met')
         self.assertEqual(t['score']['assurance'],'ai-reference')
 
+    def test_frontend_review_packet_contains_task_focus_and_real_program_measurements(self):
+        from chb.arena.jobs import review_packet
+        from chb.arena.frontend_readability import PREFIX,VERSION
+        run=self.app.db.get('run',self.rid)
+        task=run['tasks'][0];task.update(hasFrontendUI=True,checks=[{'id':'browser','image':'chb-verifier:creative-web-v1','argv':['node','/tests/verify.cjs','/app','form']}])
+        self.app.db.save('run',run,run['revision'])
+        data={'version':VERSION,'viewport':{'width':390,'height':800},'sampledText':3,'sampledControls':1,'smallestBodyFont':8,'concerns':[]}
+        capture={**self.capture,'checks':[{'id':'browser','status':'passed','imageId':'sha256:fixture','output':PREFIX+json.dumps(data)}]}
+        packet=review_packet(self.app,self.rid,self.tid,capture,task)
+        self.assertEqual(len(packet['frontendReviewFocus']),4)
+        self.assertEqual(packet['browserReadability']['views'][0]['smallestBodyFont'],8)
+        self.assertEqual(packet['task']['inputPrompt'],self.task['inputPrompt'])
+
     def test_program_rerun_preserves_ai_report_correction_and_original_check_evidence(self):
         self.report();self.correct()
         run=self.app.db.get('run',self.rid)

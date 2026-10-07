@@ -19,6 +19,8 @@ class TaskPortfolioTests(unittest.TestCase):
         with patch('chb.arena.service.shell',return_value=SimpleNamespace(returncode=0,stdout='<no value>')):
             self.assertTrue(creative_verifier_needs_refresh(app,task,image))
             self.assertFalse(creative_verifier_needs_refresh(app,{'id':'custom'},image))
+            self.assertFalse(creative_verifier_needs_refresh(app,{'id':'custom','hasFrontendUI':True},image))
+            self.assertTrue(creative_verifier_needs_refresh(app,{'id':'custom','hasFrontendUI':True},image,readability=True))
         with patch('chb.arena.service.shell',return_value=SimpleNamespace(returncode=0,stdout=CREATIVE_WEB_VERIFIER_VERSION+'\n')):
             self.assertFalse(creative_verifier_needs_refresh(app,task,image))
 
