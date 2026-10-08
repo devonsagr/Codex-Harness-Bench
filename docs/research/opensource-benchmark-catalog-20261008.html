@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>开源评测：题目与评分</title><style>
+
+:root{color-scheme:light;--bg:#F7F7F8;--line:#d7d9df;--ink:#16191f;--muted:#555d69;--accent:#002FA7}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 "Helvetica Neue",Arial,"Microsoft YaHei",sans-serif}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:4px}
+button,input,select{font:inherit}
+button,select{min-height:44px}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+header{max-width:1440px;margin:auto;padding:28px 32px 20px;border-bottom:1px solid var(--line)}
+header .meta{font-size:14px;color:var(--muted);margin:0}
+h1{font-size:30px;line-height:1.3;letter-spacing:-.03em;margin:10px 0 12px}
+header p{margin:0;max-width:90ch}
+.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:1440px;margin:auto;padding:20px 32px}
+.search{display:flex;align-items:center;gap:12px}
+.search input{width:285px;max-width:100%;padding:9px 12px;min-height:44px;border:1px solid var(--line);background:white}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{background:white;border:1px solid var(--line);padding:8px 13px;color:var(--ink)}
+.filters button[aria-pressed=true]{background:var(--accent);color:white;border-color:var(--accent)}
+.workspace{display:grid;grid-template-columns:285px minmax(0,1fr);max-width:1440px;margin:0 auto;padding:0 32px 28px;min-width:0}
+.projects{border:1px solid var(--line);background:white;align-self:start;max-height:calc(100dvh - 215px);overflow-y:auto;scrollbar-gutter:stable}
+.projects h2{position:sticky;top:0;background:white;z-index:1;font-size:15px;line-height:1.6;padding:14px 16px;border-bottom:1px solid var(--line);margin:0;color:var(--muted);font-weight:500}
+.projects button{display:block;text-align:left;width:100%;border:0;border-bottom:1px solid var(--line);background:white;padding:13px 16px;line-height:1.5}
+.projects button:last-child{border-bottom:0}
+.projects button strong{display:block;font-size:16px;font-weight:600}
+.projects button span{display:block;color:var(--muted);font-size:14px;margin-top:2px}
+.projects button[aria-pressed=true]{border-left:4px solid var(--accent);padding-left:12px;background:#f1f4ff}
+.projects button[aria-pressed=true] strong{color:var(--accent)}
+.picker{display:none}
+article{min-width:0;background:white;border:1px solid var(--line);border-left:0;padding:24px 28px;max-height:calc(100dvh - 215px);overflow-y:auto;scrollbar-gutter:stable}
+.article-top{display:flex;justify-content:space-between;gap:16px;align-items:baseline;flex-wrap:wrap}
+h2{font-size:26px;line-height:1.3;margin:0 0 8px;letter-spacing:-.02em}
+.category{color:var(--muted);font-size:14px}
+.scale{margin:0 0 16px;color:var(--muted)}
+.sources{display:flex;flex-wrap:wrap;gap:12px 22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px 0;margin-bottom:18px}
+.sources a{font-size:15px;padding:4px 0;min-height:32px}
+dl{margin:0}
+dl>div{display:grid;grid-template-columns:115px minmax(0,1fr);gap:20px;padding:15px 0;border-bottom:1px solid var(--line)}
+dt{font-weight:600}
+dd{margin:0;overflow-wrap:anywhere}
+.takeaway{border-left:3px solid var(--accent);padding:0 16px;margin:24px 0}
+h3{font-size:20px;margin:26px 0 12px}
+.task{padding:16px 0;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task h4{font-size:18px;margin:0 0 4px}
+.task .id{font-size:14px;color:var(--muted);margin:0 0 9px;overflow-wrap:anywhere}
+.task p{margin:8px 0}
+.task a{display:inline-block;min-height:44px;padding:10px 0}
+.version{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-top:24px;overflow-wrap:anywhere}
+.empty{padding:20px}
+footer{max-width:1440px;margin:auto;padding:0 32px 28px;font-size:14px;color:var(--muted)}
+footer a{display:inline-block;min-height:32px;padding:5px 0}
+.count{color:var(--muted);font-size:14px}
+@media(min-width:851px){body{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+header,.tools,footer{width:100%;flex:none}
+.workspace{width:100%;flex:1;min-height:0;padding-bottom:16px}
+.projects,article{height:100%;max-height:none;min-height:0}
+footer{padding-bottom:12px}
+}
+@media(max-width:850px){header{padding:22px 18px 18px}
+h1{font-size:25px}
+.tools{padding:16px 18px;gap:12px}
+.search{flex-direction:column;align-items:stretch;width:100%;gap:6px}
+.search input{width:100%}
+.filters{gap:5px}
+.filters button{font-size:15px;padding:7px 11px}
+.workspace{display:block;padding:0 18px 24px}
+.projects{display:none}
+.picker{display:block;background:white;border:1px solid var(--line);padding:12px 14px;margin-bottom:12px}
+.picker label{display:block;font-size:14px;margin-bottom:5px;color:var(--muted)}
+.picker select{width:100%;max-width:100%;padding:8px;background:white;border:1px solid var(--line);color:var(--ink)}
+article{border:1px solid var(--line);padding:20px 16px;max-height:none;overflow:visible}
+h2{font-size:24px}
+dl>div{grid-template-columns:1fr;gap:5px;padding:13px 0}
+footer{padding:0 18px 24px}
+.sources{gap:8px 16px}
+}
+
+</style></head><body><header><p class="meta">调研资料 · 核对日期 2026-10-08</p><h1>开源评测：题目与评分</h1><p>查看任务怎么出、标准怎么写、分数怎么算。样题为中文摘要，完整题面与项目展示由原来源提供。</p></header><div class="tools"><div class="search"><label for="search">筛选项目或样题</label><input id="search" type="search" placeholder="例如：流程、裁判、备份" autocomplete="off"></div><nav class="filters" aria-label="按研究用途筛选"><button data-filter="all" aria-pressed="true">全部</button><button data-filter="flow" aria-pressed="false">用户流程</button><button data-filter="visual" aria-pressed="false">视觉与修复</button><button data-filter="quality" aria-pressed="false">工程化与 Harness</button><button data-filter="judge" aria-pressed="false">裁判校准</button></nav><span class="count" id="count" role="status"></span></div><div class="workspace"><aside class="projects" aria-label="项目列表"><h2>项目与关注范围</h2><div id="projectButtons"></div></aside><div class="picker"><label for="projectSelect">选择项目</label><select id="projectSelect"></select></div><article id="detail" aria-labelledby="detail-title"></article></div><footer>目录包含 9 个项目、17 条样题摘要。这里只浏览来源；题包、依赖与验收器是否可接入须另行核对。<br><a href="opensource-frontend-evaluation-20261008.md">查看完整调研记录与来源版本</a></footer><script type="application/json" id="catalog">
+[
+  {
+    "id": "vision",
+    "name": "Vision2Web",
+    "category": "用户流程",
+    "scale": "193 题 · 1,255 个功能用例",
+    "repo": "zai-org/Vision2Web",
+    "standard": "分成静态页面、交互前端、完整网站。功能裁判按预写的动作和验证条件操作浏览器；视觉裁判对照原型与实际截图。",
+    "scoring": "功能 FS：Pass 记 1，其余记 0；视觉 VS：组件按 0 / 0.25 / 0.5 / 0.75 / 1 分档后取均值。总榜按三个任务层级的均值计算，交互/全栈层内 VS 与 FS 等权。",
+    "evidence": "保存每条流程的 Pass / Fail / Blocked、原因和状态截图；视觉图片直接作为模型输入。",
+    "limits": "视觉分主要衡量像不像参考图。代码汇总把 Blocked / 缺结果记 0；不能照搬为我们的环境失败判分。仓库 README 的许可声明与 HF 数据卡标注不一致，复用须先核清。",
+    "tasks": [
+      {
+        "title": "OneDay Cloud · 交互前端",
+        "id": "frontend/1daycloud",
+        "summary": "从主页进入应用商店、指定应用、课程、服务与联系页面；核对页面导航和各状态。公开索引列出 6 个功能用例与 6 张原型图。",
+        "check": "按用户导航路径逐步检查结果，同时保存对应状态画面。",
+        "url": "https://huggingface.co/datasets/zai-org/Vision2Web/viewer/frontend/test?row=0"
+      },
+      {
+        "title": "401 Trucksource · 卡车服务网站",
+        "id": "frontend/401trucksource",
+        "summary": "新车与二手车列表、维修服务、配件和车身维修入口；首页轮播与服务按钮应引向对应页面。公开索引列出 6 个用例。",
+        "check": "不是按钮有反应即可；要到达正确页面与正确状态。",
+        "url": "https://huggingface.co/datasets/zai-org/Vision2Web/viewer/frontend/test?row=1"
+      }
+    ],
+    "code": "https://github.com/zai-org/Vision2Web/blob/d80a4a3d0ea7326541ad87314294269a633789e4/vision2web/evaluation/prompts.py",
+    "taskUrl": "https://huggingface.co/datasets/zai-org/Vision2Web",
+    "demo": "https://vision2web-bench.github.io/",
+    "takeaway": "借鉴完整流程、状态截图和功能/视觉分存；自由设计题不能强行按参考图逐像素打分。",
+    "commit": "d80a4a3d0ea7326541ad87314294269a633789e4",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "webgen",
+    "name": "WebGen-Bench",
+    "category": "用户流程",
+    "scale": "101 题 · 647 条功能条件",
+    "repo": "mnluzimu/WebGen-Bench",
+    "standard": "每题有网站需求，另列操作 task 与 expected_result。浏览器评估者执行动作并判断完成程度；外观裁判单独看页面截图。",
+    "scoring": "功能项 YES = 1、PARTIAL = 0.5、NO = 0，按固定 647 条条件汇总。外观另给 1–5 级，不直接和功能分混成同一个万能分。",
+    "evidence": "逐次浏览器交互消息、条件结果和外观截图。",
+    "limits": "部分汇总脚本按自由文本关键词提取结果；缺结果在固定分母下贡献 0。评分输出的解析不能原样搬过来，功能部分仍依赖 AI 判断。",
+    "tasks": [
+      {
+        "title": "股票报告生成器",
+        "id": "000001",
+        "summary": "输入股票代码或名称，选择报告内容和格式，再生成对应的报告。共有 7 条操作/预期结果条件。",
+        "check": "搜索是否返回对应信息，报告定制是否真的改变输出。",
+        "url": "https://github.com/mnluzimu/WebGen-Bench/blob/c89e0743438e458d617cebaf7a682e0e66e41049/data/test.jsonl"
+      },
+      {
+        "title": "社区数据比较地图",
+        "id": "000002",
+        "summary": "比较不同区域的人口、经济与犯罪数据，配有交互图表和可调整的仪表盘布局。共有 5 条功能条件。",
+        "check": "切换区域后的数据、比较结果和图表状态是否正确。",
+        "url": "https://github.com/mnluzimu/WebGen-Bench/blob/c89e0743438e458d617cebaf7a682e0e66e41049/data/test.jsonl"
+      }
+    ],
+    "code": "https://github.com/mnluzimu/WebGen-Bench/blob/c89e0743438e458d617cebaf7a682e0e66e41049/src/ui_test_webgen/compute_acc.py",
+    "taskUrl": "https://github.com/mnluzimu/WebGen-Bench/blob/c89e0743438e458d617cebaf7a682e0e66e41049/data/test.jsonl",
+    "demo": "https://huggingface.co/datasets/luzimu/WebGen-Bench",
+    "takeaway": "最值得借鉴的是每题提前写清“做什么操作、应得到什么结果”。",
+    "commit": "c89e0743438e458d617cebaf7a682e0e66e41049",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "artifacts",
+    "name": "ArtifactsBench",
+    "category": "视觉与需求",
+    "scale": "1,825 题 · 逐题检查清单",
+    "repo": "Tencent-Hunyuan/ArtifactsBenchmark",
+    "standard": "网页、游戏、工具、SVG 等题型各有 checklist，每项写检查内容、分档和 maxScore。裁判接收题目、代码和真实渲染图片。",
+    "scoring": "每项有最大分；核对的样题清单上限合计 100。裁判输出分项和 Overall Score，后处理主要提取模型给出的总分。",
+    "evidence": "真实截图以图片内容进入多模态请求，而不只是提供图片文件路径；保存原始裁判结果。",
+    "limits": "公开截图函数主要按时间截取画面，没有通用点击工作流。一些样题清单奖励原题未要求的动画/音效；不能照抄成额外工程要求。作者的人类一致性结果不等于每条验收都正确。",
+    "tasks": [
+      {
+        "title": "拖动与旋转方块的路径谜题",
+        "id": "1",
+        "summary": "通过拖动和旋转方块铺出通路，使角色到达目标；关卡之间有不同布局与挑战。",
+        "check": "拖动、旋转、路径判断及关卡进度分别检查。",
+        "url": "https://github.com/Tencent-Hunyuan/ArtifactsBenchmark/blob/88c968b87e150e63de7660937e6dcfb8e7d643cf/dataset/artifacts_bench.json"
+      },
+      {
+        "title": "角色升级与技能树",
+        "id": "2",
+        "summary": "收集经验升级，解锁技能或加强属性，使用简单经验与技能树结构。",
+        "check": "经验累计、等级与解锁依赖。注意其清单额外奖励动画/音效，超出了原题简要要求。",
+        "url": "https://github.com/Tencent-Hunyuan/ArtifactsBenchmark/blob/88c968b87e150e63de7660937e6dcfb8e7d643cf/dataset/artifacts_bench.json"
+      }
+    ],
+    "code": "https://github.com/Tencent-Hunyuan/ArtifactsBenchmark/blob/88c968b87e150e63de7660937e6dcfb8e7d643cf/src/infer_gemini.py",
+    "taskUrl": "https://github.com/Tencent-Hunyuan/ArtifactsBenchmark/blob/88c968b87e150e63de7660937e6dcfb8e7d643cf/dataset/artifacts_bench.json",
+    "demo": "https://artifactsbenchmark.github.io/",
+    "takeaway": "借鉴明确分档、真实图像输入与裁判校准；清单必须严格追溯原题，避免奖励题外功能。",
+    "commit": "88c968b87e150e63de7660937e6dcfb8e7d643cf",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "slop",
+    "name": "SlopCodeBench",
+    "category": "过度工程化",
+    "scale": "多轮需求 · 独立回归与代码质量",
+    "repo": "SprocketLab/slop-code-bench",
+    "standard": "每道题由 checkpoint 逐轮加需求，后续实现要保留旧行为。功能测试分 CORE / FUNCTIONALITY / REGRESSION / ERROR；代码健康另量测。",
+    "scoring": "测试通过率与 checkpoint 通过策略分开。复杂度、verbosity、erosion 等单列，代码健康分越高通常越差，不直接当作好用总分。",
+    "evidence": "每轮冻结代码、测试结果、结构指标、资源数据；问题包与 runner 分开版本化。",
+    "limits": "结构复杂度是线索，不能直接证明某个抽象多余。不能按文件数或行数一刀切扣分；必须结合本轮需求与功能回归。",
+    "tasks": [
+      {
+        "title": "备份调度器 · 第一轮",
+        "id": "file_backup/checkpoint_1",
+        "summary": "读取 YAML 计划，判断指定时间哪些任务应执行，先模拟备份并输出 JSONL 事件。",
+        "check": "时间、排除规则、到期判断与输出事件。",
+        "url": "https://github.com/gabeorlanski/scb-problems/blob/9cd9ca3a51c3d3e2a99d2488a25baf73a2204451/file_backup/checkpoint_1.md"
+      },
+      {
+        "title": "备份调度器 · 第二轮",
+        "id": "file_backup/checkpoint_2",
+        "summary": "在原调度器上增加完整备份、归档和校验策略；未设置策略时保持第一轮行为。",
+        "check": "新增能力与旧行为一起过测试，观察是否因改动引入回归和额外复杂度。",
+        "url": "https://github.com/gabeorlanski/scb-problems/blob/9cd9ca3a51c3d3e2a99d2488a25baf73a2204451/file_backup/checkpoint_2.md"
+      }
+    ],
+    "code": "https://github.com/SprocketLab/slop-code-bench/blob/31ceea3add480edb33431e70475c4c70597e6b31/docs/metrics/interpreting-results.md",
+    "taskUrl": "https://github.com/gabeorlanski/scb-problems",
+    "demo": "https://www.scbench.ai",
+    "takeaway": "最贴近“避免过度工程化”；让功能演进和修改负担成为观察对象。",
+    "commit": "31ceea3add480edb33431e70475c4c70597e6b31",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "judge",
+    "name": "WebDevJudge",
+    "category": "裁判校准",
+    "scale": "Unit：502 例 · 279 正例 / 223 负例",
+    "repo": "lcy2723/WebDevJudge",
+    "standard": "将用户需求拆成目标、静态内容、基础交互、复杂交互的可验证叶子。用静态代码评估与 GUI 操作评估两条路线检验裁判。",
+    "scoring": "每个叶子按实现/未实现判定，四类完成比例取平均；Unit 用已标注能完成/不能完成的任务计算 precision、recall、F1 和 accuracy。",
+    "evidence": "已知标签、错误类型、预期结果，以及公开 GUI 轨迹。",
+    "limits": "能输出完整报告不代表判得对。作者公布的特定 GUI 裁判在两个日期的 Unit accuracy 为 75.1% / 71.7%，不能外推为我们当前裁判或所有模型的准确率。",
+    "tasks": [
+      {
+        "title": "已有按钮，点击无响应",
+        "id": "web_0/task_1",
+        "summary": "点击免费试用入口，预期显示注册表单或说明弹窗。作者标签为不可完成，原因是按钮没反应。",
+        "check": "裁判能否识别“元素存在但功能不成立”。",
+        "url": "https://github.com/lcy2723/WebDevJudge/blob/2d93e5af4e65ddba47704497adacc5d3c1e52b69/webdevjudge_unit/data/webdevjudge_unit.jsonl"
+      },
+      {
+        "title": "点击图表出现对应详情",
+        "id": "web_0/task_2",
+        "summary": "点击状态环图某部分，应显示该部分的详情或弹窗；作者标签为可以完成。",
+        "check": "裁判是否既能拒绝坏页面，也能正确接受好页面。",
+        "url": "https://github.com/lcy2723/WebDevJudge/blob/2d93e5af4e65ddba47704497adacc5d3c1e52b69/webdevjudge_unit/data/webdevjudge_unit.jsonl"
+      }
+    ],
+    "code": "https://github.com/lcy2723/WebDevJudge/blob/2d93e5af4e65ddba47704497adacc5d3c1e52b69/evaluator/rubric.py",
+    "taskUrl": "https://github.com/lcy2723/WebDevJudge/blob/2d93e5af4e65ddba47704497adacc5d3c1e52b69/webdevjudge_unit/README.md",
+    "demo": "https://github.com/lcy2723/WebDevJudge",
+    "takeaway": "先用已知好坏验证裁判，避免只检查它有没有返回 JSON 和分数。",
+    "commit": "2d93e5af4e65ddba47704497adacc5d3c1e52b69",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "designbench",
+    "name": "DesignBench",
+    "category": "视觉还原与修复",
+    "scale": "900 个网页样本 · 四种前端技术",
+    "repo": "WebPAI/DesignBench",
+    "standard": "图到代码、已有页面编辑、UI 修复与编译错误修复分开。覆盖原生 HTML、React、Vue、Angular。",
+    "scoring": "编译/渲染结果、截图相似性、问题修复与代码改动相似性等指标分别计算。",
+    "evidence": "原始画面、目标画面、源码、修改要求与生成后的真实截图。",
+    "limits": "像参考图不等于好用；代码相似性可能不利于不同但有效的实现。数据和依赖须另行准备，当前仅展示来源。",
+    "tasks": [
+      {
+        "title": "图到前端实现",
+        "id": "Generation",
+        "summary": "给定一张 UI 图，在指定前端技术中重建该页面。",
+        "check": "能编译、能渲染，组件布局与画面是否接近。",
+        "url": "https://github.com/WebPAI/DesignBench"
+      },
+      {
+        "title": "已有 UI 编辑或局部修复",
+        "id": "Edit / Repair",
+        "summary": "给原页面、源码或标注区域，按修改要求编辑或修复页面。",
+        "check": "目标区域改善，其他内容是否保留；分别核对视觉和改动。",
+        "url": "https://github.com/WebPAI/DesignBench"
+      }
+    ],
+    "code": "https://github.com/WebPAI/DesignBench/blob/a1e58d66ecbf1f77848bc5529ee7bbbe33bc25ba/code/evaluator/main.py",
+    "taskUrl": "https://huggingface.co/datasets/whale99/DesignBench",
+    "demo": "https://github.com/WebPAI/DesignBench",
+    "takeaway": "借鉴编辑/修复题，避免题库全是从零生成和同一种 SVG。",
+    "commit": "a1e58d66ecbf1f77848bc5529ee7bbbe33bc25ba",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "design2code",
+    "name": "Design2Code",
+    "category": "视觉还原与修复",
+    "scale": "484 个网页 · 视觉还原",
+    "repo": "NoviScl/Design2Code",
+    "standard": "输入网页截图，生成前端；对参考与实际画面做细粒度匹配。",
+    "scoring": "CLIP、文字块覆盖、内容、位置、颜色等视觉指标；用人工偏好研究核对视觉指标的意义。",
+    "evidence": "参考截图和实际渲染截图，匹配到的文字块。",
+    "limits": "专门测视觉还原，没有完整业务流验收，不能用来证明自由设计作品的体验好。代码与数据许可分开。",
+    "tasks": [
+      {
+        "title": "从真实网页截图还原页面",
+        "id": "Design2Code test set",
+        "summary": "参照固定网页截图重建布局、文字与颜色，检查真实浏览器中的输出画面。",
+        "check": "文字块与布局位置匹配；并不检查完整业务成功。",
+        "url": "https://huggingface.co/datasets/SALT-NLP/Design2Code"
+      }
+    ],
+    "code": "https://github.com/NoviScl/Design2Code/blob/7a575e4c33f417c4be5c64072b8f5798de0d0f99/Design2Code/metrics/README.md",
+    "taskUrl": "https://huggingface.co/datasets/SALT-NLP/Design2Code",
+    "demo": "https://salt-nlp.github.io/Design2Code/",
+    "takeaway": "用于有参考图的对照与视觉缺陷例，不强加到自由创作题。",
+    "commit": "7a575e4c33f417c4be5c64072b8f5798de0d0f99",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "interaction",
+    "name": "Interaction2Code",
+    "category": "用户流程",
+    "scale": "127 个页面 · 374 个交互",
+    "repo": "WebPAI/Interaction2Code",
+    "standard": "给交互原型图和 action.json，要求实现不同状态和操作。静态页面和交互区域分别观察。",
+    "scoring": "用动作后的页面/区域视觉结果对照参考，保留人工对功能可用性的判断；不是完整后端验收分。",
+    "evidence": "交互前后画面、动作描述、人工失败分类。",
+    "limits": "只靠交互区域像不像仍可能漏掉业务错误；菜单、弹窗等单步交互不等于完整流程。",
+    "tasks": [
+      {
+        "title": "选择项控制表单内容",
+        "id": "公开失败案例：Wrong interactive element",
+        "summary": "选择以机构身份操作后，正确表单区域应出现；检查动作是否绑定在正确控件上。",
+        "check": "不能在别的按钮上实现相似变化来算成功。",
+        "url": "https://github.com/WebPAI/Interaction2Code#benchmark-examples"
+      },
+      {
+        "title": "菜单或弹窗交互",
+        "id": "交互原型 + action.json",
+        "summary": "从原型的初始状态和操作说明实现菜单、弹窗、选择状态及返回行为。",
+        "check": "相关区域状态正确，既不漏交互，也不把业务信息藏在不能访问的状态中。",
+        "url": "https://github.com/WebPAI/Interaction2Code#benchmark-examples"
+      }
+    ],
+    "code": "https://github.com/WebPAI/Interaction2Code/blob/29d8af1572888d33b028ef001dc8452f9e88497b/code/metric/calculate_metric.py",
+    "taskUrl": "https://huggingface.co/datasets/whale99/Interaction2Code",
+    "demo": "https://webpai.github.io/Interaction2Code/",
+    "takeaway": "借鉴动作和预期状态的配套题面，检查真正操作结果。",
+    "commit": "29d8af1572888d33b028ef001dc8452f9e88497b",
+    "checkedAt": "2026-10-08"
+  },
+  {
+    "id": "oneshot",
+    "name": "One-shot app benchmarks",
+    "category": "真实应用与 Harness",
+    "scale": "4 类完整应用 · 公开作品图库",
+    "repo": "VSBDev/one-shot-app-benchmarks",
+    "standard": "完整需求冻结后开发；作者的独立浏览器流程、实际截图与匿名审查包组成证据。保留模型/配置、时间和资源条件。",
+    "scoring": "CAD 案例用三位独立裁判与十项预先声明的权重；产品 60 / 工程 40，分数由原始分项算回总分。",
+    "evidence": "可运行源码、原始题面、截图、盲评票与计算、资源记录和同模型不同方案的案例。",
+    "limits": "个人案例研究，不是普遍排名；题目很大且有技术约束，不能直接代表我们的日常小任务。权重不应照搬。",
+    "tasks": [
+      {
+        "title": "像素图片编辑器",
+        "id": "pixel-image-editor-one-shot-prompt",
+        "summary": "真实绘制、图层、撤销/重做、导出、窄屏使用与键盘操作，要求操作实际有效。",
+        "check": "绘制结果改变、撤销恢复、下载内容正确；不只检查按钮是否存在。",
+        "url": "https://github.com/VSBDev/one-shot-app-benchmarks/blob/1cd72911872cb3d789f7825866e79875130c2de3/prompts/pixel-image-editor-one-shot-prompt.md"
+      },
+      {
+        "title": "轻量室内平面规划工具",
+        "id": "interior-floor-plan-cad-one-shot-prompt",
+        "summary": "绘制房间与墙、门窗、尺寸、对象调整、保存和导出，窄屏也能做核心操作。",
+        "check": "几何/面积正确，操作一致且产物可交付。",
+        "url": "https://github.com/VSBDev/one-shot-app-benchmarks/blob/1cd72911872cb3d789f7825866e79875130c2de3/prompts/interior-floor-plan-cad-one-shot-prompt.md"
+      }
+    ],
+    "code": "https://github.com/VSBDev/one-shot-app-benchmarks/blob/1cd72911872cb3d789f7825866e79875130c2de3/harness/README.md",
+    "taskUrl": "https://github.com/VSBDev/one-shot-app-benchmarks/tree/1cd72911872cb3d789f7825866e79875130c2de3/prompts",
+    "demo": "https://vsbdev.github.io/one-shot-app-benchmarks/",
+    "takeaway": "借鉴独立操作验收、匿名包和可看作品的题库入口；结论限定于同题同条件。",
+    "commit": "1cd72911872cb3d789f7825866e79875130c2de3",
+    "checkedAt": "2026-10-08"
+  }
+]
+</script><script>
+const catalog=JSON.parse(document.getElementById("catalog").textContent);const esc=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll("\"","&quot;");let filter="all",current="vision";const groups={flow:["vision","webgen","interaction"],visual:["artifacts","designbench","design2code"],quality:["slop","oneshot"],judge:["judge"]};const link=(url,label)=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;function render(){const query=document.getElementById("search").value.trim().toLocaleLowerCase();const visible=catalog.filter(p=>(filter==="all"||groups[filter].includes(p.id))&&[p.name,p.category,p.standard,p.scoring,...p.tasks.map(t=>t.title+" "+t.summary)].join(" ").toLocaleLowerCase().includes(query));document.getElementById("count").textContent=`${visible.length} 个项目`;if(!visible.some(p=>p.id===current))current=visible[0]?.id||"";document.getElementById("projectButtons").innerHTML=visible.map(p=>`<button type="button" data-project="${esc(p.id)}" aria-pressed="${p.id===current}"><strong>${esc(p.name)}</strong><span>${esc(p.category)}</span></button>`).join("");document.getElementById("projectSelect").innerHTML=visible.map(p=>`<option value="${esc(p.id)}" ${p.id===current?"selected":""}>${esc(p.name)}</option>`).join("");const p=visible.find(p=>p.id===current);const detail=document.getElementById("detail");if(!p){detail.innerHTML="<h2 id=detail-title>没有匹配的项目</h2><p>换一个关键词，或选择全部。</p>";return;}detail.innerHTML=`<div class="article-top"><h2 id="detail-title">${esc(p.name)}</h2><span class="category">${esc(p.category)}</span></div><p class="scale">${esc(p.scale)}</p><div class="sources">${link("https://github.com/"+p.repo,"GitHub 仓库")}${link(p.taskUrl,"查看原题与数据")}${link(p.code,"查看评分代码")}${link(p.demo,"打开项目展示")}</div><dl><div><dt>评价标准</dt><dd>${esc(p.standard)}</dd></div><div><dt>分数怎么算</dt><dd>${esc(p.scoring)}</dd></div><div><dt>实际证据</dt><dd>${esc(p.evidence)}</dd></div><div><dt>仍有的局限</dt><dd>${esc(p.limits)}</dd></div></dl><p class="takeaway">${esc(p.takeaway)}</p><h3>样题摘要</h3>${p.tasks.map(t=>`<section class="task"><h4>${esc(t.title)}</h4><p class="id">${esc(t.id)}</p><p>${esc(t.summary)}</p><p><strong>验收要看：</strong>${esc(t.check)}</p>${link(t.url,"查看这道原题")}</section>`).join("")}<p class="version">核对日期：${esc(p.checkedAt)} · 仓库版本 ${esc(p.commit.slice(0,12))}。题目来源与当前实现的接入状态分别记录。</p>`;detail.scrollTop=0;}document.getElementById("projectButtons").addEventListener("click",event=>{const button=event.target.closest("button[data-project]");if(button){current=button.dataset.project;render();}});document.getElementById("projectSelect").addEventListener("change",event=>{current=event.target.value;render();});document.getElementById("search").addEventListener("input",render);document.querySelectorAll("button[data-filter]").forEach(button=>button.addEventListener("click",()=>{filter=button.dataset.filter;document.querySelectorAll("button[data-filter]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));render();}));render();
+</script></body></html>
