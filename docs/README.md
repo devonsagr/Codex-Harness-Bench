@@ -62,7 +62,7 @@ U46 评分方案已由用户在 U47 确认并进入运行代码。五题本地�
 
 ## 换新对话时从哪里继续
 
-先读[当前交接顶部 U54](当前交接.md)、[PROJECT_SPEC 第8.14节](PROJECT_SPEC.md#814-u54-当前入口从题多转向任务机制多)和[U54题集审计](research/task-portfolio-audit-20260927.md)，再按任务读[评分](architecture/EVALUATION.md)、[题集](architecture/TASKS_AND_CONTRACTS.md)、[用量比较](architecture/MEASUREMENT_AND_COMPARISON.md)和[前端](FRONTEND_SPEC.md)。`requirements.md` 是用户要求保真记录，`CODEX_HISTORY.md` 是历史证据；旧章节所写“当前”仅代表当时状态。
+先读[当前交接顶部现行条目](当前交接.md)、[PROJECT_SPEC 第8.14节](PROJECT_SPEC.md#814-u54-当前入口从题多转向任务机制多)和[U54题集审计](research/task-portfolio-audit-20260927.md)，再按任务读[评分](architecture/EVALUATION.md)、[题集](architecture/TASKS_AND_CONTRACTS.md)、[用量比较](architecture/MEASUREMENT_AND_COMPARISON.md)和[前端](FRONTEND_SPEC.md)。`requirements.md` 是用户要求保真记录，`CODEX_HISTORY.md` 是历史证据；旧章节所写“当前”仅代表当时状态。
 
 新对话先按题集审计的“题面、独立起点、程序验收、真实成绩”四层核对事实。优先补独立数据/工程题的正负例与程序验收、至少一类非 SWE 公开基准的完整环境适配、创意题机制去重和盲评校准；24题精选在这些条件达标前不能称正式具名跑分套件。小分差须按同题配对、独立重复和条件报告，不靠多显示小数位。
 
@@ -74,3 +74,5 @@ U46 评分方案已由用户在 U47 确认并进入运行代码。五题本地�
 - 真实完成/未验证见[当前交接](当前交接.md)；工作包状态仍只在[主架构](PROJECT_SPEC.md)第8节维护。
 
 - [U69：社区题源、扩展测试与固定程序分数](research/community-tasks-and-fixed-scoring-20261001.md)
+
+- [U78：GitHub前端验收、裁判校准与过度工程化调研](research/opensource-frontend-evaluation-20261008.md)；[项目与样题浏览页](research/opensource-benchmark-catalog-20261008.html)。含标准、公式、原题、版本及不可照搬边界。
